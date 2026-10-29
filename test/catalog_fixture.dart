@@ -21,6 +21,7 @@ Future<PackCatalog> fixtureCatalog() async {
                   'description': 'A complete garden set',
                   'accessType': p.id == 'default' ? 'free' : 'premium',
                   'priceCoins': switch (p.id) {
+                    'default' => 0,
                     'moonlight' => 180,
                     'sakura' => 280,
                     'golden_autumn' => 420,
@@ -35,5 +36,10 @@ Future<PackCatalog> fixtureCatalog() async {
           }),
           200))));
   await catalog.load();
+  // A bad fixture must fail at its source rather than making every Shop
+  // widget test report the misleading symptom of a disabled claim button.
+  if (!catalog.online || !catalog.assetReady('moonlight')) {
+    throw StateError('Shop fixture failed to load a valid, complete catalog');
+  }
   return catalog;
 }

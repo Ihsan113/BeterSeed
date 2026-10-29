@@ -80,6 +80,8 @@ class PackDownloadService extends ChangeNotifier {
   final Set<String> _busy = {};
   final Map<String, String> _errors = {};
   bool initialized = false;
+  bool _disposed = false;
+  Future<void>? _initialization;
 
   PackArchiveInfo? info(String id) => _manifest[id];
   bool installed(String id) => GardenPackFiles.hasPack(id);
@@ -92,8 +94,20 @@ class PackDownloadService extends ChangeNotifier {
         uri.userInfo.isEmpty && uri.query.isEmpty && uri.fragment.isEmpty;
   }
 
+  // The first-load background scan and an immediate Shop download may request
+  // initialization together. Share one in-flight scan instead of opening the
+  // same files twice. Failed scans can be retried safely.
   Future<void> initialize() async {
-    if (initialized) return;
+    if (initialized || _disposed) return;
+    final work = _initialization ??= _scanInstalledPacks();
+    try {
+      await work;
+    } finally {
+      if (!initialized) _initialization = null;
+    }
+  }
+
+  Future<void> _scanInstalledPacks() async {
     final raw = jsonDecode(await rootBundle.loadString('assets/pack_downloads.json')) as Map;
     if (raw['schema'] != 1 || raw['packs'] is! Map) throw const FormatException('Pack manifest version');
     for (final item in (raw['packs'] as Map).entries) {
@@ -214,5 +228,17 @@ class PackDownloadService extends ChangeNotifier {
     return true;
   }
 
-  @override void dispose() { _client.close(); super.dispose(); }
+  // A background scan can finish after the page is unmounted; notifying a
+  // disposed ChangeNotifier would be an assertion failure in widget tests.
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _client.close();
+    super.dispose();
+  }
 }

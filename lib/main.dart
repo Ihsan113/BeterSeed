@@ -338,7 +338,14 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   Future<void> _load() async {
-    try { await _packs.initialize(); } catch (_) { /* Original Garden remains available. */ }
+    // Disk discovery for optional CDN packs must not block the first Garden
+    // frame. In particular, path_provider and filesystem access may complete
+    // later than the user's saved progress (or be unavailable in widget tests).
+    // PackDownloadService publishes installed packs through its listener once
+    // the scan finishes; until then the Default Garden is always safe to draw.
+    unawaited(_packs.initialize().catchError((Object _) {
+      // Optional downloads can fail without preventing the offline garden.
+    }));
     final prefs = await SharedPreferences.getInstance();
     var loaded = List<Habit>.from(_starterHabits);
     final rawHabits = prefs.getString(_storageHabits);

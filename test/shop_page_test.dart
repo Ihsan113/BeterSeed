@@ -10,6 +10,17 @@ void main() {
   late dynamic catalog;
   setUp(() async { catalog = await fixtureCatalog(); });
   tearDown(() => catalog.dispose());
+  test('Shop fixture keeps free and premium offers valid', () {
+    expect(catalog.online, isTrue);
+    final free = catalog.offers.singleWhere((o) => o.id == 'default');
+    expect(free.accessType, 'free');
+    expect(free.price, 0);
+    for (final offer in catalog.offers.where((o) => o.id != 'default')) {
+      expect(offer.accessType, 'premium');
+      expect(offer.price, greaterThan(0));
+    }
+    expect(catalog.assetReady('moonlight'), isTrue);
+  });
   test('Only Default artwork and every pack thumbnail ship in the app', () {
     final bundled = File('pubspec.yaml').readAsStringSync();
     expect(GardenPackRegistry.packs, hasLength(10));
