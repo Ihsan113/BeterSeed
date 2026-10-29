@@ -29,7 +29,7 @@ class AutumnAssetsContractTests(unittest.TestCase):
         self.assertIn('GardenPackRegistry', shop)
         self.assertIn('ShopLoadout.autumnPack', (ROOT/'lib/data/garden_pack_registry.dart').read_text())
         self.assertIn('ownedAutumn', backup)
-        self.assertIn('garden_packs/$pack', widget)
+        self.assertIn('File(context.filesDir, "garden_packs").canonicalFile', widget)
         self.assertNotIn('- assets/videos/', pub)
 
 if __name__ == '__main__':

@@ -170,6 +170,7 @@ class MainActivity : FlutterActivity() {
                         .putString("widget_day", call.argument<String>("day") ?: "")
                         .putString("widget_theme", call.argument<String>("theme") ?: "default")
                         .putString("widget_tree_asset", call.argument<String>("treeAsset") ?: "")
+                        .putString("widget_tree_file", call.argument<String>("treeFile") ?: "")
                         .apply()
                     BetterSeedWidget.updateAll(this)
                     result.success(null)

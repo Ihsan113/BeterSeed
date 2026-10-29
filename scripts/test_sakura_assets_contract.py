@@ -26,7 +26,7 @@ class SakuraAssetsContractTests(unittest.TestCase):
 
     def test_android_widget_supports_private_pack_images(self):
         source = (ROOT/'native/android/kotlin/BetterSeedWidget.kt').read_text()
-        self.assertIn('garden_packs/$pack', source)
+        self.assertIn('File(context.filesDir, "garden_packs").canonicalFile', source)
         self.assertIn('installed.json', source)
         for i in range(6):
             self.assertFalse((ROOT/f'native/android/res/drawable-nodpi/widget_sakura_tree_{i}.webp').exists())

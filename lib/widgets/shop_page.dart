@@ -56,6 +56,45 @@ class BetterSeedShopPage extends StatefulWidget {
 class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
   int _tab = 0;
 
+  bool _removing = false;
+
+  Future<void> _confirmRemove(LocalGardenPack pack) async {
+    if (_removing || widget.downloads == null) return;
+    setState(() => _removing = true);
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          scrollable: true,
+          title: Text('Remove ${pack.name} download?'),
+          content: const Text(
+              'This removes the downloaded files from this phone. '
+              'Your pack ownership and garden progress stay saved. '
+              'You will need to download the pack again to use its assets.'),
+          actions: [
+            TextButton(
+                key: const ValueKey('pack-remove-cancel'),
+                onPressed: () => Navigator.pop(dialog, false),
+                child: const Text('Keep download')),
+            FilledButton(
+                key: const ValueKey('pack-remove-confirm'),
+                onPressed: () => Navigator.pop(dialog, true),
+                child: const Text('Remove download')),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      final removed = await widget.downloads!.remove(pack.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(removed
+              ? '${pack.name} download removed. You still own this pack.'
+              : 'Could not remove this download. Please try again.')));
+    } finally {
+      if (mounted) setState(() => _removing = false);
+    }
+  }
+
   void _equip(String id) {
     widget.onApplyLoadout?.call(
       GardenPackRegistry.find(id)?.loadout ?? ShopLoadout.defaultPack,
@@ -66,7 +105,7 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
     final packId = id.replaceFirst('owned-', '');
     if (!GardenPackFiles.hasPack(packId)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Download this pack first to preview all 6 stages.')));
+          content: Text('Download this pack first to preview all 6 stages.')));
       return;
     }
     final pack =
@@ -278,16 +317,14 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
             onDownload: () async {
               final ok = await widget.downloads?.download(pack.id) ?? false;
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
-                ok ? '${pack.name} is ready to use.' :
-                (widget.downloads?.configured == true
-                  ? 'Download failed. Please check storage or internet and retry.'
-                  : 'Pack hosting is not configured for this build.'))));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(ok
+                      ? '${pack.name} is ready to use.'
+                      : (widget.downloads?.configured == true
+                          ? 'Download failed. Please check storage or internet and retry.'
+                          : 'Pack hosting is not configured for this build.'))));
             },
-            onRemove: () async {
-              await widget.downloads?.remove(pack.id);
-              if (mounted) setState(() {});
-            },
+            onRemove: _removing ? null : () => _confirmRemove(pack),
             premium: !owned.contains(pack.id) &&
                 offers[pack.id]?.accessType == 'premium',
             leafPrice: offers[pack.id]?.price ?? 0,
@@ -331,7 +368,7 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
     required String? downloadError,
     required bool published,
     required VoidCallback onDownload,
-    required VoidCallback onRemove,
+    required VoidCallback? onRemove,
     required VoidCallback? onTap,
     bool premium = false,
     int leafPrice = 0,
@@ -352,15 +389,15 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
         ? 'Downloading ${(downloadProgress * 100).round()}%'
         : needsDownload
             ? 'Download • ${downloadSize ?? '? MB'}'
-        : active && installed
-        ? 'In Use'
-        : !owned
-            ? premium
-                ? enoughCoins
-                    ? 'Unlock • $leafPrice leaves'
-                    : 'Get more leaves'
-                : 'Claim Free'
-            : (_tab == 0 ? 'My Collection' : 'Use');
+            : active && installed
+                ? 'In Use'
+                : !owned
+                    ? premium
+                        ? enoughCoins
+                            ? 'Unlock • $leafPrice leaves'
+                            : 'Get more leaves'
+                        : 'Claim Free'
+                    : (_tab == 0 ? 'My Collection' : 'Use');
     return Container(
       key: ValueKey('shop-pack-$id'),
       decoration: BoxDecoration(
@@ -459,18 +496,22 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                 if (downloadSize != null) ...[
                   const SizedBox(height: 8),
                   Row(children: [
-                    const Icon(Icons.download_for_offline_outlined, size: 14, color: _mint),
+                    const Icon(Icons.download_for_offline_outlined,
+                        size: 14, color: _mint),
                     const SizedBox(width: 6),
-                    Expanded(child: Text(installed
-                        ? 'Installed · ${downloadSize} download'
-                        : 'Optional download · $downloadSize',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFFCEE8E0)))),
+                    Expanded(
+                        child: Text(
+                            installed
+                                ? 'Installed · ${downloadSize} download'
+                                : 'Optional download · $downloadSize',
+                            style: const TextStyle(
+                                fontSize: 11, color: Color(0xFFCEE8E0)))),
                   ]),
                 ],
                 if (!published && !owned) ...[
                   const SizedBox(height: 8),
                   const Text('Not released in the Shop yet',
-                    style: TextStyle(fontSize: 11, color: Color(0xFFE7CC90))),
+                      style: TextStyle(fontSize: 11, color: Color(0xFFE7CC90))),
                 ],
                 if (downloading) ...[
                   const SizedBox(height: 8),
@@ -479,7 +520,8 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                 if (downloadError != null && !installed) ...[
                   const SizedBox(height: 6),
                   Text('Download failed · retry available',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFFFFBD9F))),
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFFFFBD9F))),
                 ],
                 if (premium && !owned) ...[
                   const SizedBox(height: 10),
@@ -507,17 +549,23 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                   width: double.infinity,
                   child: FilledButton.icon(
                     key: ValueKey('shop-action-$id'),
-                    onPressed: downloading ? null
-                        : needsDownload ? onDownload
-                        : active ? null : onTap,
+                    onPressed: downloading
+                        ? null
+                        : needsDownload
+                            ? onDownload
+                            : active
+                                ? null
+                                : onTap,
                     icon: Icon(
-                      needsDownload ? Icons.download_rounded : active
-                          ? Icons.check_circle_outline
-                          : owned
-                              ? Icons.auto_awesome_outlined
-                              : premium
-                                  ? Icons.lock_open_rounded
-                                  : Icons.card_giftcard_outlined,
+                      needsDownload
+                          ? Icons.download_rounded
+                          : active
+                              ? Icons.check_circle_outline
+                              : owned
+                                  ? Icons.auto_awesome_outlined
+                                  : premium
+                                      ? Icons.lock_open_rounded
+                                      : Icons.card_giftcard_outlined,
                       size: 18,
                     ),
                     label: Text(buttonText,
@@ -529,7 +577,10 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                     ),
                   ),
                 ),
-                if (installed && owned && !active && id.replaceFirst('owned-', '') != 'default')
+                if (installed &&
+                    owned &&
+                    !active &&
+                    id.replaceFirst('owned-', '') != 'default')
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(

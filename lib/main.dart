@@ -149,6 +149,18 @@ class _GrowthHomeState extends State<GrowthHome>
       ? {'default',...((_cloud.wallet?['packs'] as List?)??[]).cast<String>()}
       : {'default',if(_moonlightOwned)'moonlight',if(_sakuraOwned)'sakura',if(_autumnOwned)'golden_autumn'};
   void _catalogChanged(){if(mounted)setState((){});}
+  String _installedPackSignature = '';
+  void _downloadsChanged() {
+    if (!mounted) return;
+    final signature = GardenPackRegistry.packs
+        .where((p) => _packs.installed(p.id)).map((p) => p.id).join(',');
+    final changed = signature != _installedPackSignature;
+    _installedPackSignature = signature;
+    setState(() {});
+    // Progress notifications must not repeatedly write to disk. Only an
+    // install/removal/startup scan changes the image available to the widget.
+    if (changed && _loaded) unawaited(_save(syncCloud: false));
+  }
   PlayBilling? _billing;
   bool _unlockBusy = false;
   bool _accountPageOpen = false;
@@ -201,6 +213,10 @@ class _GrowthHomeState extends State<GrowthHome>
 
   ShopLoadout get _visibleLoadout {
     final wanted = _assetEditMode ? (_editLoadout ?? _shopLoadout) : _shopLoadout;
+    return _availableLoadout(wanted);
+  }
+
+  ShopLoadout _availableLoadout(ShopLoadout wanted) {
     // An uninstalled theme must never send Image.asset a missing path.
     // For custom combinations check each selected component independently.
     for (final entry in wanted.toJson().entries) {
@@ -247,7 +263,7 @@ class _GrowthHomeState extends State<GrowthHome>
       animationBehavior: AnimationBehavior.preserve,
     );
     _dayTimer = Timer.periodic(const Duration(minutes: 1), (_) => _ensureToday());
-    _packs.addListener(_catalogChanged);
+    _packs.addListener(_downloadsChanged);
     _catalog.addListener(_catalogChanged);
     _loadWork = _load();
     unawaited(_catalog.load());
@@ -299,7 +315,7 @@ class _GrowthHomeState extends State<GrowthHome>
     _cloud.pause();
     _catalog.removeListener(_catalogChanged);
     _catalog.dispose();
-    _packs.removeListener(_catalogChanged);
+    _packs.removeListener(_downloadsChanged);
     _packs.dispose();
     _billing?.dispose();
     _cloud.dispose();
@@ -598,6 +614,10 @@ class _GrowthHomeState extends State<GrowthHome>
     final ownedSakura = _sakuraOwned;
     final ownedAutumn = _autumnOwned;
     final activeLoadout = _shopLoadout;
+    // Editor drafts never become the launcher's saved appearance.
+    final widgetLoadout = _availableLoadout(activeLoadout);
+    final widgetTreeAsset = GardenAppearance(widgetLoadout).treeAsset(stage - 1);
+    final widgetTreeFile = GardenPackFiles.fileFor(widgetTreeAsset)?.path;
     final leafCoins = _leafCoins;
     final deliveredLeafPurchases = _deliveredLeafPurchases.toList()..sort();
     final savedPlacements = jsonEncode({
@@ -624,7 +644,7 @@ class _GrowthHomeState extends State<GrowthHome>
       await prefs.setString(_storageFirefly, activeLoadout.fireflyId);
       await cloudWrite;
       await DeviceFeatures.syncHabitReminders(habits: habitSnapshot, day: day);
-      await DeviceFeatures.updateWidget(water: water, stage: stage, done: done, total: total, day: day, theme: packId, treeAsset: GardenAppearance(activeLoadout).treeAsset(stage - 1));
+      await DeviceFeatures.updateWidget(water: water, stage: stage, done: done, total: total, day: day, theme: widgetLoadout.packId, treeAsset: widgetTreeAsset, treeFile: widgetTreeFile);
     });
     return _saveQueue;
   }
@@ -1073,6 +1093,8 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   Future<void> _installHomeWidget() async {
+    await _save(syncCloud: false);
+    if (!mounted) return;
     final installed = await DeviceFeatures.widgetInstalled();
     if (!mounted) return;
     if (installed) {
@@ -2693,7 +2715,7 @@ class _GrowthHomeState extends State<GrowthHome>
                     selected: choice.id == current,
                     button: true,
                     label:
-                        '${choice.label} ${field == 'watering' ? 'watering can' : field}${_ownsEditorAsset(choice.id) ? '' : ', locked, tap to preview'}',
+                        '${choice.label} ${field == 'watering' ? 'watering can' : field}${choice.installed ? '' : ', download required'}${_ownsEditorAsset(choice.id) ? '' : ', locked'}',
                     child: SizedBox(
                       width: 84,
                       child: InkWell(
@@ -2746,6 +2768,9 @@ class _GrowthHomeState extends State<GrowthHome>
                             ),
                             const SizedBox(height: 4),
                             Text(choice.label, textAlign: TextAlign.center),
+                            if (!choice.installed) const Text('Not downloaded',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 10, color: Color(0xFFB9D4CB))),
                           ],
                         ),
                       ),
@@ -2760,6 +2785,24 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   Widget _buildEditorChoiceArtwork(String field, _EditorAssetChoice choice) {
+    if (!choice.installed) {
+      final icon = switch (field) {
+        'tree' => Icons.park_outlined,
+        'butterfly' => Icons.emoji_nature_outlined,
+        'watering' => Icons.water_drop_outlined,
+        'firefly' => Icons.auto_awesome_outlined,
+        _ => Icons.landscape_outlined,
+      };
+      return DecoratedBox(
+        key: ValueKey('editor-download-placeholder-$field-${choice.id}'),
+        decoration: const BoxDecoration(color: Color(0xFF17383E)),
+        child: Stack(alignment: Alignment.center, children: [
+          Icon(icon, size: 30, color: const Color(0xFFB9D4CB)),
+          const Positioned(right: 3, bottom: 3,
+            child: Icon(Icons.download_rounded, size: 14, color: _mint)),
+        ]),
+      );
+    }
     switch (field) {
       case 'firefly':
         return _buildFireflyChoiceArtwork(choice.id);
@@ -2843,8 +2886,7 @@ class _GrowthHomeState extends State<GrowthHome>
 
   List<_EditorAssetChoice> _editorChoicesFor(String field) => [
     // Display every pack in the editor, including locked/uninstalled ones.
-    // Non-default full-res sprites live on the CDN: use the bundled Shop
-    // thumbnail until a pack is installed rather than loading a missing asset.
+    // Missing CDN content uses a category icon, never unrelated Shop artwork.
     for (final pack in GardenPackRegistry.packs)
       _EditorAssetChoice(
         id: switch (field) {
@@ -2855,8 +2897,9 @@ class _GrowthHomeState extends State<GrowthHome>
           _ => pack.loadout.backgroundId,
         },
         label: pack.id == 'default' ? 'Default' : pack.name,
+        installed: _packs.installed(pack.id),
         assetPath: !_packs.installed(pack.id)
-            ? pack.thumbnail
+            ? null
             : switch (field) {
                 'tree' => pack.trees.last,
                 'butterfly' => pack.butterfly,
@@ -3502,11 +3545,13 @@ class _EditorAssetChoice {
   const _EditorAssetChoice({
     required this.id,
     required this.label,
+    required this.installed,
     this.assetPath,
   });
 
   final String id;
   final String label;
+  final bool installed;
   final String? assetPath;
 }
 

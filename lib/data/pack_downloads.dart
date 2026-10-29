@@ -220,11 +220,16 @@ class PackDownloadService extends ChangeNotifier {
 
   Future<bool> remove(String id) async {
     if (id == 'default' || _busy.contains(id) || _root == null) return false;
-    GardenPackFiles.setRoot(id, null);
+    final pack = GardenPackRegistry.find(id);
+    if (pack == null) return false;
+    final providers = pack.assets.map(GardenPackFiles.provider).toList();
     final dir = Directory('${_root!.path}/$id');
     try { if (await dir.exists()) await dir.delete(recursive: true); }
     catch (_) { return false; }
+    GardenPackFiles.setRoot(id, null);
     notifyListeners();
+    // Re-downloading the same file paths must not reuse stale decoded images.
+    for (final provider in providers) { await provider.evict(); }
     return true;
   }
 

@@ -25,7 +25,7 @@ void main() {
     final native = File('native/android/kotlin/BetterSeedWidget.kt').readAsStringSync();
     expect(xml.contains('widget_scene_bg'), isFalse);
     expect(native.contains('widget_bg_moonlight'), isFalse);
-    expect(native.contains('garden_packs/\$pack'), isTrue,
+    expect(native.contains('File(context.filesDir, "garden_packs").canonicalFile'), isTrue,
         reason: 'Widget should be able to read downloaded pack tree art');
     expect(File('native/android/res/drawable/widget_background.xml').existsSync(), isTrue);
   });

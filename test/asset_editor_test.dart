@@ -120,6 +120,10 @@ void main() {
       await pumpGardenTransition(tester);
       final choice =
           find.byKey(ValueKey('editor-choice-${entry.key}-${entry.value}'));
+      final placeholder = find.byKey(ValueKey('editor-download-placeholder-${entry.key}-${entry.value}'));
+      expect(placeholder, findsOneWidget);
+      expect(find.descendant(of: choice, matching: find.byType(Image)), findsNothing);
+      expect(find.descendant(of: choice, matching: find.text('Not downloaded')), findsOneWidget);
       await tester.ensureVisible(choice);
       await pumpGardenTransition(tester);
       expect(
@@ -127,7 +131,7 @@ void main() {
       await tester.tap(choice);
       await pumpGardenTransition(tester);
     }
-    // Uninstalled CDN packs are shown using thumbnails; the active scene
+    // Uninstalled CDN packs use category icons; the active scene
     // must fall back to the complete Default Garden instead of missing art.
     expect(find.byKey(const ValueKey('default-3')), findsOneWidget);
     final prefs = await SharedPreferences.getInstance();

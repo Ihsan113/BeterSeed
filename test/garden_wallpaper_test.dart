@@ -147,11 +147,12 @@ void main() {
       'betterseed_music_v2': false,
       'betterseed_sfx_v2': false,
       'betterseed_motion_v2': false,
-      'betterseed_owned_sakura_v1': true,
-      'betterseed_active_bundle_v1': 'sakura',
+      // Premium assets are downloaded on demand in 1.7; use the bundled
+      // garden so this test exercises the saved placement, not a fallback.
+      'betterseed_active_bundle_v1': 'default',
       'betterseed_xp_v1': 100,
       'betterseed_tree_placements_v1':
-          '{"sakura_garden":{"dx":0.1,"dy":-0.1,"scale":1.2}}',
+          '{"default":{"dx":0.1,"dy":-0.1,"scale":1.2}}',
     });
     messenger.setMockMethodCallHandler(channel,
         (_) async => {'supported': true, 'allowed': true, 'lockScreen': true});
@@ -173,12 +174,28 @@ void main() {
     await tester.ensureVisible(entry);
     await tester.tap(entry);
     await pumpGardenTransition(tester);
-    expect(find.byType(GardenWallpaperPage), findsOneWidget);
-    expect(find.byType(LocalPackVideoBackground), findsNothing);
-    final tree = tester.renderObject<RenderBox>(
-        find.byKey(const ValueKey('editor-draggable-tree')));
-    final viewport = tester.renderObject<RenderBox>(
-        find.byKey(const ValueKey('wallpaper-garden-viewport')));
+    final wallpaperPage = find.byType(GardenWallpaperPage);
+    expect(wallpaperPage, findsOneWidget);
+    final wallpaperViewport = find.descendant(
+      of: wallpaperPage,
+      matching: find.byKey(const ValueKey('wallpaper-garden-viewport')),
+    );
+    expect(wallpaperViewport, findsOneWidget);
+    // The outgoing Garden and incoming wallpaper can both remain mounted
+    // during the route transition. Compare the tree inside the capture viewport,
+    // not whichever matching tree happens to come first in the entire app.
+    final wallpaperTree = find.descendant(
+      of: wallpaperViewport,
+      matching: find.byKey(const ValueKey('editor-draggable-tree')),
+    );
+    expect(wallpaperTree, findsOneWidget);
+    expect(
+        find.descendant(
+            of: wallpaperViewport,
+            matching: find.byType(LocalPackVideoBackground)),
+        findsNothing);
+    final tree = tester.renderObject<RenderBox>(wallpaperTree);
+    final viewport = tester.renderObject<RenderBox>(wallpaperViewport);
     final actual = MatrixUtils.transformRect(
         tree.getTransformTo(viewport), Offset.zero & tree.size);
     expect(actual.left, closeTo(expected.left, .01));
