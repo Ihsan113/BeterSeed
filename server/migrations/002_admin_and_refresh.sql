@@ -1,0 +1,32 @@
+CREATE TABLE IF NOT EXISTS refresh_receipts (
+ token_hash CHAR(64) PRIMARY KEY, request_hash CHAR(64) NOT NULL,
+ session_id CHAR(36) NOT NULL, response_cipher TEXT NOT NULL, expires_at DATETIME(3) NOT NULL,
+ FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS account_controls (
+ user_id CHAR(36) PRIMARY KEY, suspended BOOLEAN NOT NULL DEFAULT FALSE,
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS admin_users (
+ id CHAR(36) PRIMARY KEY, email VARCHAR(254) NOT NULL UNIQUE,
+ password_hash VARCHAR(255) NOT NULL, totp_secret TEXT NOT NULL,
+ totp_last_step BIGINT NOT NULL DEFAULT -1,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+);
+CREATE TABLE IF NOT EXISTS admin_sessions (
+ token_hash CHAR(64) PRIMARY KEY, admin_id CHAR(36) NOT NULL,
+ csrf_hash CHAR(64) NOT NULL, expires_at DATETIME(3) NOT NULL,
+ FOREIGN KEY(admin_id) REFERENCES admin_users(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS admin_audit (
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, admin_id CHAR(36), target_id CHAR(36),
+ action VARCHAR(50) NOT NULL, reason VARCHAR(500) NOT NULL, details JSON,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ INDEX(target_id,created_at),
+ FOREIGN KEY(admin_id) REFERENCES admin_users(id) ON DELETE SET NULL
+);
+CREATE TABLE IF NOT EXISTS pending_email_changes (
+ user_id CHAR(36) PRIMARY KEY,
+ requested_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);

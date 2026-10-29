@@ -1,0 +1,50 @@
+{
+  "0": {
+    "image": "assets/images/trees/skins/sakura/stage_0_seed.png",
+    "width": 150,
+    "height": 202,
+    "bottomY": 459,
+    "centerX": 255.5,
+    "origin": "a_clean_high_detail_fantasy_illustration_cgi_styl_3_batch_1.png"
+  },
+  "1": {
+    "image": "assets/images/trees/skins/sakura/stage_1_sprout.png",
+    "width": 256,
+    "height": 308,
+    "bottomY": 458,
+    "centerX": 256.5,
+    "origin": "a_high_resolution_fantasy_styled_game_asset_like_1.png"
+  },
+  "2": {
+    "image": "assets/images/trees/skins/sakura/stage_2_sapling.png",
+    "width": 338,
+    "height": 371,
+    "bottomY": 458,
+    "centerX": 256.5,
+    "origin": "a_highly_detailed_fantasy_game_art_style_illustra_4_batch_2.png"
+  },
+  "3": {
+    "image": "assets/images/trees/skins/sakura/stage_3_young.png",
+    "width": 379,
+    "height": 371,
+    "bottomY": 482,
+    "centerX": 256.0,
+    "origin": "a_detailed_high_resolution_fantasy_illustration_2.png"
+  },
+  "4": {
+    "image": "assets/images/trees/skins/sakura/stage_4_mature.png",
+    "width": 453,
+    "height": 452,
+    "bottomY": 484,
+    "centerX": 256.0,
+    "origin": "a_highly_detailed_glossy_fantasy_illustration_on_5_batch_3.png"
+  },
+  "5": {
+    "image": "assets/images/trees/skins/sakura/stage_5_legendary.png",
+    "width": 486,
+    "height": 478,
+    "bottomY": 478,
+    "centerX": 255.5,
+    "origin": "a_high_resolution_fantasy_styled_highly_detailed_6_batch_4.png"
+  }
+}

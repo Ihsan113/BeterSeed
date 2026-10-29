@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "packs": {
+    "moonlight": {
+      "file": "moonlight-r1.zip",
+      "sizeBytes": 5513234,
+      "sha256": "e38128a88ae3931e27e21a6779bcb3995e22100f797c027fcafc386e6b48d992",
+      "revision": 1
+    },
+    "sakura": {
+      "file": "sakura-r1.zip",
+      "sizeBytes": 5537176,
+      "sha256": "0897765cd79046df21bc8ef96be776633ae698fb357f7e6550df506c419b5c59",
+      "revision": 1
+    },
+    "golden_autumn": {
+      "file": "golden_autumn-r1.zip",
+      "sizeBytes": 22718918,
+      "sha256": "eb83cb89cf008a9cd7e9c156b01034e68ed69fe56a6618fa8757db6b86386258",
+      "revision": 1
+    },
+    "celestial_cloud": {
+      "file": "celestial_cloud-r1.zip",
+      "sizeBytes": 8511584,
+      "sha256": "9125489572ba7524ff89fa4079ffae5686216ab95c999fda2c0780000b40b3f8",
+      "revision": 1
+    },
+    "ocean_coral": {
+      "file": "ocean_coral-r1.zip",
+      "sizeBytes": 8805065,
+      "sha256": "69b47a87e6b558862b54c4df2aacceac529b3c43f3343fd2b65ba7c2cb6a6cbc",
+      "revision": 1
+    },
+    "desert_oasis": {
+      "file": "desert_oasis-r1.zip",
+      "sizeBytes": 8543605,
+      "sha256": "7bde176faff1670a01d8f521e08ce906623ce12fce92c42dd566e6f70928aa6f",
+      "revision": 1
+    },
+    "fairy_lantern": {
+      "file": "fairy_lantern-r1.zip",
+      "sizeBytes": 9141755,
+      "sha256": "e6b9a96e5e15b5f2f2c1a19eeaea13200ba279d62dd76e5d2a2670babb82f00a",
+      "revision": 1
+    },
+    "aurora_crystal": {
+      "file": "aurora_crystal-r1.zip",
+      "sizeBytes": 9136967,
+      "sha256": "5c9d806e0c3f65883f597dd341047eae58d1a6f19709114546235ea3ec4184b4",
+      "revision": 1
+    },
+    "enchanted_mushroom": {
+      "file": "enchanted_mushroom-r1.zip",
+      "sizeBytes": 12211968,
+      "sha256": "edf45d3aef8dbd8f9669314c55318a5d4a5ff3e494887d9a8c063742b2c3a12c",
+      "revision": 1
+    }
+  }
+}

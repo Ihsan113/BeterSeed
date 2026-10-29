@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>BetterSeed · Admin</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+    <script defer src="/admin/app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/admin"
+        ><span class="brand-icon">♧</span> BetterSeed
+        <span class="tag">ADMIN</span></a
+      >
+      <div id="identity" hidden>
+        <span id="admin-email"></span
+        ><button id="logout" class="quiet">Keluar</button>
+      </div>
+    </header>
+    <main>
+      <section id="login-view" class="login panel" hidden>
+        <span class="eyebrow">RUANG PENGELOLA</span>
+        <h1>Selamat datang kembali.</h1>
+        <p class="muted">
+          Kelola komunitas dan bantu setiap taman terus bertumbuh.
+        </p>
+        <form id="login-form">
+          <label
+            >Email admin<input
+              name="email"
+              type="email"
+              autocomplete="username"
+              required
+              maxlength="254" /></label
+          ><label
+            >Sandi<input
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+              maxlength="128" /></label
+          ><label
+            >Kode authenticator<input
+              name="code"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxlength="6"
+              required
+              placeholder="6 digit" /></label
+          ><button class="primary" type="submit">Masuk ke dashboard</button>
+        </form>
+        <p class="small muted">
+          Akses khusus pengelola. Sesi berakhir setelah 8 jam.
+        </p>
+      </section>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+      <section id="dashboard" hidden>
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">OVERVIEW</span>
+            <h1>Ruang tumbuh, terkelola.</h1>
+            <p class="muted">Akun, pembelian, dan aktivitas komunitas Anda.</p>
+          </div>
+          <button id="refresh" class="quiet">Muat ulang</button>
+        </div>
+        <div id="stats" class="stats" aria-label="Ringkasan layanan"></div>
+        <nav class="tabs" aria-label="Halaman admin">
+          <button id="packs-tab">Garden Pack Manager</button
+          ><button id="users-tab" class="selected">Pengguna</button
+          ><button id="audit-tab">Riwayat aktivitas</button>
+        </nav>
+        <section id="users-view" class="panel">
+          <div class="section-heading">
+            <div>
+              <h2>Pengguna</h2>
+              <p class="muted small">Cari akun dan kelola bantuan pengguna.</p>
+            </div>
+            <button id="create-user" class="primary">Tambah pengguna</button>
+          </div>
+          <form id="search-form" class="search">
+            <label class="sr-only" for="search">Cari email pengguna</label
+            ><input
+              id="search"
+              type="search"
+              placeholder="Cari alamat email…"
+              maxlength="254"
+            /><button class="quiet">Cari</button>
+          </form>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Akun</th>
+                  <th>Status</th>
+                  <th>Koin</th>
+                  <th>Terakhir sinkron</th>
+                  <th><span class="sr-only">Detail</span></th>
+                </tr>
+              </thead>
+              <tbody id="users"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span id="page-info" class="muted small"></span>
+            <div>
+              <button id="previous" class="quiet">Sebelumnya</button
+              ><button id="next" class="quiet">Berikutnya</button>
+            </div>
+          </div>
+        </section>
+        <section id="packs-view" class="panel" hidden>
+          <div class="section-heading">
+            <div>
+              <h2>Garden Pack Manager</h2>
+              <p class="muted">
+                Harga dan akses berlaku untuk pembelian baru. Hak pemilik lama
+                tetap tersimpan.
+              </p>
+            </div>
+            <button id="create-pack" class="primary">Tambah pack</button>
+          </div>
+          <div id="pack-list"></div>
+        </section>
+        <section id="audit-view" class="panel" hidden>
+          <h2>Riwayat aktivitas</h2>
+          <p class="muted small">
+            Perubahan oleh pengelola dicatat untuk penelusuran.
+          </p>
+          <div id="audit-list"></div>
+          <div class="pagination">
+            <button id="audit-previous" class="quiet">Sebelumnya</button
+            ><span id="audit-page"></span
+            ><button id="audit-next" class="quiet">Berikutnya</button>
+          </div>
+        </section>
+      </section>
+    </main>
+    <dialog id="detail-dialog">
+      <div class="dialog-header">
+        <h2>Detail pengguna</h2>
+        <button id="close-detail" class="quiet" aria-label="Tutup detail">
+          Tutup
+        </button>
+      </div>
+      <div id="detail-body"></div>
+    </dialog>
+    <dialog id="pack-dialog">
+      <form id="pack-form">
+        <div class="dialog-header">
+          <h2>Pengaturan Garden Pack</h2>
+          <button id="cancel-pack" type="button" class="quiet">Batal</button>
+        </div>
+        <label
+          >Pack ID (permanen)<input
+            name="packId"
+            pattern="[a-z][a-z0-9_]{0,39}"
+            maxlength="40"
+            required
+        /></label>
+        <label>Nama<input name="name" maxlength="120" required /></label>
+        <label
+          >Deskripsi<textarea name="description" maxlength="2000"></textarea>
+        </label>
+        <label
+          >Akses<select name="accessType">
+            <option value="premium">Premium</option>
+            <option value="free">Free (klaim gratis)</option>
+          </select></label
+        >
+        <label
+          >Harga koin<input
+            name="priceCoins"
+            type="number"
+            min="0"
+            max="1000000"
+            step="1"
+            required
+        /></label>
+        <label
+          >Status<select name="status">
+            <option value="draft">Draft</option>
+            <option value="active">Active</option>
+            <option value="hidden">Hidden</option>
+            <option value="retired">Retired</option>
+          </select></label
+        >
+        <label
+          >Build APK minimum<input
+            name="minimumAppBuild"
+            type="number"
+            min="1"
+            max="1000000000"
+            step="1"
+            required
+        /></label>
+        <label
+          >Urutan Shop<input
+            name="displayOrder"
+            type="number"
+            min="-100000"
+            max="100000"
+            step="1"
+            required
+        /></label>
+        <label
+          >Alasan perubahan<textarea
+            name="reason"
+            minlength="5"
+            maxlength="500"
+            required
+          ></textarea>
+        </label>
+        <p class="muted">
+          Aset harus tersedia di APK pada build minimum tersebut. Draft tidak
+          ditampilkan; Hidden dan Retired tetap dapat digunakan pemilik lama.
+          Free harus diklaim online agar kepemilikan tersimpan.
+        </p>
+        <label
+          ><input name="confirmed" type="checkbox" required /> Saya sudah
+          memeriksa harga, status, dan dukungan APK.</label
+        >
+        <p id="pack-error" role="alert" hidden></p>
+        <button class="primary" type="submit">Simpan pack</button>
+      </form>
+    </dialog>
+    <dialog id="action-dialog">
+      <form id="action-form">
+        <div class="dialog-header">
+          <h2 id="action-title"></h2>
+          <button type="button" id="cancel-action" class="quiet">Batal</button>
+        </div>
+        <p id="action-description" class="muted"></p>
+        <div id="action-fields"></div>
+        <label
+          >Alasan tindakan<textarea
+            name="reason"
+            required
+            minlength="5"
+            maxlength="500"
+            rows="3"
+            placeholder="Catat alasan singkat tanpa sandi atau data rahasia."
+          ></textarea>
+        </label>
+        <p id="action-error" role="alert" hidden></p>
+        <button id="submit-action" class="primary" type="submit">
+          Simpan perubahan
+        </button>
+      </form>
+    </dialog>
+    <footer>BetterSeed · Administration</footer>
+  </body>
+</html>

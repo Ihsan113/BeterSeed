@@ -1,0 +1,38 @@
+name: BetterSeed accounts and payment verification
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0.46
+        env:
+          MYSQL_ROOT_PASSWORD: betterseed_local_test_only
+          MYSQL_DATABASE: betterseed_test
+        ports: [33067:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+        working-directory: server
+      - run: npm run check && npm test && npm run build
+        working-directory: server
+      - name: Build and verify temporary server package
+        run: |
+          python3 scripts/package_server.py
+          python3 scripts/package_server.py --check

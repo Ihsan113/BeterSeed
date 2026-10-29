@@ -1,0 +1,5 @@
+# Run Caddy on the host; replace the domain and point its DNS at this VPS.
+api.example.com {
+    reverse_proxy 127.0.0.1:8080
+    # Do not enable request-body/header logging.
+}

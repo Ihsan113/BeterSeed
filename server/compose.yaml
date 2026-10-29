@@ -1,0 +1,71 @@
+x-app-environment: &app-environment
+  HOST: 0.0.0.0
+  NODE_ENV: production
+  PORT: 8080
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Set HTTPS API URL}
+  TRUST_PROXY: ${TRUST_PROXY:-}
+  MYSQL_HOST: db
+  MYSQL_PORT: 3306
+  MYSQL_DATABASE: ${MYSQL_DATABASE:-betterseed}
+  MYSQL_USER: ${MYSQL_USER:-betterseed}
+  MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set database password}
+  TOKEN_PEPPER: ${TOKEN_PEPPER:?Set token pepper}
+  DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?Set encryption key}
+  GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-}
+  GOOGLE_PLAY_PACKAGE_NAME: com.betterseed.app
+  GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+  GOOGLE_RTDN_AUDIENCE: ${GOOGLE_RTDN_AUDIENCE:-}
+  GOOGLE_RTDN_SERVICE_ACCOUNT_EMAIL: ${GOOGLE_RTDN_SERVICE_ACCOUNT_EMAIL:-}
+  GMAIL_RELAY_BASE_URL: ${GMAIL_RELAY_BASE_URL:-https://gmailrelay.vercel.app}
+  GMAIL_RELAY_API_KEY: ${GMAIL_RELAY_API_KEY:?Set email relay key}
+  LEGAL_OPERATOR_NAME: ${LEGAL_OPERATOR_NAME:?Set legal operator}
+  SUPPORT_EMAIL: ${SUPPORT_EMAIL:?Set support email}
+  LEGAL_VERSION: ${LEGAL_VERSION:-2026-10-28}
+
+services:
+  db:
+    image: ${MYSQL_IMAGE:-mysql:8.4}
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-betterseed}
+      MYSQL_USER: ${MYSQL_USER:-betterseed}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set database password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set root password}
+    volumes: [mysql_data:/var/lib/mysql]
+    healthcheck:
+      test: [CMD, mysqladmin, ping, -h, localhost]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  migrate:
+    build: .
+    environment: *app-environment
+    command: [node, dist/migrate.js]
+    depends_on:
+      db: {condition: service_healthy}
+  api:
+    build: .
+    restart: unless-stopped
+    environment: *app-environment
+    ports: ["127.0.0.1:8080:8080"]
+    volumes: ["./secrets:/run/secrets:ro"]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  worker:
+    build: .
+    command: [node, dist/worker.js]
+    restart: unless-stopped
+    environment: *app-environment
+    volumes: ["./secrets:/run/secrets:ro"]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+volumes:
+  mysql_data:

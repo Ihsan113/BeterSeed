@@ -1,0 +1,7 @@
+stage_number,filename_index,stage_name,default_visible_xmin,default_visible_ymin,default_visible_xmax_exclusive,default_visible_ymax_exclusive,default_visible_width,default_visible_height,moonlight_visible_width,moonlight_visible_height,moonlight_bottom_y,moonlight_width_vs_default_pct
+1,0,seed,103,257,433,459,330,202,329,187,460,99.7
+2,1,sprout,95,150,427,458,332,308,315,301,458,94.9
+3,2,sapling,89,85,427,458,338,373,300,377,457,88.8
+4,3,young,62,25,442,482,380,457,364,458,483,95.8
+5,4,mature,11,5,465,484,454,479,400,480,485,88.1
+6,5,legendary,2,0,498,478,496,478,405,477,478,81.7

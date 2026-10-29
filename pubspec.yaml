@@ -1,0 +1,46 @@
+name: betterseed
+description: An offline-first habit garden with optional secure cloud accounts.
+publish_to: none
+version: 1.7.0+58
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.5.6
+  audioplayers: ^6.8.1
+  video_player: ^2.11.1
+  in_app_purchase: ^3.2.2
+  google_sign_in: ^7.2.0
+  flutter_secure_storage: ^9.2.4
+  http: ^1.6.0
+  path_provider: ^2.1.5
+  archive: ^3.6.1
+  crypto: ^3.0.6
+  uuid: ^4.5.2
+  qr_flutter: ^4.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    # Default Garden only + lightweight thumbnails for all 10 packs.
+    - assets/images/trees/stage_0_seed.webp
+    - assets/images/trees/stage_1_sprout.webp
+    - assets/images/trees/stage_2_sapling.webp
+    - assets/images/trees/stage_3_young.webp
+    - assets/images/trees/stage_4_mature.webp
+    - assets/images/trees/stage_5_legendary.webp
+    - assets/images/backgrounds/enchanted_valley.webp
+    - assets/images/effects/butterfly_realistic.png
+    - assets/images/effects/watering_can_realistic.png
+    - assets/images/shop/
+    - assets/pack_downloads.json
+    - assets/icon_512.png
+    - assets/audio/
+    - assets/legal/

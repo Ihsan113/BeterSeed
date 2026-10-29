@@ -1,0 +1,10 @@
+analyzer:
+  # Generated build artifacts include temporary UI-capture scripts, not app source.
+  exclude:
+    - build/**
+  errors:
+    unused_import: error
+    unused_local_variable: error
+linter:
+  rules:
+    - avoid_print

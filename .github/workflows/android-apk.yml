@@ -1,0 +1,131 @@
+name: BetterSeed Android APK + Google Play AAB
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    env:
+      BETTERSEED_API_URL: ${{ vars.BETTERSEED_API_URL }}
+      BETTERSEED_PACK_CDN_BASE_URL: ${{ vars.BETTERSEED_PACK_CDN_BASE_URL }}
+      BETTERSEED_GOOGLE_WEB_CLIENT_ID: ${{ vars.BETTERSEED_GOOGLE_WEB_CLIENT_ID }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Configure Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configure Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Verify transparent garden assets
+        run: python3 scripts/verify_visual_assets.py
+
+      - name: Verify committed native sources
+        run: python3 scripts/verify_android_integration.py --sources
+
+      - name: Test signing configuration patch
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+
+      # The Flutter app template can create a default test/widget_test.dart that
+      # references MyApp. Our actual root widget is BetterSeedApp, so generate
+      # the Android-only platform in a temporary staging project.
+      - name: Generate Android platform without rewriting Flutter source
+        run: python3 scripts/generate_android.py
+
+      - name: Verify generation did not modify tracked Dart sources or tests
+        run: git diff --exit-code -- lib/ test/ pubspec.yaml
+
+      - name: Install Android 16 SDK platform for Google Play
+        run: |
+          if [ ! -f "${ANDROID_HOME}/platforms/android-36/android.jar" ]; then
+            sdkmanager "platforms;android-36"
+          fi
+          test -f "${ANDROID_HOME}/platforms/android-36/android.jar"
+
+      - name: Configure Play Store target SDK and package identity
+        run: python3 scripts/configure_play_sdk.py
+
+      - name: Prepare Android name and app icons
+        run: python3 scripts/prepare_android.py
+
+      - name: Verify Android integration
+        run: python3 scripts/verify_android_integration.py
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Unit tests
+        run: flutter test --reporter expanded
+
+      # Release artifacts are intentionally NOT published from pull requests:
+      # PRs (especially forks) do not have access to the signing secrets.
+      - name: Configure persistent release signing
+        if: github.event_name != 'pull_request'
+        env:
+          BETTERSEED_KEYSTORE_BASE64: ${{ secrets.BETTERSEED_KEYSTORE_BASE64 }}
+          BETTERSEED_KEYSTORE_PASSWORD: ${{ secrets.BETTERSEED_KEYSTORE_PASSWORD }}
+          BETTERSEED_KEY_ALIAS: ${{ secrets.BETTERSEED_KEY_ALIAS }}
+          BETTERSEED_KEY_PASSWORD: ${{ secrets.BETTERSEED_KEY_PASSWORD }}
+          BETTERSEED_PINNED_SHA1: ${{ vars.BETTERSEED_PINNED_SHA1 }}
+        run: python3 scripts/configure_android_signing.py
+
+      # Google Play accepts the signed .aab, not the .apk or this source ZIP.
+      # Reuse the existing persistent release keystore as the AAB upload key.
+      # Never expose keystore material in uploaded artifacts.
+      - name: Build signed Google Play release AAB
+        if: github.event_name != 'pull_request'
+        run: flutter build appbundle --release --dart-define=BETTERSEED_API_URL="$BETTERSEED_API_URL" --dart-define=BETTERSEED_PACK_CDN_BASE_URL="$BETTERSEED_PACK_CDN_BASE_URL" --dart-define=BETTERSEED_GOOGLE_WEB_CLIENT_ID="$BETTERSEED_GOOGLE_WEB_CLIENT_ID"
+
+      - name: Verify AAB JAR signature and pinned upload certificate
+        if: github.event_name != 'pull_request'
+        run: python3 scripts/verify_signed_aab.py
+
+      - name: Upload Google Play release AAB artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: BetterSeed-GooglePlay-release-aab
+          path: |
+            build/app/outputs/bundle/release/app-release.aab
+            build/app/outputs/bundle/release/AAB_PLAY_UPLOAD_VERIFICATION.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Build APK with stable release certificate
+        if: github.event_name != 'pull_request'
+        run: flutter build apk --release --dart-define=BETTERSEED_API_URL="$BETTERSEED_API_URL" --dart-define=BETTERSEED_PACK_CDN_BASE_URL="$BETTERSEED_PACK_CDN_BASE_URL" --dart-define=BETTERSEED_GOOGLE_WEB_CLIENT_ID="$BETTERSEED_GOOGLE_WEB_CLIENT_ID"
+
+      - name: Verify APK signature matches stable SHA-1
+        if: github.event_name != 'pull_request'
+        run: python3 scripts/verify_signed_apk.py
+
+      - name: Upload signed release APK
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: BetterSeed-stable-release-apk
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/CERTIFICATE_SHA1_README.txt
+          if-no-files-found: error
+          retention-days: 14

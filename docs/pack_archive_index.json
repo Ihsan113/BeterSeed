@@ -1,0 +1,128 @@
+{
+  "moonlight": {
+    "background": "assets/images/backgrounds/moonlight_premium.webp",
+    "butterfly": "assets/images/effects/butterfly_cosmic.png",
+    "wateringCan": "assets/images/effects/watering_can_celestial.png",
+    "treeStages": [
+      "assets/images/trees/skins/moonlight/stage_0_seed.png",
+      "assets/images/trees/skins/moonlight/stage_1_sprout.png",
+      "assets/images/trees/skins/moonlight/stage_2_sapling.png",
+      "assets/images/trees/skins/moonlight/stage_3_young.png",
+      "assets/images/trees/skins/moonlight/stage_4_mature.png",
+      "assets/images/trees/skins/moonlight/stage_5_legendary.png"
+    ],
+    "video": null
+  },
+  "sakura": {
+    "background": "assets/images/backgrounds/sakura_garden.webp",
+    "butterfly": "assets/images/effects/butterfly_sakura.png",
+    "wateringCan": "assets/images/effects/watering_can_sakura.png",
+    "treeStages": [
+      "assets/images/trees/skins/sakura/stage_0_seed.png",
+      "assets/images/trees/skins/sakura/stage_1_sprout.png",
+      "assets/images/trees/skins/sakura/stage_2_sapling.png",
+      "assets/images/trees/skins/sakura/stage_3_young.png",
+      "assets/images/trees/skins/sakura/stage_4_mature.png",
+      "assets/images/trees/skins/sakura/stage_5_legendary.png"
+    ],
+    "video": "assets/videos/sakura_loop_5s.mp4"
+  },
+  "golden_autumn": {
+    "background": "assets/images/backgrounds/golden_autumn_garden.webp",
+    "butterfly": "assets/images/effects/amber_butterfly.png",
+    "wateringCan": "assets/images/effects/maple_watering_can.png",
+    "treeStages": [
+      "assets/images/trees/skins/golden_autumn/stage_0_seed.png",
+      "assets/images/trees/skins/golden_autumn/stage_1_sprout.png",
+      "assets/images/trees/skins/golden_autumn/stage_2_sapling.png",
+      "assets/images/trees/skins/golden_autumn/stage_3_young.png",
+      "assets/images/trees/skins/golden_autumn/stage_4_mature.png",
+      "assets/images/trees/skins/golden_autumn/stage_5_legendary.png"
+    ],
+    "video": "assets/videos/autumn_garden_loopy_8s.mp4"
+  },
+  "celestial_cloud": {
+    "background": "assets/images/backgrounds/celestial_cloud_garden.webp",
+    "butterfly": "assets/images/effects/butterfly_celestial_cloud.png",
+    "wateringCan": "assets/images/effects/watering_can_celestial_cloud.png",
+    "treeStages": [
+      "assets/images/trees/skins/celestial_cloud/stage_0_seed.png",
+      "assets/images/trees/skins/celestial_cloud/stage_1_sprout.png",
+      "assets/images/trees/skins/celestial_cloud/stage_2_sapling.png",
+      "assets/images/trees/skins/celestial_cloud/stage_3_young.png",
+      "assets/images/trees/skins/celestial_cloud/stage_4_mature.png",
+      "assets/images/trees/skins/celestial_cloud/stage_5_legendary.png"
+    ],
+    "video": "assets/videos/celestial_cloud_loop.mp4"
+  },
+  "ocean_coral": {
+    "background": "assets/images/backgrounds/ocean_coral_garden.webp",
+    "butterfly": "assets/images/effects/butterfly_ocean_coral.png",
+    "wateringCan": "assets/images/effects/watering_can_ocean_coral.png",
+    "treeStages": [
+      "assets/images/trees/skins/ocean_coral/stage_0_seed.png",
+      "assets/images/trees/skins/ocean_coral/stage_1_sprout.png",
+      "assets/images/trees/skins/ocean_coral/stage_2_sapling.png",
+      "assets/images/trees/skins/ocean_coral/stage_3_young.png",
+      "assets/images/trees/skins/ocean_coral/stage_4_mature.png",
+      "assets/images/trees/skins/ocean_coral/stage_5_legendary.png"
+    ],
+    "video": "assets/videos/ocean_coral_loop.mp4"
+  },
+  "desert_oasis": {
+    "background": "assets/images/backgrounds/desert_oasis_garden.webp",
+    "butterfly": "assets/images/effects/butterfly_desert_oasis.png",
+    "wateringCan": "assets/images/effects/watering_can_desert_oasis.png",
+    "treeStages": [
+      "assets/images/trees/skins/desert_oasis/stage_0_seed.png",
+      "assets/images/trees/skins/desert_oasis/stage_1_sprout.png",
+      "assets/images/trees/skins/desert_oasis/stage_2_sapling.png",
+      "assets/images/trees/skins/desert_oasis/stage_3_young.png",
+      "assets/images/trees/skins/desert_oasis/stage_4_mature.png",
+      "assets/images/trees/skins/desert_oasis/stage_5_legendary.png"
+    ],
+    "video": "assets/videos/desert_oasis_loop.mp4"
+  },
+  "fairy_lantern": {
+    "background": "assets/images/backgrounds/fairy_lantern_garden.webp",
+    "butterfly": "assets/images/effects/butterfly_fairy_lantern.png",
+    "wateringCan": "assets/images/effects/watering_can_fairy_lantern.png",
+    "treeStages": [
+      "assets/images/trees/skins/fairy_lantern/stage_0_seed.png",
+      "assets/images/trees/skins/fairy_lantern/stage_1_sprout.png",
+      "assets/images/trees/skins/fairy_lantern/stage_2_sapling.png",
+      "assets/images/trees/skins/fairy_lantern/stage_3_young.png",
+      "assets/images/trees/skins/fairy_lantern/stage_4_mature.png",
+      "assets/images/trees/skins/fairy_lantern/stage_5_legendary.png"
+    ],
+    "video": "assets/videos/fairy_lantern_loop.mp4"
+  },
+  "aurora_crystal": {
+    "background": "assets/images/backgrounds/aurora_crystal_garden.webp",
+    "butterfly": "assets/images/effects/butterfly_aurora_crystal.png",
+    "wateringCan": "assets/images/effects/watering_can_aurora_crystal.png",
+    "treeStages": [
+      "assets/images/trees/skins/aurora_crystal/stage_0_seed.png",
+      "assets/images/trees/skins/aurora_crystal/stage_1_sprout.png",
+      "assets/images/trees/skins/aurora_crystal/stage_2_sapling.png",
+      "assets/images/trees/skins/aurora_crystal/stage_3_young.png",
+      "assets/images/trees/skins/aurora_crystal/stage_4_mature.png",
+      "assets/images/trees/skins/aurora_crystal/stage_5_legendary.png"
+    ],
+    "video": "assets/videos/aurora_crystal_loop.mp4"
+  },
+  "enchanted_mushroom": {
+    "background": "assets/images/backgrounds/enchanted_mushroom_garden.webp",
+    "butterfly": "assets/images/effects/butterfly_enchanted_mushroom.png",
+    "wateringCan": "assets/images/effects/watering_can_enchanted_mushroom.png",
+    "treeStages": [
+      "assets/images/trees/skins/enchanted_mushroom/stage_0_seed.png",
+      "assets/images/trees/skins/enchanted_mushroom/stage_1_sprout.png",
+      "assets/images/trees/skins/enchanted_mushroom/stage_2_sapling.png",
+      "assets/images/trees/skins/enchanted_mushroom/stage_3_young.png",
+      "assets/images/trees/skins/enchanted_mushroom/stage_4_mature.png",
+      "assets/images/trees/skins/enchanted_mushroom/stage_5_legendary.png"
+    ],
+    "video": "assets/videos/enchanted_mushroom_loop.mp4"
+  }
+}

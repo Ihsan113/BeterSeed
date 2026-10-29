@@ -1,0 +1,68 @@
+[
+  {
+    "packId": "aurora_crystal",
+    "name": "Aurora Crystal",
+    "description": "Explore the Aurora Crystal garden theme with six growth stages and animated scenery.",
+    "accessType": "premium",
+    "priceCoins": 280,
+    "status": "draft",
+    "minimumAppBuild": 58,
+    "displayOrder": 50,
+    "reason": "Prepare new on-demand garden theme for app build 58; activate after CDN upload is verified"
+  },
+  {
+    "packId": "enchanted_mushroom",
+    "name": "Enchanted Mushroom",
+    "description": "Explore the Enchanted Mushroom garden theme with six growth stages and animated scenery.",
+    "accessType": "premium",
+    "priceCoins": 280,
+    "status": "draft",
+    "minimumAppBuild": 58,
+    "displayOrder": 60,
+    "reason": "Prepare new on-demand garden theme for app build 58; activate after CDN upload is verified"
+  },
+  {
+    "packId": "celestial_cloud",
+    "name": "Celestial Cloud",
+    "description": "Explore the Celestial Cloud garden theme with six growth stages and animated scenery.",
+    "accessType": "premium",
+    "priceCoins": 280,
+    "status": "draft",
+    "minimumAppBuild": 58,
+    "displayOrder": 70,
+    "reason": "Prepare new on-demand garden theme for app build 58; activate after CDN upload is verified"
+  },
+  {
+    "packId": "ocean_coral",
+    "name": "Ocean Coral",
+    "description": "Explore the Ocean Coral garden theme with six growth stages and animated scenery.",
+    "accessType": "premium",
+    "priceCoins": 280,
+    "status": "draft",
+    "minimumAppBuild": 58,
+    "displayOrder": 80,
+    "reason": "Prepare new on-demand garden theme for app build 58; activate after CDN upload is verified"
+  },
+  {
+    "packId": "desert_oasis",
+    "name": "Desert Oasis",
+    "description": "Explore the Desert Oasis garden theme with six growth stages and animated scenery.",
+    "accessType": "premium",
+    "priceCoins": 280,
+    "status": "draft",
+    "minimumAppBuild": 58,
+    "displayOrder": 90,
+    "reason": "Prepare new on-demand garden theme for app build 58; activate after CDN upload is verified"
+  },
+  {
+    "packId": "fairy_lantern",
+    "name": "Fairy Lantern",
+    "description": "Explore the Fairy Lantern garden theme with six growth stages and animated scenery.",
+    "accessType": "premium",
+    "priceCoins": 280,
+    "status": "draft",
+    "minimumAppBuild": 58,
+    "displayOrder": 100,
+    "reason": "Prepare new on-demand garden theme for app build 58; activate after CDN upload is verified"
+  }
+]
