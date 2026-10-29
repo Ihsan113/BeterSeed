@@ -1,3 +1,4 @@
+import 'garden_test_helpers.dart';
 import 'package:betterseed/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,7 @@ void main() {
       'betterseed_motion_v2': false,
     });
     await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byKey(const ValueKey('enter-focus-mode')), findsOneWidget);
@@ -48,6 +50,7 @@ void main() {
       'betterseed_motion_v2': false,
     });
     await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
     await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.byKey(const ValueKey('enter-focus-mode')));
     await tester.pump();

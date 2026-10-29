@@ -161,7 +161,7 @@ void main() {
               }),
               200);
         })));
-    await c.load();
+    await tester.runAsync(() => c.load());
     Widget page() => MaterialApp(
         home: Scaffold(
             body: BetterSeedShopPage(
@@ -184,7 +184,7 @@ void main() {
     await tester.tap(buy);
     expect(claims, 1);
     online = false;
-    await c.load();
+    await tester.runAsync(() => c.load());
     await tester.pumpWidget(page());
     await tester.pump();
     expect(tester.widget<FilledButton>(buy).onPressed, isNull);
@@ -210,7 +210,7 @@ void main() {
                 }),
                 200))),
         bundle: MissingAssets());
-    await c.load();
+    await tester.runAsync(() => c.load());
     expect(c.online, true);
     expect(c.assetReady('moonlight'), false);
     await tester.pumpWidget(
@@ -231,7 +231,7 @@ void main() {
               'packs': [entry('moonlight', price: 0)]
             }),
             200))));
-    await c.load();
+    await tester.runAsync(() => c.load());
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(
             body: BetterSeedShopPage(

@@ -1,3 +1,4 @@
+import 'garden_test_helpers.dart';
 import 'dart:async';
 
 import 'package:betterseed/main.dart';
@@ -155,22 +156,23 @@ void main() {
     messenger.setMockMethodCallHandler(channel,
         (_) async => {'supported': true, 'allowed': true, 'lockScreen': true});
     await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
-    await tester.pumpAndSettle();
+    await waitForGardenReady(tester);
+    await pumpGardenTransition(tester);
     final originalTree = tester.renderObject<RenderBox>(
         find.byKey(const ValueKey('editor-draggable-tree')));
     final screen = tester.renderObject<RenderBox>(find.byType(Scaffold));
     final expected = MatrixUtils.transformRect(
         originalTree.getTransformTo(screen), Offset.zero & originalTree.size);
     await tester.tap(find.byTooltip('Settings'));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     final category = find.byKey(const ValueKey('settings-menu-widget'));
     await tester.ensureVisible(category);
     await tester.tap(category);
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     final entry = find.byKey(const ValueKey('settings-garden-wallpaper'));
     await tester.ensureVisible(entry);
     await tester.tap(entry);
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     expect(find.byType(GardenWallpaperPage), findsOneWidget);
     expect(find.byType(LocalPackVideoBackground), findsNothing);
     final tree = tester.renderObject<RenderBox>(

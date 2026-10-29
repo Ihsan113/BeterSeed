@@ -1,3 +1,4 @@
+import 'garden_test_helpers.dart';
 import 'dart:convert';
 
 import 'package:betterseed/logic/garden_scene_geometry.dart';
@@ -14,14 +15,14 @@ Future<void> openEditor(WidgetTester tester) async {
   // scrolling to the Collection tab on small devices before tapping it.
   final collection = find.byKey(const ValueKey('shop-collection-tab'));
   await tester.ensureVisible(collection);
-  await tester.pumpAndSettle();
+  await pumpGardenTransition(tester);
   await tester.tap(collection);
-  await tester.pumpAndSettle();
+  await pumpGardenTransition(tester);
   final edit = find.byKey(const ValueKey('collection-edit-assets'));
   await tester.ensureVisible(edit);
   await tester.pump();
   await tester.tap(edit);
-  await tester.pumpAndSettle();
+  await pumpGardenTransition(tester);
 }
 
 Rect treeInViewport(WidgetTester tester, {required bool editing}) {
@@ -65,7 +66,8 @@ Future<void> launchEditorTest(
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
   await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
-  await tester.pumpAndSettle();
+    await waitForGardenReady(tester);
+  await pumpGardenTransition(tester);
 }
 
 void main() {
@@ -103,7 +105,7 @@ void main() {
     await launchEditorTest(tester);
     await openEditor(tester);
     await tester.tap(find.byKey(const ValueKey('editor-tool-assets')));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     for (final entry in {
       'background': 'golden_autumn_garden',
       'tree': 'golden_autumn_tree_skin',
@@ -113,31 +115,32 @@ void main() {
     }.entries) {
       final category = find.byKey(ValueKey('editor-category-${entry.key}'));
       await tester.ensureVisible(category);
-      await tester.pumpAndSettle();
+      await pumpGardenTransition(tester);
       await tester.tap(category);
-      await tester.pumpAndSettle();
+      await pumpGardenTransition(tester);
       final choice =
           find.byKey(ValueKey('editor-choice-${entry.key}-${entry.value}'));
       await tester.ensureVisible(choice);
-      await tester.pumpAndSettle();
+      await pumpGardenTransition(tester);
       expect(
           find.byKey(ValueKey('editor-lock-${entry.value}')), findsOneWidget);
       await tester.tap(choice);
-      await tester.pumpAndSettle();
+      await pumpGardenTransition(tester);
     }
-    expect(find.byKey(const ValueKey('golden_autumn_tree_skin-3')),
-        findsOneWidget);
+    // Uninstalled CDN packs are shown using thumbnails; the active scene
+    // must fall back to the complete Default Garden instead of missing art.
+    expect(find.byKey(const ValueKey('default-3')), findsOneWidget);
     final prefs = await SharedPreferences.getInstance();
     final original = prefs.getString('betterseed_background_skin_v1');
     await tester.tap(find.byKey(const ValueKey('asset-editor-save')));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     expect(find.text('Unlock this look'), findsOneWidget);
     expect(prefs.getString('betterseed_background_skin_v1'), original);
     await tester.tap(find.text('Keep editing'));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     expect(find.byKey(const ValueKey('asset-editor-save')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('asset-editor-cancel')));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     expect(prefs.getString('betterseed_background_skin_v1'), original);
     expect(tester.takeException(), isNull);
   });
@@ -154,9 +157,9 @@ void main() {
     )));
     final collection = find.byKey(const ValueKey('shop-collection-tab'));
     await tester.ensureVisible(collection);
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     await tester.tap(collection);
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     final edit = find.byKey(const ValueKey('collection-edit-assets'));
     await tester.ensureVisible(edit);
     await tester.pump();
@@ -175,15 +178,16 @@ void main() {
       'betterseed_active_bundle_v1': 'sakura',
     });
     await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.byKey(const ValueKey('tab-3')));
     await tester.pump();
     final collection = find.byKey(const ValueKey('shop-collection-tab'));
     await tester.ensureVisible(collection);
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     await tester.tap(collection);
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     final edit = find.byKey(const ValueKey('collection-edit-assets'));
     await tester.ensureVisible(edit);
     await tester.pump();
@@ -207,7 +211,7 @@ void main() {
     const Size(393, 852),
     const Size(800, 1000)
   ]) {
-    for (final bundle in ['default', 'moonlight', 'sakura']) {
+    for (final bundle in ['default']) {
       testWidgets('$bundle preview, drag, Save and reload agree at $size',
           (tester) async {
         await launchEditorTest(tester, size: size, bundle: bundle);
@@ -235,7 +239,7 @@ void main() {
         final slider = find.byKey(const ValueKey('asset-tree-size'));
         await tester.ensureVisible(slider);
         await tester.drag(slider, const Offset(24, 0));
-        await tester.pumpAndSettle();
+        await pumpGardenTransition(tester);
         final edited = treeInViewport(tester, editing: true);
         expect(edited.width, greaterThan(original.width));
         final outline = tester.renderObject<RenderBox>(
@@ -245,7 +249,7 @@ void main() {
         expectSameTree(selection, edited);
 
         await tester.tap(find.byKey(const ValueKey('asset-editor-save')));
-        await tester.pumpAndSettle();
+        await pumpGardenTransition(tester);
         expectSameTree(treeInViewport(tester, editing: false), edited);
         final prefs = await SharedPreferences.getInstance();
         final saved =
@@ -255,11 +259,35 @@ void main() {
 
         await tester.pumpWidget(const SizedBox());
         await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
-        await tester.pumpAndSettle();
+    await waitForGardenReady(tester);
+        await pumpGardenTransition(tester);
         expectSameTree(treeInViewport(tester, editing: false), edited);
         expect(tester.takeException(), isNull);
       });
     }
+  }
+
+  for (final packId in ['moonlight', 'sakura']) {
+    testWidgets('Owned $packId requires download before saving garden edits',
+        (tester) async {
+      await launchEditorTest(tester, bundle: packId);
+      await openEditor(tester);
+      expect(find.byKey(const ValueKey('editor-draggable-tree')), findsOneWidget);
+      // Ownership is not proof that an optional pack is installed.
+      // The scene must remain renderable from Default Garden art.
+      expect(find.byKey(const ValueKey('default-3')), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      final before = prefs.getString('betterseed_tree_placements_v1');
+      await tester.tap(find.byKey(const ValueKey('asset-editor-save')));
+      await pumpGardenTransition(tester);
+      expect(find.text('Download this look'), findsOneWidget);
+      expect(prefs.getString('betterseed_tree_placements_v1'), before);
+      await tester.tap(find.text('Keep editing'));
+      await pumpGardenTransition(tester);
+      await tester.tap(find.byKey(const ValueKey('asset-editor-cancel')));
+      await pumpGardenTransition(tester);
+      expect(tester.takeException(), isNull);
+    });
   }
 
   testWidgets('Preview is read-only and changing tools preserves tree geometry',
@@ -269,70 +297,62 @@ void main() {
     final expected = treeInViewport(tester, editing: true);
     for (final tool in ['preview', 'assets', 'position']) {
       await tester.tap(find.byKey(ValueKey('editor-tool-$tool')));
-      await tester.pumpAndSettle();
+      await pumpGardenTransition(tester);
       expectSameTree(treeInViewport(tester, editing: true), expected);
       if (tool != 'position') {
         await tester.drag(find.byKey(const ValueKey('editor-draggable-tree')),
             const Offset(20, -30));
-        await tester.pumpAndSettle();
+        await pumpGardenTransition(tester);
         expectSameTree(treeInViewport(tester, editing: true), expected);
       }
     }
     await tester.tap(find.byKey(const ValueKey('asset-editor-cancel')));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-      'Background placements stay independent; Reset and Cancel are scoped',
+  testWidgets('Unavailable CDN choice cannot overwrite saved placements',
       (tester) async {
     await launchEditorTest(tester);
     await openEditor(tester);
     await tester.drag(find.byKey(const ValueKey('editor-draggable-tree')),
         const Offset(20, -30));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     final editedDefault = treeInViewport(tester, editing: true);
     await tester.tap(find.byKey(const ValueKey('editor-tool-assets')));
-    await tester.pumpAndSettle();
-    await tester.tap(
-        find.byKey(const ValueKey('editor-choice-background-sakura_garden')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('editor-tool-position')));
-    await tester.pumpAndSettle();
-    final reset = find.byKey(const ValueKey('asset-editor-reset'));
-    await tester.ensureVisible(reset);
-    await tester.tap(reset);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('editor-tool-assets')));
-    await tester.pumpAndSettle();
-    await tester
-        .tap(find.byKey(const ValueKey('editor-choice-background-default')));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
+    final sakura = find.byKey(
+        const ValueKey('editor-choice-background-sakura_garden'));
+    await tester.ensureVisible(sakura);
+    await tester.tap(sakura);
+    await pumpGardenTransition(tester);
+    // The downloadable background is not installed. Guard against exporting
+    // a broken scene with an image path that was intentionally not bundled.
     expectSameTree(treeInViewport(tester, editing: true), editedDefault);
-    await tester.tap(find.byKey(const ValueKey('editor-category-tree')));
-    await tester.pumpAndSettle();
-    await tester
-        .tap(find.byKey(const ValueKey('editor-choice-tree-sakura_tree_skin')));
-    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('asset-editor-save')));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
+    expect(find.text('Download this look'), findsOneWidget);
     final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('betterseed_tree_placements_v1'), isNull);
+    await tester.tap(find.text('Keep editing'));
+    await pumpGardenTransition(tester);
+    final fallback = find.byKey(
+        const ValueKey('editor-choice-background-default'));
+    await tester.ensureVisible(fallback);
+    await tester.tap(fallback);
+    await pumpGardenTransition(tester);
+    await tester.tap(find.byKey(const ValueKey('asset-editor-save')));
+    await pumpGardenTransition(tester);
     final saved = prefs.getString('betterseed_tree_placements_v1');
-    expect(prefs.getString('betterseed_tree_skin_v1'), 'sakura_tree_skin');
+    expect(saved, isNotNull);
     expect(prefs.getString('betterseed_background_skin_v1'), 'default');
     await openEditor(tester);
     await tester.drag(find.byKey(const ValueKey('editor-draggable-tree')),
         const Offset(-15, -25));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('editor-tool-assets')));
-    await tester.pumpAndSettle();
-    await tester.tap(find
-        .byKey(const ValueKey('editor-choice-background-twilight_overlook')));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     await tester.tap(find.byKey(const ValueKey('asset-editor-cancel')));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     expect(prefs.getString('betterseed_tree_placements_v1'), saved);
-    expect(prefs.getString('betterseed_background_skin_v1'), 'default');
     expect(tester.takeException(), isNull);
   });
 
@@ -342,17 +362,17 @@ void main() {
     await openEditor(tester);
     for (final tool in ['position', 'assets', 'preview']) {
       await tester.tap(find.byKey(ValueKey('editor-tool-$tool')));
-      await tester.pumpAndSettle();
+      await pumpGardenTransition(tester);
       if (tool == 'position') {
         for (final axis in ['x', 'y', 'size']) {
           final choice = find.byKey(ValueKey('editor-adjust-$axis'));
           await tester.ensureVisible(choice);
           await tester.tap(choice);
-          await tester.pumpAndSettle();
+          await pumpGardenTransition(tester);
           final slider = find.byKey(ValueKey('asset-tree-$axis'));
           await tester.ensureVisible(slider);
           await tester.drag(slider, const Offset(10, 0));
-          await tester.pumpAndSettle();
+          await pumpGardenTransition(tester);
         }
       }
       if (tool == 'assets') {
@@ -366,11 +386,11 @@ void main() {
           final category = find.byKey(ValueKey('editor-category-$field'));
           await tester.ensureVisible(category);
           await tester.tap(category);
-          await tester.pumpAndSettle();
+          await pumpGardenTransition(tester);
           final choice = find.byKey(ValueKey('editor-choice-$field-default'));
           await tester.ensureVisible(choice);
           await tester.tap(choice);
-          await tester.pumpAndSettle();
+          await pumpGardenTransition(tester);
         }
       }
       expect(
@@ -379,7 +399,7 @@ void main() {
       expect(tester.takeException(), isNull);
     }
     await tester.tap(find.byKey(const ValueKey('asset-editor-save')));
-    await tester.pumpAndSettle();
+    await pumpGardenTransition(tester);
     expect(tester.takeException(), isNull);
   });
 }

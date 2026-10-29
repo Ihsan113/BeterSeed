@@ -1,3 +1,4 @@
+import 'garden_test_helpers.dart';
 import 'package:betterseed/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,7 @@ void main() {
       'betterseed_motion_v2': false,
     });
     await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
     await tester.pump(const Duration(milliseconds: 500));
     for (var i = 0; i < 4; i++) {
       expect(find.byKey(ValueKey('tab-$i')), findsOneWidget);
@@ -32,6 +34,7 @@ void main() {
       'betterseed_motion_v2': false,
     });
     await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Earn'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('tab-1')));

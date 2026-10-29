@@ -75,7 +75,7 @@ jobs:
         run: flutter analyze
 
       - name: Unit tests
-        run: flutter test --reporter expanded
+        run: timeout --signal=TERM 600s flutter test --reporter expanded
 
       # Release artifacts are intentionally NOT published from pull requests:
       # PRs (especially forks) do not have access to the signing secrets.

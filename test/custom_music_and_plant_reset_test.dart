@@ -1,3 +1,4 @@
+import 'garden_test_helpers.dart';
 import 'dart:convert';
 
 import 'package:betterseed/audio/local_music_files.dart';
@@ -103,6 +104,7 @@ void main() {
       ]),
     });
     await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.byTooltip('Settings'));

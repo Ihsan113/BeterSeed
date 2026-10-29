@@ -12,7 +12,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const MaterialApp(home: Scaffold(
-      body: AdaptiveGardenBackground(asset: 'assets/images/backgrounds/moonlight_premium.webp'),
+      body: AdaptiveGardenBackground(asset: 'assets/images/backgrounds/enchanted_valley.webp'),
     )));
     final sharp = tester.widget<Image>(find.byKey(const ValueKey('full-background')));
     expect(sharp.fit, BoxFit.cover);
@@ -25,7 +25,8 @@ void main() {
     final native = File('native/android/kotlin/BetterSeedWidget.kt').readAsStringSync();
     expect(xml.contains('widget_scene_bg'), isFalse);
     expect(native.contains('widget_bg_moonlight'), isFalse);
-    expect(native.contains('moonTreeArt[stage - 1]'), isTrue);
+    expect(native.contains('garden_packs/\$pack'), isTrue,
+        reason: 'Widget should be able to read downloaded pack tree art');
     expect(File('native/android/res/drawable/widget_background.xml').existsSync(), isTrue);
   });
 

@@ -854,6 +854,19 @@ class _GrowthHomeState extends State<GrowthHome>
         ));
         return;
       }
+      final missing = <String>{
+        for (final entry in _editLoadout!.toJson().entries)
+          if (!_packs.installed(GardenPackRegistry.forAsset(entry.key, entry.value).id))
+            GardenPackRegistry.forAsset(entry.key, entry.value).name,
+      };
+      if (missing.isNotEmpty) {
+        showDialog<void>(context: context, builder: (dialog) => AlertDialog(
+          title: const Text('Download this look'),
+          content: Text('Download ${missing.join(', ')} from My Collection before saving this garden look.'),
+          actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Keep editing'))],
+        ));
+        return;
+      }
     }
     setState(() {
       if (save && _editLoadout != null) {
@@ -2822,11 +2835,29 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   List<_EditorAssetChoice> _editorChoicesFor(String field) => [
-    for(final pack in GardenPackRegistry.packs)
-      if (_packs.installed(pack.id) && _ownedPacks.contains(pack.id)) _EditorAssetChoice(
-      id:switch(field){'tree'=>pack.loadout.treeSkinId,'butterfly'=>pack.loadout.butterflyId,'watering'=>pack.loadout.wateringCanId,'firefly'=>pack.loadout.fireflyId,_=>pack.loadout.backgroundId},
-      label:pack.id=='default'?'Default':pack.name,
-      assetPath:switch(field){'tree'=>pack.trees.last,'butterfly'=>pack.butterfly,'watering'=>pack.wateringCan,'firefly'=>null,_=>pack.background}),
+    // Display every pack in the editor, including locked/uninstalled ones.
+    // Non-default full-res sprites live on the CDN: use the bundled Shop
+    // thumbnail until a pack is installed rather than loading a missing asset.
+    for (final pack in GardenPackRegistry.packs)
+      _EditorAssetChoice(
+        id: switch (field) {
+          'tree' => pack.loadout.treeSkinId,
+          'butterfly' => pack.loadout.butterflyId,
+          'watering' => pack.loadout.wateringCanId,
+          'firefly' => pack.loadout.fireflyId,
+          _ => pack.loadout.backgroundId,
+        },
+        label: pack.id == 'default' ? 'Default' : pack.name,
+        assetPath: !_packs.installed(pack.id)
+            ? pack.thumbnail
+            : switch (field) {
+                'tree' => pack.trees.last,
+                'butterfly' => pack.butterfly,
+                'watering' => pack.wateringCan,
+                'firefly' => null,
+                _ => pack.background,
+              },
+      ),
   ];
 
   List<Widget> _buildButterflySprites(double width, double height, double t) {

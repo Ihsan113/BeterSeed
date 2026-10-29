@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:betterseed/account/account_api.dart';
 import 'package:betterseed/account/cloud_account.dart';
 import 'package:betterseed/account/pack_catalog.dart';
+import 'package:betterseed/data/garden_pack_registry.dart';
 
 class MemorySession implements SessionStore {
   Map<String, dynamic>? value;
@@ -166,7 +167,7 @@ void main() {
     const offer=GardenOffer(id:'moonlight',name:'Moonlight',description:'',accessType:'premium',price:93,status:'active',minimumBuild:57,revision:4,order:1);
     server.rejectQuote=true;
     await expectLater(account.unlock('moonlight',offer:offer),throwsA(isA<AccountException>().having((e)=>e.code,'code','catalog_changed')));
-    expect(server.unlockBody,{'packId':'moonlight','expectedPrice':93,'catalogRevision':4,'appBuild':57});
+    expect(server.unlockBody,{'packId':'moonlight','expectedPrice':93,'catalogRevision':4,'appBuild':GardenPackRegistry.appBuild});
     expect(account.wallet!['packs'],['sakura']);expect(account.wallet!['balance'],300);
     server.rejectQuote=false;
     await account.unlock('moonlight',offer:offer);

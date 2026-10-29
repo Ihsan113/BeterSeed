@@ -1,3 +1,4 @@
+import 'garden_test_helpers.dart';
 import 'dart:convert';
 
 import 'package:betterseed/main.dart';
@@ -31,6 +32,7 @@ void main() {
       ]),
     });
     await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.byKey(const ValueKey('tab-1')));
@@ -44,6 +46,7 @@ void main() {
       'betterseed_music_v2': false, 'betterseed_sfx_v2': false,
     });
     await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.byTooltip('Settings'));

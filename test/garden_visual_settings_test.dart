@@ -1,3 +1,4 @@
+import 'garden_test_helpers.dart';
 import 'package:betterseed/main.dart';
 import 'package:betterseed/widgets/garden_life_painter.dart';
 import 'package:betterseed/widgets/adaptive_garden_background.dart';
@@ -13,6 +14,7 @@ Future<void> _launch(WidgetTester tester) async {
     'betterseed_game_motion_override_v1': true,
   });
   await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
   // Allow the async preference/native initialization to complete. We must NOT
   // call pumpAndSettle: the garden has an intentionally infinite animation.
   await tester.pump();
@@ -82,6 +84,7 @@ void main() {
       data: const MediaQueryData(textScaler: TextScaler.linear(1.8)),
       child: const BetterSeedApp(showLaunchFlow: false),
     ));
+    await waitForGardenReady(tester);
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byKey(const ValueKey('tab-3')), findsOneWidget);
     expect(tester.takeException(), isNull);
