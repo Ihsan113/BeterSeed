@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -38,8 +39,9 @@ class _LegalPageState extends State<LegalPage> {
     final documents = _legal?['documents'] as Map?;
     final selected = documents?[widget.document] as Map?;
     return Scaffold(
-      appBar:
-          AppBar(title: Text(selected?['title'] as String? ?? 'Help & legal')),
+      appBar: AppBar(
+          title: Text(
+              context.tr(selected?['title'] as String? ?? "Help & legal"))),
       body: documents == null
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -50,21 +52,29 @@ class _LegalPageState extends State<LegalPage> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Policy version ${_legal!['version']}',
+                      Text(
+                          context.tr("Policy version {p0}",
+                              {'p0': _legal!['version']}),
                           style: Theme.of(context).textTheme.labelMedium),
                       if (_offline)
-                        const Padding(
+                        Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Text(
-                                'Bundled copy. Connect to view the current operator and published policy.')),
+                            child: Text(context.tr(
+                                "Bundled copy. Connect to view the current operator and published policy."))),
+                      if (selected != null &&
+                          Localizations.localeOf(context).languageCode != 'en')
+                        Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(context.tr(
+                                'This document is shown in its published language.'))),
                       const SizedBox(height: 20),
                       if (selected != null)
                         SelectableText(selected['body'] as String,
                             style: const TextStyle(height: 1.6))
                       else
                         ...documents.entries.map((entry) => ListTile(
-                              title:
-                                  Text((entry.value as Map)['title'] as String),
+                              title: Text(context
+                                  .tr((entry.value as Map)['title'] as String)),
                               trailing: const Icon(Icons.chevron_right),
                               onTap: () => Navigator.of(context).push(
                                   MaterialPageRoute<void>(
@@ -76,7 +86,7 @@ class _LegalPageState extends State<LegalPage> {
                       OutlinedButton(
                           onPressed: () => showLicensePage(
                               context: context, applicationName: 'BetterSeed'),
-                          child: const Text('Open-source licenses')),
+                          child: Text(context.tr("Open-source licenses"))),
                     ]),
               ))),
     );

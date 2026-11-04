@@ -1,3 +1,28 @@
+# Upgrade admin transfers — server 1.3.0 / app 1.8.0+59
+
+Base source: GitHub main `413d605`. This release adds bulk Garden Pack JSON editing, encrypted database backup/restore and a responsive admin interface. See `ADMIN_TRANSFER_AND_LOCALIZATION.md` in the ZIP (or `../docs/ADMIN_TRANSFER_AND_LOCALIZATION.md` in the repository) for browser steps, backup limits and migration requirements.
+
+## Pembaruan alur pemulihan sandi
+
+Pasang source backend terbaru ini **sebelum** APK dengan alur lupa sandi bertahap. Tambahan endpoint `/v1/auth/password-reset/verify-email`, `/verify-factor`, dan `/complete` memakai tabel challenge yang sudah ada; tidak ada migrasi atau variabel environment tambahan. Jangan hanya mengganti APK jika server masih memakai source sebelum endpoint ini ditambahkan. Endpoint reset lama tetap berfungsi untuk APK lama.
+
+Respons awal lupa sandi tidak membocorkan keberadaan akun atau status 2FA. Setelah OTP email benar, server meminta autentikator/kode pemulihan hanya jika sudah diaktifkan. Grant acak lima menit hanya berlaku untuk satu tahap dan satu akun, dibatasi lima percobaan, dan hanya bisa dipakai sekali. Reset tetap mencabut sesi aktif dan mempertahankan 2FA saat login.
+
+## Upgrade from server 1.2.0
+
+1. Keep a private database backup, `.env`, provider credentials and the existing MySQL volume/version. Preserve `TOKEN_PEPPER` and `DATA_ENCRYPTION_KEY`. Source ZIPs contain neither these secrets nor live data.
+2. Build the new backend with Node.js 24 (`npm ci` then `npm run build`) or build the existing Compose `api`, `worker` and `migrate` services. Copy `public/` with the runtime source. Do not change your production database tag or volume.
+3. Stop **all old API and worker replicas** during the update. Run the existing migration command (`node --env-file=.env dist/migrate.js`, or `docker compose run --rm migrate`). Migration `004_database_gate.sql` adds only a coordination table and singleton row; it does not replace user/catalog/financial data. Keep migrations 001–003 too. The migration runner is idempotent; MySQL DDL is not transactionally reversible.
+4. Start API and worker from the same 1.3.0 build. On Compose, use `docker compose stop api worker` before migration and `docker compose up -d api worker` afterward. Never use `down -v`. No old API/worker may remain connected during a dashboard restore because older versions do not acquire the coordination lock.
+5. Check `/ready`, `/admin`, the catalog, sync and worker logs. Existing admin credentials remain valid. Test an export and isolated restore before using backups operationally. Each API/worker process now allows up to 16 additional gate connections; account for replica counts in the MySQL connection limit.
+6. Release app 1.8.0+59 after backend verification. There are no new provider credentials, billing product IDs or environment variables for these features.
+
+Routine catalog import and database export/restore now use the dashboard. Initial installation, migrations, external secrets and CDN assets still need server setup. Database import is a complete logical replacement of supported BetterSeed tables, not an arbitrary SQL uploader or a merge. Use a restricted destination, the same backend/schema and original encryption keys for migration; reconcile purchases/refunds and reapply deletions before reopening traffic. Backup import also replaces admin accounts and revokes all sessions.
+
+The previous upgrade guide below remains useful for older installations; its version-specific release checks describe server 1.2.0.
+
+---
+
 # Upgrade Dynamic Garden Packs — server 1.2.0
 
 Dasar pembaruan: GitHub main `bc16a2d` dan ZIP `AdminVPS-Safe-20261028-083945.zip`. Source runtime ZIP cocok dengan basis GitHub; perbaikan Docker yang menyertakan `public/` dan bind address container dari GitHub dipertahankan. Tidak ada konfigurasi rahasia produksi yang disalin ke source.

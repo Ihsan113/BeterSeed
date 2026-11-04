@@ -12,10 +12,12 @@ app = root / 'android/app/src/main'
 native = root / 'native/android'
 
 KOTLIN = (
+    'BetterSeedLiveWallpaperService', 'LiveWallpaperStore',
     'GardenWallpaper', 'MainActivity', 'ReminderScheduler', 'ReminderReceiver',
     'ReminderBootReceiver', 'BetterSeedWidget',
 )
 RESOURCES = (
+    'xml/betterseed_live_wallpaper.xml',
     'layout/betterseed_widget.xml',
     'xml/betterseed_widget_info.xml',
     'xml/betterseed_backup_rules.xml',
@@ -59,6 +61,20 @@ if missing_receivers:
     raise SystemExit(f'Missing Android receivers: {sorted(missing_receivers)}')
 application = manifest.find('application')
 android_attr = '{http://schemas.android.com/apk/res/android}'
+live = next((s for s in manifest.findall('application/service')
+             if s.get(ns_name) == '.BetterSeedLiveWallpaperService'), None)
+if live is None or live.get(android_attr + 'permission') != 'android.permission.BIND_WALLPAPER':
+    raise SystemExit('Live wallpaper service must be protected by BIND_WALLPAPER')
+if live.get(android_attr + 'exported') != 'true' or not any(
+        action.get(ns_name) == 'android.service.wallpaper.WallpaperService'
+        for action in live.findall('intent-filter/action')):
+    raise SystemExit('Live wallpaper must be discoverable by the Android wallpaper picker')
+if live.find('meta-data') is None or live.find('meta-data').get(android_attr + 'resource') != '@xml/betterseed_live_wallpaper':
+    raise SystemExit('Missing live wallpaper metadata')
+feature = next((f for f in manifest.findall('uses-feature')
+                if f.get(ns_name) == 'android.software.live_wallpaper'), None)
+if feature is None or feature.get(android_attr + 'required') != 'false':
+    raise SystemExit('Live wallpaper must remain optional for device compatibility')
 if application is None or application.get(android_attr + 'allowBackup') != 'true':
     raise SystemExit('Auto Backup must be enabled in AndroidManifest.xml')
 if application.get(android_attr + 'fullBackupContent') != '@xml/betterseed_backup_rules':

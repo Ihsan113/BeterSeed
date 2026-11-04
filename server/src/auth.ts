@@ -406,6 +406,60 @@ export function authRoutes(app: FastifyInstance, a: Auth) {
       },
     );
   });
+  // Progressive recovery: email ownership is proven before exposing MFA status.
+  // Reuse the reset challenge table with domain-separated, one-use grants;
+  // these random tokens can never be used as six-digit legacy email codes.
+  const resetGrant = z.object({ challengeId: z.uuid(), resetToken: z.string().length(43) });
+  async function issueResetGrant(db: DB, uid: string, kind: "reset-factor" | "reset-password") {
+    const challengeId = id(), resetToken = token();
+    await exec(db, `INSERT INTO challenges(id,user_id,purpose,proof_hash,expires_at)
+      VALUES(?,?,'reset',?,DATE_ADD(NOW(3),INTERVAL 5 MINUTE))`,
+      [challengeId, uid, hash(c, kind, resetToken)]);
+    return { challengeId, resetToken };
+  }
+  async function consumeResetGrant(input: z.infer<typeof resetGrant>, kind: "reset-factor" | "reset-password",
+    work: (db: DB, u: any) => Promise<any>) {
+    const result = await transaction(pool, async db => {
+      const [ch] = await rows(db, "SELECT * FROM challenges WHERE id=? AND purpose='reset' FOR UPDATE", [input.challengeId]);
+      if (!ch || ch.attempts >= 5 || new Date(ch.expires_at).getTime() <= Date.now()) return null;
+      await exec(db, "UPDATE challenges SET attempts=attempts+1 WHERE id=?", [ch.id]);
+      if (ch.proof_hash !== hash(c, kind, input.resetToken)) return null;
+      const [u] = await rows(db, "SELECT * FROM users WHERE id=? FOR UPDATE", [ch.user_id]);
+      if (!u || !u.verified || u.provider !== "email") return null;
+      await a.ensureActive(db, u.id);
+      const outcome = await work(db, u);
+      if (outcome === null) return null;
+      await exec(db, "DELETE FROM challenges WHERE id=?", [ch.id]);
+      return outcome;
+    });
+    return result ?? fail(400, "invalid_or_expired_code");
+  }
+  app.post("/v1/auth/password-reset/verify-email", async r => {
+    const b = z.object({ challengeId: z.uuid(), code: z.string().regex(/^\d{6}$/) }).strict().parse(r.body);
+    return a.consumeEmailChallenge(b.challengeId, b.code, "reset", async (db, u) => {
+      if (!u.verified) return null;
+      await a.ensureActive(db, u.id);
+      const twoFactorRequired = !!u.totp_secret;
+      return { ...await issueResetGrant(db, u.id, twoFactorRequired ? "reset-factor" : "reset-password"), twoFactorRequired };
+    });
+  });
+  app.post("/v1/auth/password-reset/verify-factor", async r => {
+    const b = resetGrant.extend({ factor: z.string().min(1).max(64) }).strict().parse(r.body);
+    return consumeResetGrant(b, "reset-factor", async (db, u) => {
+      if (!u.totp_secret || !await secondFactor(db, c, u, b.factor)) return null;
+      return issueResetGrant(db, u.id, "reset-password");
+    });
+  });
+  app.post("/v1/auth/password-reset/complete", async r => {
+    const b = resetGrant.extend({ password }).strict().parse(r.body);
+    const pw = await passwordHash(b.password);
+    return consumeResetGrant(b, "reset-password", async (db, u) => {
+      await exec(db, "UPDATE users SET password_hash=? WHERE id=?", [pw, u.id]);
+      await exec(db, "DELETE FROM sessions WHERE user_id=?", [u.id]);
+      await exec(db, "DELETE FROM challenges WHERE user_id=?", [u.id]);
+      return { ok: true };
+    });
+  });
   app.post("/v1/auth/refresh", async (r) => {
     const b = z
       .object({

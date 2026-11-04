@@ -21,6 +21,8 @@ import {
   catalog,
   publicPack,
 } from "./catalog.js";
+import { adminTransferRoutes } from "./admin-transfer.js";
+import type { DatabaseGate } from "./database-gate.js";
 import { email, password } from "./schema.js";
 const cookieName = "__Host-betterseed_admin";
 const reason = z.string().trim().min(5).max(500);
@@ -28,7 +30,7 @@ const packs = packId;
 const fields = `u.id,u.email,u.provider,u.verified,u.created_at,(u.totp_secret IS NOT NULL) AS twoFactorEnabled,
  COALESCE(ac.suspended,0) AS suspended,COALESCE(w.balance,0) AS balance,COALESCE(g.revision,0) AS gardenRevision,g.updated_at AS lastSync`;
 const joins = `FROM users u LEFT JOIN account_controls ac ON ac.user_id=u.id LEFT JOIN wallets w ON w.user_id=u.id LEFT JOIN gardens g ON g.user_id=u.id`;
-export function adminRoutes(app: FastifyInstance, a: Auth) {
+export function adminRoutes(app: FastifyInstance, a: Auth, gate: DatabaseGate) {
   const { pool, c } = a;
   function sameOrigin(r: FastifyRequest) {
     if (r.headers.origin !== new URL(c.PUBLIC_BASE_URL).origin)
@@ -541,6 +543,7 @@ export function adminRoutes(app: FastifyInstance, a: Auth) {
       return { packs: await catalog(db, true) };
     });
   });
+  adminTransferRoutes(app, a, gate, current, audit);
   app.get("/admin/api/audit", async (r) => {
     await current(r);
     const q = z

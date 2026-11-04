@@ -87,9 +87,12 @@ class BetterSeedWidget : AppWidgetProvider() {
             } else 0
             val total = pref.getInt("widget_total", 0).coerceAtLeast(0)
             val views = RemoteViews(context.packageName, R.layout.betterseed_widget)
-            views.setTextViewText(R.id.widget_water, "💧 $drops water")
-            views.setTextViewText(R.id.widget_stage, "Stage $stage / 6")
-            views.setTextViewText(R.id.widget_habits, "$done / $total habits done")
+            val localized = BetterSeedLocale.context(context)
+            views.setTextViewText(R.id.widget_water, localized.getString(R.string.widget_water_count, drops))
+            views.setTextViewText(R.id.widget_stage, localized.getString(R.string.widget_stage_count, stage))
+            views.setTextViewText(R.id.widget_habits, localized.getString(R.string.widget_habits_count, done, total))
+            views.setTextViewText(R.id.widget_open, localized.getString(R.string.widget_open_garden))
+            views.setContentDescription(R.id.widget_tree_art, localized.getString(R.string.widget_tree_description))
             views.setImageViewResource(R.id.widget_tree_art, treeArt[stage - 1])
             bundledTree(context, pref.getString("widget_tree_asset", "") ?: "",
                 pref.getString("widget_tree_file", "") ?: "")?.let {

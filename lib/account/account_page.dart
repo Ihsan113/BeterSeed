@@ -1,3 +1,5 @@
+import '../l10n/app_localizations.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,7 +9,16 @@ import 'cloud_account.dart';
 import 'legal_page.dart';
 import 'dart:convert';
 
-enum _AuthStep { login, register, verify, forgot, reset, factor }
+enum _AuthStep {
+  login,
+  register,
+  verify,
+  forgot,
+  resetEmail,
+  resetFactor,
+  reset,
+  factor
+}
 
 class AccountPage extends StatefulWidget {
   const AccountPage(
@@ -26,6 +37,13 @@ class _AccountPageState extends State<AccountPage> {
   final _factor = TextEditingController();
   _AuthStep _step = _AuthStep.login;
   bool _busy = false, _accepted = false, _showPassword = false;
+  bool _resetRecovery = false;
+  bool get _recovering => const {
+        _AuthStep.forgot,
+        _AuthStep.resetEmail,
+        _AuthStep.resetFactor,
+        _AuthStep.reset
+      }.contains(_step);
   bool _legalReady = false;
   String _legalVersion = '';
   String? _message;
@@ -97,6 +115,7 @@ class _AccountPageState extends State<AccountPage> {
       _step = step;
       _challengeId = null;
       _challengeToken = null;
+      _resetRecovery = false;
       _message = null;
       _password.clear();
       _code.clear();
@@ -157,17 +176,47 @@ class _AccountPageState extends State<AccountPage> {
                 body: {'email': email});
             setState(() {
               _challengeId = result['challengeId'] as String;
-              _step = _AuthStep.reset;
-              _message =
-                  'If this is an eligible email account, a reset code will arrive shortly.';
+              _step = _AuthStep.resetEmail;
+              _code.clear();
+              _message = null;
             });
-          case _AuthStep.reset:
-            await a.api.send('POST', '/v1/auth/reset-password', body: {
+          case _AuthStep.resetEmail:
+            final result = await a.api
+                .send('POST', '/v1/auth/password-reset/verify-email', body: {
               'challengeId': _challengeId,
               'code': _code.text.trim(),
-              'password': _password.text,
-              'factor': _factor.text.trim()
             });
+            if (!mounted) return;
+            setState(() {
+              _challengeId = result['challengeId'] as String;
+              _challengeToken = result['resetToken'] as String;
+              _step = result['twoFactorRequired'] == true
+                  ? _AuthStep.resetFactor
+                  : _AuthStep.reset;
+              _code.clear();
+              _factor.clear();
+            });
+          case _AuthStep.resetFactor:
+            final result = await a.api
+                .send('POST', '/v1/auth/password-reset/verify-factor', body: {
+              'challengeId': _challengeId,
+              'resetToken': _challengeToken,
+              'factor': _factor.text.trim(),
+            });
+            if (!mounted) return;
+            setState(() {
+              _challengeId = result['challengeId'] as String;
+              _challengeToken = result['resetToken'] as String;
+              _factor.clear();
+              _step = _AuthStep.reset;
+            });
+          case _AuthStep.reset:
+            await a.api.send('POST', '/v1/auth/password-reset/complete', body: {
+              'challengeId': _challengeId,
+              'resetToken': _challengeToken,
+              'password': _password.text,
+            });
+            if (!mounted) return;
             _go(_AuthStep.login);
             setState(() =>
                 _message = 'Password reset. Sign in with your new password.');
@@ -187,19 +236,19 @@ class _AccountPageState extends State<AccountPage> {
           final consent = await showDialog<bool>(
               context: context,
               builder: (dialog) => AlertDialog(
-                    title: const Text('Before you continue'),
+                    title: Text(context.tr("Before you continue")),
                     content: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Text(
-                          'By continuing, you confirm that you meet the minimum age and agree to our Terms and Privacy policy.'),
+                      Text(context.tr(
+                          "By continuing, you confirm that you meet the minimum age and agree to our Terms and Privacy policy.")),
                       _policyLinks(),
                     ]),
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(dialog, false),
-                          child: const Text('Cancel')),
+                          child: Text(context.tr("Cancel"))),
                       FilledButton(
                           onPressed: () => Navigator.pop(dialog, true),
-                          child: const Text('Agree & continue'))
+                          child: Text(context.tr("Agree & continue")))
                     ],
                   ));
           if (consent != true || !mounted) return;
@@ -232,15 +281,20 @@ class _AccountPageState extends State<AccountPage> {
         context: context,
         builder: (_) => _ProofDialog(
               title: deleting
-                  ? 'Delete account permanently?'
-                  : 'Confirm your identity',
+                  ? context.tr("Delete account permanently?")
+                  : context.tr("Confirm your identity"),
               fields: fields,
               description: deleting
-                  ? 'Your cloud garden, account, coin balance and pack access will be removed. This does not refund purchases. Export your garden first. Clear app data on your other devices to erase any remaining offline copies.'
+                  ? context.tr(
+                      "Your cloud garden, account, coin balance and pack access will be removed. This does not refund purchases. Export your garden first. Clear app data on your other devices to erase any remaining offline copies.")
                   : google
-                      ? 'Continue to verify your Google account again.'
-                      : 'Re-enter your password to protect your account.',
-              action: deleting ? 'Delete permanently' : 'Continue',
+                      ? context
+                          .tr("Continue to verify your Google account again.")
+                      : context.tr(
+                          "Re-enter your password to protect your account."),
+              action: deleting
+                  ? context.tr("Delete permanently")
+                  : context.tr("Continue"),
             ));
     if (values == null) return null;
     if (google) values['idToken'] = await GoogleAccountIdentity.authenticate();
@@ -286,17 +340,19 @@ class _AccountPageState extends State<AccountPage> {
         final yes = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-                  title: const Text('Sign out?'),
+                  title: Text(context.tr("Sign out?")),
                   content: Text(a.dirty
-                      ? 'Some changes are still on this device. They will stay in this account’s local copy until you sign in again. Your guest garden is separate.'
-                      : 'Your guest garden will open. Sign in again to return to this account.'),
+                      ? context.tr(
+                          "Some changes are still on this device. They will stay in this account’s local copy until you sign in again. Your guest garden is separate.")
+                      : context.tr(
+                          "Your guest garden will open. Sign in again to return to this account.")),
                   actions: [
                     TextButton(
                         onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel')),
+                        child: Text(context.tr("Cancel"))),
                     FilledButton(
                         onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Sign out'))
+                        child: Text(context.tr("Sign out")))
                   ],
                 ));
         if (yes == true) await a.signOut();
@@ -331,8 +387,9 @@ class _AccountPageState extends State<AccountPage> {
                   OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
               suffixIcon: secret
                   ? IconButton(
-                      tooltip:
-                          _showPassword ? 'Hide password' : 'Show password',
+                      tooltip: _showPassword
+                          ? context.tr("Hide password")
+                          : context.tr("Show password"),
                       onPressed: () =>
                           setState(() => _showPassword = !_showPassword),
                       icon: Icon(_showPassword
@@ -346,8 +403,9 @@ class _AccountPageState extends State<AccountPage> {
         canPop: !_busy && !a.switching,
         child: Scaffold(
           appBar: AppBar(
+              actions: const [LanguageButton()],
               title: Text(a.signedIn && !a.needsSignIn
-                  ? 'Your account'
+                  ? context.tr("Your account")
                   : 'BetterSeed')),
           body: SingleChildScrollView(
               controller: _scroll,
@@ -363,15 +421,18 @@ class _AccountPageState extends State<AccountPage> {
                       if (_message != null)
                         Padding(
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            child: Text(_message!, semanticsLabel: _message)),
+                            child: Text(context.tr(_message!),
+                                semanticsLabel: context.tr(_message!))),
                       if (a.signedIn && !a.needsSignIn)
                         ..._signedIn()
                       else
                         ..._signedOut(),
-                      const SizedBox(height: 24),
-                      TextButton(
-                          onPressed: () => _legal(),
-                          child: const Text('Help & information')),
+                      if (!_recovering) ...[
+                        const SizedBox(height: 24),
+                        TextButton(
+                            onPressed: () => _legal(),
+                            child: Text(context.tr("Help & information"))),
+                      ],
                     ]),
               ))),
         ),
@@ -385,6 +446,8 @@ class _AccountPageState extends State<AccountPage> {
       _AuthStep.register => 'Start growing together',
       _AuthStep.verify => 'Verify your email',
       _AuthStep.forgot => 'Forgot your password?',
+      _AuthStep.resetEmail => 'Check your email',
+      _AuthStep.resetFactor => 'Verify your identity',
       _AuthStep.reset => 'Choose a new password',
       _AuthStep.factor => 'One more step',
     };
@@ -395,8 +458,12 @@ class _AccountPageState extends State<AccountPage> {
         'Enter the code sent to your email. It expires in 10 minutes.',
       _AuthStep.forgot =>
         'We’ll send a reset code to your email. For Google accounts, use Google’s account recovery.',
+      _AuthStep.resetEmail =>
+        'If this is an eligible email account, a reset code will arrive shortly.',
+      _AuthStep.resetFactor =>
+        'This account uses two-factor authentication. Choose how to verify it.',
       _AuthStep.reset =>
-        'Enter your email code and a password with at least 12 characters.',
+        'Your identity is verified. Choose a password with at least 12 characters.',
       _AuthStep.factor =>
         'Enter a code from your authenticator or an unused recovery code.',
     };
@@ -405,47 +472,54 @@ class _AccountPageState extends State<AccountPage> {
       _AuthStep.register => 'Create account',
       _AuthStep.verify => 'Verify email',
       _AuthStep.forgot => 'Send reset code',
+      _AuthStep.resetEmail => 'Verify reset code',
+      _AuthStep.resetFactor => 'Verify and continue',
       _AuthStep.reset => 'Reset password',
       _AuthStep.factor => 'Verify sign-in',
     };
     return [
       const SizedBox(height: 12),
-      Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(20)),
-              child: Icon(Icons.spa_outlined,
-                  size: 32,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer))),
-      const SizedBox(height: 24),
-      Text(headline,
+      if (!_recovering)
+        Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(20)),
+                child: Icon(Icons.spa_outlined,
+                    size: 32,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer))),
+      if (!_recovering) const SizedBox(height: 24),
+      Text(context.tr(headline),
           style: Theme.of(context)
               .textTheme
               .headlineMedium
               ?.copyWith(fontWeight: FontWeight.w700)),
       const SizedBox(height: 8),
-      Text(description,
+      Text(context.tr(description),
           style: TextStyle(
               height: 1.5,
               color: Theme.of(context).colorScheme.onSurfaceVariant)),
       const SizedBox(height: 28),
       if (!a.configured) ...[
-        const Text(
-            'Sign-in is unavailable right now. You can still grow your garden as a guest.'),
+        Text(context.tr(
+            "Sign-in is unavailable right now. You can still grow your garden as a guest.")),
         const SizedBox(height: 20),
       ],
       if (login ||
           registering ||
           _step == _AuthStep.forgot ||
           (_step == _AuthStep.verify && _challengeId == null))
-        _field(_email, 'Email',
+        _field(_email, context.tr("Email"),
             keyboard: TextInputType.emailAddress,
             autofill: const [AutofillHints.email]),
       if (login || registering || _step == _AuthStep.reset)
-        _field(_password, login ? 'Password' : 'Password (12–128 characters)',
+        _field(
+            _password,
+            login
+                ? context.tr("Password")
+                : context.tr("Password (12–128 characters)"),
             secret: true,
             autofill: [
               login ? AutofillHints.password : AutofillHints.newPassword
@@ -455,20 +529,42 @@ class _AccountPageState extends State<AccountPage> {
             alignment: Alignment.centerRight,
             child: TextButton(
                 onPressed: _busy ? null : () => _go(_AuthStep.forgot),
-                child: const Text('Forgot password?'))),
-      if (_step == _AuthStep.verify || _step == _AuthStep.reset)
-        _field(_code, '6-digit email code',
+                child: Text(context.tr("Forgot password?")))),
+      if (_step == _AuthStep.verify || _step == _AuthStep.resetEmail)
+        _field(_code, context.tr("6-digit email code"),
             keyboard: TextInputType.number,
             autofill: const [AutofillHints.oneTimeCode]),
       if (_step == _AuthStep.factor)
-        _field(_factor, 'Authenticator / recovery code'),
-      if (_step == _AuthStep.reset)
-        ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            title: const Text('Use two-factor authentication?'),
-            children: [
-              _field(_factor, 'Authenticator / recovery code (if enabled)')
-            ]),
+        _field(_factor, context.tr("Authenticator / recovery code")),
+      if (_step == _AuthStep.resetFactor) ...[
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final recovery in [false, true])
+            ChoiceChip(
+              key: ValueKey(recovery
+                  ? 'reset-method-recovery'
+                  : 'reset-method-authenticator'),
+              label: Text(
+                  context.tr(recovery ? 'Recovery code' : 'Authenticator')),
+              selected: _resetRecovery == recovery,
+              onSelected: _busy
+                  ? null
+                  : (_) => setState(() {
+                        _resetRecovery = recovery;
+                        _factor.clear();
+                        _message = null;
+                      }),
+            ),
+        ]),
+        const SizedBox(height: 16),
+        Text(context.tr(_resetRecovery
+            ? 'Enter a recovery code saved when you enabled two-factor authentication.'
+            : 'Enter the 6-digit code from your authenticator.')),
+        const SizedBox(height: 12),
+        _field(_factor,
+            context.tr(_resetRecovery ? 'Recovery code' : 'Authenticator code'),
+            keyboard:
+                _resetRecovery ? TextInputType.text : TextInputType.number),
+      ],
       if (registering || _step == _AuthStep.verify) ...[
         CheckboxListTile(
             contentPadding: EdgeInsets.zero,
@@ -476,17 +572,19 @@ class _AccountPageState extends State<AccountPage> {
             value: _accepted,
             onChanged:
                 _busy ? null : (v) => setState(() => _accepted = v ?? false),
-            title: const Text(
-                'I meet the minimum age and agree to the Terms and Privacy policy.',
+            title: Text(
+                context.tr(
+                    "I meet the minimum age and agree to the Terms and Privacy policy."),
                 style: TextStyle(fontSize: 13, height: 1.4))),
         _policyLinks(),
         if (!_legalReady && a.configured)
           TextButton(
               onPressed: _loadLegal,
-              child: const Text('Try loading policies again')),
+              child: Text(context.tr("Try loading policies again"))),
         const SizedBox(height: 12),
       ],
       FilledButton(
+          key: const ValueKey('account-submit'),
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
           onPressed: !_busy &&
                   a.configured &&
@@ -495,13 +593,14 @@ class _AccountPageState extends State<AccountPage> {
                       (_challengeId != null && _accepted && _legalReady))
               ? _submit
               : null,
-          child: Text(button)),
+          child: Text(context.tr(button))),
       if (login || registering) ...[
         const SizedBox(height: 16),
-        const Row(children: [
+        Row(children: [
           Expanded(child: Divider()),
           Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16), child: Text('or')),
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text(context.tr("or"))),
           Expanded(child: Divider())
         ]),
         const SizedBox(height: 16),
@@ -512,20 +611,20 @@ class _AccountPageState extends State<AccountPage> {
                 ? _google
                 : null,
             icon: const Icon(Icons.account_circle_outlined),
-            label: const Text('Continue with Google')),
+            label: Text(context.tr("Continue with Google"))),
         const SizedBox(height: 12),
         TextButton(
             onPressed: _busy
                 ? null
                 : () => _go(login ? _AuthStep.register : _AuthStep.login),
             child: Text(login
-                ? 'Create an email account'
-                : 'Already have an account? Sign in')),
+                ? context.tr("Create an email account")
+                : context.tr("Already have an account? Sign in"))),
       ] else ...[
         const SizedBox(height: 12),
         TextButton(
             onPressed: _busy ? null : () => _go(_AuthStep.login),
-            child: const Text('Back to sign in')),
+            child: Text(context.tr("Back to sign in"))),
       ],
       if (_step == _AuthStep.verify)
         TextButton(
@@ -541,24 +640,32 @@ class _AccountPageState extends State<AccountPage> {
                       });
                     })
                 : null,
-            child: const Text('Send a new verification code')),
+            child: Text(context.tr("Send a new verification code"))),
       if (login)
         ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: const Text('Need help signing in?',
+            title: Text(context.tr("Need help signing in?"),
                 style: TextStyle(fontSize: 14)),
             children: [
               ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.mark_email_unread_outlined),
-                  title: const Text('Verify an existing email registration'),
+                  title:
+                      Text(context.tr("Verify an existing email registration")),
                   onTap: _busy ? null : () => _go(_AuthStep.verify))
             ]),
-      const SizedBox(height: 20),
-      TextButton(
-          onPressed: _busy ? null : _guest,
-          child:
-              Text(a.needsSignIn ? 'Continue offline' : 'Continue as guest')),
+      if (_step == _AuthStep.resetEmail)
+        TextButton(
+            onPressed: _busy ? null : () => _go(_AuthStep.forgot),
+            child: Text(context.tr("Use a different email"))),
+      if (!_recovering) ...[
+        const SizedBox(height: 20),
+        TextButton(
+            onPressed: _busy ? null : _guest,
+            child: Text(a.needsSignIn
+                ? context.tr("Continue offline")
+                : context.tr("Continue as guest"))),
+      ],
       if (login) _policyLinks(),
     ];
   }
@@ -567,18 +674,18 @@ class _AccountPageState extends State<AccountPage> {
       Wrap(alignment: WrapAlignment.center, spacing: 4, children: [
         TextButton(
             onPressed: () => _legal('privacy'),
-            child: const Text('Privacy policy')),
+            child: Text(context.tr("Privacy policy"))),
         TextButton(
             onPressed: () => _legal('terms'),
-            child: const Text('Terms of use')),
+            child: Text(context.tr("Terms of use"))),
       ]);
 
   List<Widget> _signedIn() => [
         Text(a.user!['email'] as String,
             style: Theme.of(context).textTheme.titleLarge),
         Text(a.user!['provider'] == 'google'
-            ? 'Google account'
-            : 'Verified email account'),
+            ? context.tr("Google account")
+            : context.tr("Verified email account")),
         const SizedBox(height: 24),
         Card(
             child: Padding(
@@ -586,42 +693,54 @@ class _AccountPageState extends State<AccountPage> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(a.status,
+                      Text(context.tr(a.status),
                           style: Theme.of(context).textTheme.titleMedium),
                       if (a.lastSynced != null)
-                        Text(
-                            'Last synced: ${DateTime.parse(a.lastSynced!).toLocal().toString().split('.').first}'),
+                        Text(context.tr("Last synced: {p0}", {
+                          'p0': DateFormat.yMMMd(
+                                  Localizations.localeOf(context).toString())
+                              .add_jm()
+                              .format(DateTime.parse(a.lastSynced!).toLocal())
+                        })),
                       if (a.error != null)
                         Padding(
                             padding: const EdgeInsets.only(top: 12),
-                            child: Text(a.error!)),
+                            child: Text(context.tr(a.error!))),
                       const SizedBox(height: 12),
-                      const Text(
-                          'Your garden saves automatically while you use the app. Your music stays on this phone.'),
+                      Text(context.tr(
+                          "Your garden saves automatically while you use the app. Your music stays on this phone.")),
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
                           onPressed:
                               _busy || a.busy ? null : () => _run(a.sync),
                           icon: const Icon(Icons.sync),
-                          label: const Text('Sync now')),
+                          label: Text(context.tr("Sync now"))),
                       if (a.conflict != null) ...[
                         const Divider(),
-                        const Text(
-                            'Both garden versions are preserved. Choose the version you want to keep. Water and XP will not be added together.'),
-                        Text(
-                            'This device: ${((a.currentGarden?['progress'] as Map?)?['xp']) ?? 0} XP · Cloud: ${((a.conflict?['snapshot'] as Map?)?['progress'] as Map?)?['xp'] ?? 0} XP'),
+                        Text(context.tr(
+                            "Both garden versions are preserved. Choose the version you want to keep. Water and XP will not be added together.")),
+                        Text(context
+                            .tr("This device: {p0} XP · Cloud: {p1} XP", {
+                          'p0':
+                              ((a.currentGarden?['progress'] as Map?)?['xp']) ??
+                                  0,
+                          'p1': ((a.conflict?['snapshot'] as Map?)?['progress']
+                                  as Map?)?['xp'] ??
+                              0
+                        })),
                         FilledButton(
                             onPressed: _busy || a.busy
                                 ? null
                                 : () => _run(
                                     () => a.resolveConflict(useCloud: true)),
-                            child: const Text('Use cloud garden')),
+                            child: Text(context.tr("Use cloud garden"))),
                         OutlinedButton(
                             onPressed: _busy || a.busy
                                 ? null
                                 : () => _run(
                                     () => a.resolveConflict(useCloud: false)),
-                            child: const Text('Keep this device’s garden')),
+                            child:
+                                Text(context.tr("Keep this device’s garden"))),
                       ],
                       if (a.recoveryCopy != null)
                         TextButton(
@@ -633,17 +752,19 @@ class _AccountPageState extends State<AccountPage> {
                                           suggestedName:
                                               'BetterSeed-sync-recovery.json');
                                     }),
-                            child: const Text('Save a copy of both gardens')),
+                            child: Text(
+                                context.tr("Save a copy of both gardens"))),
                     ]))),
         const SizedBox(height: 20),
-        Text('Security', style: Theme.of(context).textTheme.titleMedium),
+        Text(context.tr("Security"),
+            style: Theme.of(context).textTheme.titleMedium),
         ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.security),
-            title: const Text('Authenticator'),
+            title: Text(context.tr("Authenticator")),
             subtitle: Text(a.user!['twoFactorEnabled'] == true
-                ? 'Two-factor authentication is on'
-                : 'Protect your account with an authenticator'),
+                ? context.tr("Two-factor authentication is on")
+                : context.tr("Protect your account with an authenticator")),
             trailing: TextButton(
                 onPressed: _busy
                     ? null
@@ -651,21 +772,22 @@ class _AccountPageState extends State<AccountPage> {
                         ? _disableFactor
                         : _setupFactor,
                 child: Text(a.user!['twoFactorEnabled'] == true
-                    ? 'Disable'
-                    : 'Set up'))),
+                    ? context.tr("Disable")
+                    : context.tr("Set up")))),
         if (a.user!['provider'] == 'email')
           ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.password),
-              title: const Text('Change password'),
+              title: Text(context.tr("Change password")),
               trailing: const Icon(Icons.chevron_right),
               onTap: _busy ? null : _changePassword),
         const Divider(),
         OutlinedButton(
-            onPressed: _busy ? null : _signOut, child: const Text('Sign out')),
+            onPressed: _busy ? null : _signOut,
+            child: Text(context.tr("Sign out"))),
         TextButton(
             onPressed: _busy ? null : _delete,
-            child: Text('Delete account permanently',
+            child: Text(context.tr("Delete account permanently"),
                 style: TextStyle(color: Theme.of(context).colorScheme.error))),
       ];
 }
@@ -699,7 +821,7 @@ class _ProofDialogState extends State<_ProofDialog> {
         title: Text(widget.title),
         content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(widget.description),
+          Text(context.tr(widget.description)),
           const SizedBox(height: 16),
           ...widget.fields.entries.map((e) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -709,17 +831,18 @@ class _ProofDialogState extends State<_ProofDialog> {
                 autocorrect: false,
                 enableSuggestions: false,
                 decoration: InputDecoration(
-                    labelText: e.value, border: const OutlineInputBorder()),
+                    labelText: context.tr(e.value),
+                    border: const OutlineInputBorder()),
               ))),
         ])),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: Text(context.tr("Cancel"))),
           FilledButton(
               onPressed: () => Navigator.pop(context,
                   {for (final e in controllers.entries) e.key: e.value.text}),
-              child: Text(widget.action))
+              child: Text(context.tr(widget.action)))
         ],
       );
 }
@@ -764,7 +887,7 @@ class _AuthenticatorSetupState extends State<_AuthenticatorSetup> {
   Widget build(BuildContext context) => PopScope(
         canPop: !_busy && (_recovery == null || _saved),
         child: Scaffold(
-          appBar: AppBar(title: const Text('Set up authenticator')),
+          appBar: AppBar(title: Text(context.tr("Set up authenticator"))),
           body: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Center(
@@ -774,8 +897,8 @@ class _AuthenticatorSetupState extends State<_AuthenticatorSetup> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (_recovery == null) ...[
-                        const Text(
-                            'Scan this QR code in Google Authenticator, Aegis, or another TOTP app. Setup expires after 10 minutes.'),
+                        Text(context.tr(
+                            "Scan this QR code in Google Authenticator, Aegis, or another TOTP app. Setup expires after 10 minutes.")),
                         const SizedBox(height: 20),
                         Center(
                             child: QrImageView(
@@ -783,26 +906,27 @@ class _AuthenticatorSetupState extends State<_AuthenticatorSetup> {
                                 size: 220,
                                 backgroundColor: Colors.white)),
                         const SizedBox(height: 16),
-                        const Text('Or enter this secret manually:'),
+                        Text(context.tr("Or enter this secret manually:")),
                         SelectableText(widget.setup['secret'] as String),
                         const SizedBox(height: 20),
                         TextField(
                             controller: _code,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                                labelText: '6-digit authenticator code',
+                            decoration: InputDecoration(
+                                labelText:
+                                    context.tr("6-digit authenticator code"),
                                 border: OutlineInputBorder())),
                         const SizedBox(height: 16),
                         FilledButton(
                             onPressed: _busy ? null : _confirm,
-                            child:
-                                const Text('Enable two-factor authentication')),
+                            child: Text(context
+                                .tr("Enable two-factor authentication"))),
                       ] else ...[
-                        Text('Save your recovery codes',
+                        Text(context.tr("Save your recovery codes"),
                             style: Theme.of(context).textTheme.headlineSmall),
                         const SizedBox(height: 16),
-                        const Text(
-                            'Each code can be used once if you lose your authenticator. They are shown only now. Store them somewhere safe outside this phone.'),
+                        Text(context.tr(
+                            "Each code can be used once if you lose your authenticator. They are shown only now. Store them somewhere safe outside this phone.")),
                         const SizedBox(height: 16),
                         SelectableText(_recovery!.join('\n'),
                             style: const TextStyle(
@@ -811,17 +935,17 @@ class _AuthenticatorSetupState extends State<_AuthenticatorSetup> {
                             value: _saved,
                             onChanged: (v) =>
                                 setState(() => _saved = v ?? false),
-                            title:
-                                const Text('I saved my recovery codes safely')),
+                            title: Text(context
+                                .tr("I saved my recovery codes safely"))),
                         FilledButton(
                             onPressed:
                                 _saved ? () => Navigator.pop(context) : null,
-                            child: const Text('Done')),
+                            child: Text(context.tr("Done"))),
                       ],
                       if (_error != null)
                         Padding(
                             padding: const EdgeInsets.only(top: 16),
-                            child: Text(_error!)),
+                            child: Text(context.tr(_error!))),
                     ]),
               ))),
         ),

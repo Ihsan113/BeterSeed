@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import '../account/cloud_account.dart';
 import '../account/play_billing.dart';
@@ -64,7 +65,7 @@ class _BetterSeedCoinStorePageState extends State<BetterSeedCoinStorePage> {
                               Icon(Icons.spa_rounded,
                                   color: colors.primary, size: 30),
                               const SizedBox(height: 16),
-                              Text('Your balance',
+                              Text(context.tr("Your balance"),
                                   style: TextStyle(
                                       color: colors.onSurfaceVariant)),
                               const SizedBox(height: 4),
@@ -84,14 +85,15 @@ class _BetterSeedCoinStorePageState extends State<BetterSeedCoinStorePage> {
                               ],
                             ])),
                     const SizedBox(height: 28),
-                    Text('Make your garden yours',
+                    Text(context.tr("Make your garden yours"),
                         style: Theme.of(context)
                             .textTheme
                             .titleLarge
                             ?.copyWith(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 8),
                     Text(
-                        'Choose a coin bundle to unlock your favourite garden packs.',
+                        context.tr(
+                            "Choose a coin bundle to unlock your favourite garden packs."),
                         style: TextStyle(
                             color: colors.onSurfaceVariant, height: 1.5)),
                     const SizedBox(height: 20),
@@ -99,8 +101,8 @@ class _BetterSeedCoinStorePageState extends State<BetterSeedCoinStorePage> {
                       const LinearProgressIndicator(),
                       const SizedBox(height: 12),
                       Text(billing.verifying
-                          ? 'Adding your coins…'
-                          : 'Loading prices…'),
+                          ? context.tr("Adding your coins…")
+                          : context.tr("Loading prices…")),
                       const SizedBox(height: 16),
                     ],
                     if (billing.message != null) ...[
@@ -109,7 +111,7 @@ class _BetterSeedCoinStorePageState extends State<BetterSeedCoinStorePage> {
                           decoration: BoxDecoration(
                               color: colors.surfaceContainerHigh,
                               borderRadius: BorderRadius.circular(14)),
-                          child: Text(billing.message!,
+                          child: Text(context.tr(billing.message!),
                               style: const TextStyle(height: 1.5))),
                       const SizedBox(height: 16),
                     ],
@@ -126,22 +128,23 @@ class _BetterSeedCoinStorePageState extends State<BetterSeedCoinStorePage> {
                       ]);
                     }),
                     const SizedBox(height: 24),
-                    const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.verified_user_outlined, size: 16),
-                          SizedBox(width: 8),
-                          Flexible(
-                              child: Text('Secure payment with Google Play',
-                                  style: TextStyle(fontSize: 12))),
-                        ]),
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.verified_user_outlined, size: 16),
+                      SizedBox(width: 8),
+                      Flexible(
+                          child: Text(
+                              context.tr("Secure payment with Google Play"),
+                              style: TextStyle(fontSize: 12))),
+                    ]),
                     const SizedBox(height: 20),
                     ExpansionTile(
                         tilePadding: EdgeInsets.zero,
-                        title: const Text('Already paid but missing coins?'),
+                        title:
+                            Text(context.tr("Already paid but missing coins?")),
                         children: [
-                          const Text(
-                              'Check the BetterSeed account used for your purchase, then check delivery. You don’t need to buy again.',
+                          Text(
+                              context.tr(
+                                  "Check the BetterSeed account used for your purchase, then check delivery. You don’t need to buy again."),
                               style: TextStyle(height: 1.5)),
                           const SizedBox(height: 12),
                           OutlinedButton.icon(
@@ -149,12 +152,14 @@ class _BetterSeedCoinStorePageState extends State<BetterSeedCoinStorePage> {
                                   ? null
                                   : billing.retry,
                               icon: const Icon(Icons.refresh),
-                              label: const Text('Check purchase delivery')),
+                              label:
+                                  Text(context.tr("Check purchase delivery"))),
                           const SizedBox(height: 12),
                         ]),
                     const SizedBox(height: 12),
                     Text(
-                        'Coins and packs stay with your BetterSeed account. Refunded purchases are deducted from your balance.',
+                        context.tr(
+                            "Coins and packs stay with your BetterSeed account. Refunded purchases are deducted from your balance."),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 12,
@@ -178,7 +183,7 @@ class _BetterSeedCoinStorePageState extends State<BetterSeedCoinStorePage> {
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: colors.outlineVariant)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text(bundle.title,
+        Text(context.tr(bundle.title),
             style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13)),
         const SizedBox(height: 12),
         Wrap(
@@ -202,8 +207,8 @@ class _BetterSeedCoinStorePageState extends State<BetterSeedCoinStorePage> {
                 FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
             child: Text(
                 billing.buying == bundle.productId
-                    ? 'Waiting for payment…'
-                    : product?.price ?? 'Unavailable right now',
+                    ? context.tr("Waiting for payment…")
+                    : product?.price ?? context.tr("Unavailable right now"),
                 textAlign: TextAlign.center)),
       ]),
     );

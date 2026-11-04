@@ -1,3 +1,14 @@
+## v1.8.0+59 — Admin transfers, app languages & live wallpaper
+
+- Move customization to the Garden toolbar and the top of My Collection; keep editor coordinates unchanged.
+- Split password recovery into email verification, conditional authenticator/recovery-code verification, then a new password. Preserve mandatory enrolled 2FA and reveal its status only after email ownership is proven.
+- Add Garden Pack JSON export/import with reviewed differences, revision checks, atomic updates and audit records.
+- Add encrypted application database export, preview and transactional restore/migration with fresh admin authentication, schema/key checks and coordinated API/worker maintenance locks.
+- Improve responsive admin navigation, summary cards, catalog search/status filters and transfer dialogs.
+- Add persistent language selection: US English by default, Indonesian, Japanese, German, French, Latin American Spanish and Brazilian Portuguese. Localize app UI, dates, Android widget and reminder labels while preserving Leaf Coins and user data.
+- Improve settings and editor layouts for long translations and large text. Keep policy documents in their published language with a translated notice.
+- Backend 1.3.0 adds migration 004. See docs/ADMIN_TRANSFER_AND_LOCALIZATION.md and server/UPGRADE.md. Add Android live wallpaper with a native, silent Canvas renderer, private CDN-independent snapshots, system preview/apply, safe cancellation and visibility/Battery Saver handling. Still wallpaper remains available. See docs/LIVE_WALLPAPER.md.
+
 ## v1.7.0+58 — Individually downloadable Garden Packs
 
 - Only Original Garden artwork and small thumbnails are bundled; nine other packs have independently installable ZIPs.

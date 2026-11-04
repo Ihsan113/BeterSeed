@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import '../data/pack_downloads.dart';
 import '../account/pack_catalog.dart';
 import '../data/garden_pack_registry.dart';
@@ -66,20 +67,18 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
         context: context,
         builder: (dialog) => AlertDialog(
           scrollable: true,
-          title: Text('Remove ${pack.name} download?'),
-          content: const Text(
-              'This removes the downloaded files from this phone. '
-              'Your pack ownership and garden progress stay saved. '
-              'You will need to download the pack again to use its assets.'),
+          title: Text(context.tr("Remove {p0} download?", {'p0': pack.name})),
+          content: Text(context.tr(
+              "This removes the downloaded files from this phone. Your pack ownership and garden progress stay saved. You will need to download the pack again to use its assets.")),
           actions: [
             TextButton(
                 key: const ValueKey('pack-remove-cancel'),
                 onPressed: () => Navigator.pop(dialog, false),
-                child: const Text('Keep download')),
+                child: Text(context.tr("Keep download"))),
             FilledButton(
                 key: const ValueKey('pack-remove-confirm'),
                 onPressed: () => Navigator.pop(dialog, true),
-                child: const Text('Remove download')),
+                child: Text(context.tr("Remove download"))),
           ],
         ),
       );
@@ -88,8 +87,10 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(removed
-              ? '${pack.name} download removed. You still own this pack.'
-              : 'Could not remove this download. Please try again.')));
+              ? context.tr("{p0} download removed. You still own this pack.",
+                  {'p0': pack.name})
+              : context
+                  .tr("Could not remove this download. Please try again."))));
     } finally {
       if (mounted) setState(() => _removing = false);
     }
@@ -104,8 +105,9 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
   void _preview(String id, String title) {
     final packId = id.replaceFirst('owned-', '');
     if (!GardenPackFiles.hasPack(packId)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Download this pack first to preview all 6 stages.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context
+              .tr("Download this pack first to preview all 6 stages."))));
       return;
     }
     final pack =
@@ -130,16 +132,17 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Garden Packs',
+          Text(context.tr("Garden Packs"),
               style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800)),
           const SizedBox(height: 3),
-          const Text(
-              'Unlock premium looks with leaf coins or equip the packs you already own.',
+          Text(
+              context.tr(
+                  "Unlock premium looks with Leaf Coins or equip the packs you already own."),
               style: TextStyle(fontSize: 12, color: Color(0xFFDEEAE5))),
           if (widget.loadout.isMixed) ...[
             const SizedBox(height: 9),
-            const Text(
-              'Your custom garden look is active',
+            Text(
+              context.tr("Your custom garden look is active"),
               key: ValueKey('shop-custom-mix-active'),
               style: TextStyle(fontSize: 12, color: _mint),
             ),
@@ -177,13 +180,15 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text('Leaf coin balance',
+                          Text(context.tr("Leaf Coins balance"),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                   fontSize: 11, color: Color(0xFFD0DED8))),
                           const SizedBox(height: 2),
-                          Text('${widget.leafCoins} leaves',
+                          Text(
+                              context.tr(
+                                  "{p0} Leaf Coins", {'p0': widget.leafCoins}),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -197,7 +202,7 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                   key: const ValueKey('shop-open-coin-store'),
                   onPressed: widget.onOpenCoinStore,
                   icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
-                  label: const Text('Get coins'),
+                  label: Text(context.tr("Get coins")),
                   style: FilledButton.styleFrom(
                     backgroundColor: _mint,
                     foregroundColor: _ink,
@@ -235,10 +240,10 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
             child: Row(
               children: [
                 Expanded(
-                    child: _tabButton(
-                        'Shop', 0, const ValueKey('shop-store-tab'))),
+                    child: _tabButton(context.tr("Shop"), 0,
+                        const ValueKey('shop-store-tab'))),
                 Expanded(
-                    child: _tabButton('My Collection', 1,
+                    child: _tabButton(context.tr('My Collection'), 1,
                         const ValueKey('shop-collection-tab'))),
               ],
             ),
@@ -263,7 +268,7 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: Text(
-        title,
+        context.tr(title),
         maxLines: 2,
         textAlign: TextAlign.center,
         overflow: TextOverflow.ellipsis,
@@ -290,21 +295,29 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
         ? GardenPackRegistry.packs.where((p) => owned.contains(p.id)).toList()
         : GardenPackRegistry.packs;
     return [
+      if (_tab == 1)
+        FilledButton.icon(
+            key: const ValueKey('collection-edit-assets'),
+            onPressed: widget.onEditAssets,
+            icon: const Icon(Icons.tune_rounded),
+            label: Text(context.tr("Customize garden"))),
+      if (_tab == 1) const SizedBox(height: 12),
       if (catalog?.online != true)
-        _hint(
-            'You’re offline or the Shop is unavailable. Your collection is still here. Connect to claim or unlock a pack.'),
+        _hint(context.tr(
+            "You’re offline or the Shop is unavailable. Your collection is still here. Connect to claim or unlock a pack.")),
       if (catalog?.loading == true) const LinearProgressIndicator(),
       Align(
           alignment: Alignment.centerRight,
           child: TextButton.icon(
               onPressed: catalog?.loading == true ? null : catalog?.load,
               icon: const Icon(Icons.refresh),
-              label: const Text('Refresh shop'))),
+              label: Text(context.tr("Refresh shop")))),
       for (final pack in items) ...[
         _packCard(
             id: _tab == 1 ? 'owned-${pack.id}' : pack.id,
             title: offers[pack.id]?.name ?? pack.name,
-            subtitle: offers[pack.id]?.description ?? 'Your garden collection',
+            subtitle: offers[pack.id]?.description ??
+                context.tr("Your garden collection"),
             image: pack.thumbnail ?? pack.background,
             active: widget.loadout.matches(pack.loadout),
             owned: owned.contains(pack.id),
@@ -319,10 +332,12 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text(ok
-                      ? '${pack.name} is ready to use.'
+                      ? context.tr("{p0} is ready to use.", {'p0': pack.name})
                       : (widget.downloads?.configured == true
-                          ? 'Download failed. Please check storage or internet and retry.'
-                          : 'Pack hosting is not configured for this build.'))));
+                          ? context.tr(
+                              "Download failed. Please check storage or internet and retry.")
+                          : context.tr(
+                              "Pack downloads are unavailable in this app version.")))));
             },
             onRemove: _removing ? null : () => _confirmRemove(pack),
             premium: !owned.contains(pack.id) &&
@@ -342,15 +357,9 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                     : null),
         const SizedBox(height: 14),
       ],
-      if (_tab == 1)
-        FilledButton.icon(
-            key: const ValueKey('collection-edit-assets'),
-            onPressed: widget.onEditAssets,
-            icon: const Icon(Icons.tune_rounded),
-            label: const Text('Customize garden')),
       if (_tab == 0 && items.length <= 1)
-        _hint(
-            'More garden packs will appear when the Shop is available for this app version.'),
+        _hint(context.tr(
+            "More garden packs will appear when the Shop is available for this app version.")),
     ];
   }
 
@@ -386,18 +395,22 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
     final enoughCoins = leafBalance >= leafPrice;
     final needsDownload = owned && !installed;
     final buttonText = downloading
-        ? 'Downloading ${(downloadProgress * 100).round()}%'
+        ? context
+            .tr('Downloading {p0}%', {'p0': (downloadProgress * 100).round()})
         : needsDownload
-            ? 'Download • ${downloadSize ?? '? MB'}'
+            ? context.tr('Download • {p0}', {'p0': downloadSize ?? '? MB'})
             : active && installed
-                ? 'In Use'
+                ? context.tr('In Use')
                 : !owned
                     ? premium
                         ? enoughCoins
-                            ? 'Unlock • $leafPrice leaves'
-                            : 'Get more leaves'
-                        : 'Claim Free'
-                    : (_tab == 0 ? 'My Collection' : 'Use');
+                            ? context.tr(
+                                'Unlock • {p0} Leaf Coins', {'p0': leafPrice})
+                            : context.tr('Get more Leaf Coins')
+                        : context.tr('Claim Free')
+                    : (_tab == 0
+                        ? context.tr('My Collection')
+                        : context.tr('Use'));
     return Container(
       key: ValueKey('shop-pack-$id'),
       decoration: BoxDecoration(
@@ -432,14 +445,14 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                           horizontal: 10, vertical: 5),
                       child: Text(
                         active
-                            ? 'IN USE'
+                            ? context.tr("IN USE")
                             : owned
-                                ? 'OWNED'
+                                ? context.tr("OWNED")
                                 : !published
-                                    ? 'SOON'
+                                    ? context.tr("SOON")
                                     : premium
-                                        ? 'PREMIUM'
-                                        : 'FREE',
+                                        ? context.tr("PREMIUM")
+                                        : context.tr("FREE"),
                         style: TextStyle(
                             color: highlight,
                             fontSize: 11,
@@ -467,7 +480,9 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                           children: [
                             Icon(Icons.spa_rounded, size: 13, color: highlight),
                             const SizedBox(width: 4),
-                            Text('$leafPrice leaves',
+                            Text(
+                                context
+                                    .tr("{p0} Leaf Coins", {'p0': leafPrice}),
                                 style: TextStyle(
                                     color: highlight,
                                     fontSize: 11,
@@ -502,15 +517,17 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                     Expanded(
                         child: Text(
                             installed
-                                ? 'Installed · ${downloadSize} download'
-                                : 'Optional download · $downloadSize',
+                                ? context.tr("Installed · {p0} download",
+                                    {'p0': downloadSize})
+                                : context.tr("Optional download · {p0}",
+                                    {'p0': downloadSize}),
                             style: const TextStyle(
                                 fontSize: 11, color: Color(0xFFCEE8E0)))),
                   ]),
                 ],
                 if (!published && !owned) ...[
                   const SizedBox(height: 8),
-                  const Text('Not released in the Shop yet',
+                  Text(context.tr("Not released in the Shop yet"),
                       style: TextStyle(fontSize: 11, color: Color(0xFFE7CC90))),
                 ],
                 if (downloading) ...[
@@ -519,7 +536,7 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                 ],
                 if (downloadError != null && !installed) ...[
                   const SizedBox(height: 6),
-                  Text('Download failed · retry available',
+                  Text(context.tr("Download failed · retry available"),
                       style: const TextStyle(
                           fontSize: 11, color: Color(0xFFFFBD9F))),
                 ],
@@ -527,8 +544,11 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                   const SizedBox(height: 10),
                   Text(
                     enoughCoins
-                        ? 'Ready to unlock with your current balance.'
-                        : 'Need ${leafPrice - leafBalance} more leaf coins to unlock this pack.',
+                        ? context
+                            .tr("Ready to unlock with your current balance.")
+                        : context.tr(
+                            "Need {p0} more Leaf Coins to unlock this pack.",
+                            {'p0': leafPrice - leafBalance}),
                     style: TextStyle(
                         fontSize: 11,
                         color: enoughCoins ? _mint : const Color(0xFFFFD989)),
@@ -541,7 +561,7 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                     key: ValueKey('shop-preview-$id'),
                     onPressed: () => _preview(id, title),
                     icon: const Icon(Icons.visibility_outlined, size: 18),
-                    label: const Text('Preview pack'),
+                    label: Text(context.tr("Preview pack")),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -587,7 +607,7 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
                       key: ValueKey('shop-remove-$id'),
                       onPressed: onRemove,
                       icon: const Icon(Icons.delete_outline, size: 15),
-                      label: const Text('Remove downloaded files'),
+                      label: Text(context.tr("Remove downloaded files")),
                     ),
                   ),
               ],
@@ -610,7 +630,7 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
             const Icon(Icons.info_outline, color: _mint, size: 19),
             const SizedBox(width: 10),
             Expanded(
-                child: Text(message,
+                child: Text(context.tr(message),
                     style: const TextStyle(fontSize: 12, height: 1.5))),
           ],
         ),

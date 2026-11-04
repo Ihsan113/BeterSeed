@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_water_count">💧 水 %1$d</string>
+    <string name="widget_stage_count">段階 %1$d / 6</string>
+    <string name="widget_habits_count">%1$d / %2$d 達成</string>
+    <string name="widget_open_garden">庭を開く  ›</string>
+    <string name="widget_tree_description">木の成長段階</string>
+    <string name="reminder_title">習慣の時間です 🌱</string>
+    <string name="reminder_default_body">BetterSeed の庭を育てましょう</string>
+    <string name="reminder_channel_name">習慣のリマインダー</string>
+    <string name="reminder_channel_description">選んだ習慣をやさしくお知らせ</string>
+    <string name="live_wallpaper_name">BetterSeed · ライブガーデン</string>
+    <string name="live_wallpaper_description">BetterSeedの庭のアニメーション壁紙。</string>
+    <string name="live_wallpaper_setup">BetterSeedを開いて始めましょう</string>
+</resources>

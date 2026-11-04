@@ -18,7 +18,7 @@ DIRECTORIES = ['src', 'migrations', 'test', 'public']
 def build_bytes():
     import io
     paths = [SERVER / name for name in TOP_LEVEL]
-    paths.extend(ROOT / 'docs' / name for name in ['DYNAMIC_GARDEN_PACKS.md', 'DYNAMIC_PACK_QA.md'])
+    paths.extend(ROOT / 'docs' / name for name in ['DYNAMIC_GARDEN_PACKS.md', 'DYNAMIC_PACK_QA.md', 'ADMIN_TRANSFER_AND_LOCALIZATION.md', 'LIVE_WALLPAPER.md'])
     for name in DIRECTORIES:
         paths.extend(p for p in (SERVER / name).rglob('*') if p.is_file())
     stream = io.BytesIO()

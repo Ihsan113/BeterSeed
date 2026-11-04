@@ -60,17 +60,17 @@
       <section id="dashboard" hidden>
         <div class="page-heading">
           <div>
-            <span class="eyebrow">OVERVIEW</span>
-            <h1>Ruang tumbuh, terkelola.</h1>
-            <p class="muted">Akun, pembelian, dan aktivitas komunitas Anda.</p>
+            <span class="eyebrow">BETTERSEED CONSOLE</span>
+            <h1>Ringkasan layanan</h1>
+            <p class="muted">Pantau komunitas, kelola koleksi, dan jaga data tetap aman.</p>
           </div>
           <button id="refresh" class="quiet">Muat ulang</button>
         </div>
         <div id="stats" class="stats" aria-label="Ringkasan layanan"></div>
         <nav class="tabs" aria-label="Halaman admin">
-          <button id="packs-tab">Garden Pack Manager</button
-          ><button id="users-tab" class="selected">Pengguna</button
-          ><button id="audit-tab">Riwayat aktivitas</button>
+          <button id="packs-tab" aria-pressed="false">Garden Pack Manager</button
+          ><button id="users-tab" class="selected" aria-pressed="true">Pengguna</button
+          ><button id="audit-tab" aria-pressed="false">Riwayat aktivitas</button><button id="database-tab" aria-pressed="false">Database &amp; backup</button>
         </nav>
         <section id="users-view" class="panel">
           <div class="section-heading">
@@ -121,9 +121,17 @@
                 tetap tersimpan.
               </p>
             </div>
-            <button id="create-pack" class="primary">Tambah pack</button>
+            <div class="actions"><button id="export-packs" class="quiet">Ekspor JSON</button><button id="import-packs" class="quiet">Impor JSON</button><button id="create-pack" class="primary">Tambah pack</button></div>
           </div>
-          <div id="pack-list"></div>
+          <div class="pack-tools"><label class="sr-only" for="pack-search">Cari pack</label><input id="pack-search" type="search" placeholder="Cari nama atau ID pack…" /><label class="sr-only" for="pack-filter">Status pack</label><select id="pack-filter"><option value="all">Semua status</option><option value="active">Aktif</option><option value="draft">Draft</option><option value="hidden">Disembunyikan</option><option value="retired">Tidak dijual lagi</option></select><span id="pack-count" class="muted small"></span></div><div id="pack-list" class="pack-grid"></div>
+        </section>
+        <section id="database-view" class="panel" hidden>
+          <div class="section-heading"><div><span class="eyebrow">PERLINDUNGAN DATA</span><h2>Database &amp; backup</h2><p class="muted">Unduh cadangan terenkripsi atau pindahkan data BetterSeed ke VPS lain.</p></div><span class="badge">AES-256-GCM</span></div>
+          <div class="backup-grid">
+            <article class="tool-card"><span class="tool-icon" aria-hidden="true">↓</span><h3>Ekspor cadangan</h3><p>Akun, progres, Leaf Coins, hak pack, riwayat pembelian, dan admin dalam satu file terenkripsi.</p><button id="database-export" class="primary">Buat backup</button></article>
+            <article class="tool-card"><span class="tool-icon" aria-hidden="true">↑</span><h3>Pulihkan atau migrasikan</h3><p>Periksa isi backup sebelum mengganti data. Seluruh sesi akan berakhir setelah pemulihan.</p><button id="database-import" class="quiet">Pilih backup</button></article>
+          </div>
+          <details class="help-box"><summary>Panduan migrasi &amp; cakupan backup</summary><ol><li>Buat backup dan simpan frasa sandinya secara terpisah.</li><li>Di VPS tujuan, pasang versi backend dan skema yang sama. Gunakan TOKEN_PEPPER dan DATA_ENCRYPTION_KEY dari server asal agar login, autentikator, dan validasi pembelian tetap bekerja.</li><li>Masuk ke admin tujuan, pilih backup, periksa ringkasan, lalu konfirmasi pemulihan.</li><li>Masuk kembali dengan akun admin yang ada dalam backup. Arahkan aplikasi ke server baru setelah pemeriksaan selesai.</li></ol><p>Backup mencakup data aplikasi, bukan konfigurasi VPS, file .env, kredensial Google, atau aset CDN. Sesi, OTP, email antrean, dan batas percobaan tidak dipindahkan. Cadangan browser dibatasi 32 MB data sebelum enkripsi; database yang lebih besar memerlukan backup terkelola.</p><p>Pemulihan mengganti seluruh data ke waktu backup, termasuk saldo dan riwayat pembelian. Gunakan cadangan terbaru dan hentikan aktivitas pengguna selama migrasi. Perubahan oleh alat SQL di luar BetterSeed harus dihentikan secara terpisah.</p></details>
         </section>
         <section id="audit-view" class="panel" hidden>
           <h2>Riwayat aktivitas</h2>
@@ -215,7 +223,7 @@
           ></textarea>
         </label>
         <p class="muted">
-          Aset harus tersedia di APK pada build minimum tersebut. Draft tidak
+          Pack harus didukung aplikasi pada build minimum tersebut dan aset CDN harus tersedia. Draft tidak
           ditampilkan; Hidden dan Retired tetap dapat digunakan pemilik lama.
           Free harus diklaim online agar kepemilikan tersimpan.
         </p>
@@ -249,6 +257,13 @@
         <button id="submit-action" class="primary" type="submit">
           Simpan perubahan
         </button>
+      </form>
+    </dialog>
+    <dialog id="transfer-dialog" aria-labelledby="transfer-title">
+      <form id="transfer-form"><div class="dialog-header"><h2 id="transfer-title" tabindex="-1"></h2><button id="cancel-transfer" type="button" class="quiet">Tutup</button></div>
+        <p id="transfer-description" class="muted"></p><div id="transfer-fields"></div>
+        <div id="transfer-preview" hidden></div><p id="transfer-error" role="alert" class="form-error" hidden></p>
+        <div class="dialog-footer"><button id="transfer-submit" class="primary" type="submit">Lanjutkan</button></div>
       </form>
     </dialog>
     <footer>BetterSeed · Administration</footer>

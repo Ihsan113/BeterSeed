@@ -141,12 +141,12 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Settings opens a still, clean wallpaper of the saved garden',
+  testWidgets('Still and live wallpaper preserve the saved tree geometry',
       (tester) async {
     SharedPreferences.setMockInitialValues({
       'betterseed_music_v2': false,
       'betterseed_sfx_v2': false,
-      'betterseed_motion_v2': false,
+      'betterseed_motion_v2': true,
       // Premium assets are downloaded on demand in 1.7; use the bundled
       // garden so this test exercises the saved placement, not a fallback.
       'betterseed_active_bundle_v1': 'default',
@@ -154,8 +154,14 @@ void main() {
       'betterseed_tree_placements_v1':
           '{"default":{"dx":0.1,"dy":-0.1,"scale":1.2}}',
     });
-    messenger.setMockMethodCallHandler(channel,
-        (_) async => {'supported': true, 'allowed': true, 'lockScreen': true});
+    messenger.setMockMethodCallHandler(
+        channel,
+        (_) async => {
+              'supported': true,
+              'allowed': true,
+              'lockScreen': true,
+              'live': true
+            });
     await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
     await waitForGardenReady(tester);
     await pumpGardenTransition(tester);
@@ -201,7 +207,20 @@ void main() {
     expect(actual.left, closeTo(expected.left, .01));
     expect(actual.top, closeTo(expected.top, .01));
     expect(actual.size, expected.size);
+    await tester.tap(find.byKey(const ValueKey('wallpaper-mode-live')));
+    await tester.pump(const Duration(milliseconds: 200));
+    final liveTree = tester.renderObject<RenderBox>(wallpaperTree);
+    final liveViewport = tester.renderObject<RenderBox>(wallpaperViewport);
+    final liveRect = MatrixUtils.transformRect(
+        liveTree.getTransformTo(liveViewport), Offset.zero & liveTree.size);
+    expect(liveRect, actual);
+    expect(
+        find.descendant(
+            of: wallpaperViewport,
+            matching: find.byKey(const ValueKey('garden-live-ambient'))),
+        findsNothing);
     expect(find.text('Small steps. Brighter tomorrows. ✨'), findsNothing);
     expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
   });
 }

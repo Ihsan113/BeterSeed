@@ -9,18 +9,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> openEditor(WidgetTester tester) async {
-  await tester.tap(find.byKey(const ValueKey('tab-3')));
-  await tester.pump();
-  // The new leaf-coin balance card makes Shop taller. Mimic a user
-  // scrolling to the Collection tab on small devices before tapping it.
-  final collection = find.byKey(const ValueKey('shop-collection-tab'));
-  await tester.ensureVisible(collection);
+  await tester.tap(find.byKey(const ValueKey('tab-0')));
   await pumpGardenTransition(tester);
-  await tester.tap(collection);
-  await pumpGardenTransition(tester);
-  final edit = find.byKey(const ValueKey('collection-edit-assets'));
-  await tester.ensureVisible(edit);
-  await tester.pump();
+  final edit = find.byKey(const ValueKey('garden-customize'));
+  // Customization is reachable directly from the garden without visiting Shop.
+  expect(edit.hitTestable(), findsOneWidget);
   await tester.tap(edit);
   await pumpGardenTransition(tester);
 }
@@ -66,7 +59,7 @@ Future<void> launchEditorTest(
   tester.platformDispatcher.textScaleFactorTestValue = textScale;
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
   await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
-    await waitForGardenReady(tester);
+  await waitForGardenReady(tester);
   await pumpGardenTransition(tester);
 }
 
@@ -120,10 +113,13 @@ void main() {
       await pumpGardenTransition(tester);
       final choice =
           find.byKey(ValueKey('editor-choice-${entry.key}-${entry.value}'));
-      final placeholder = find.byKey(ValueKey('editor-download-placeholder-${entry.key}-${entry.value}'));
+      final placeholder = find.byKey(
+          ValueKey('editor-download-placeholder-${entry.key}-${entry.value}'));
       expect(placeholder, findsOneWidget);
-      expect(find.descendant(of: choice, matching: find.byType(Image)), findsNothing);
-      expect(find.descendant(of: choice, matching: find.text('Not downloaded')), findsOneWidget);
+      expect(find.descendant(of: choice, matching: find.byType(Image)),
+          findsNothing);
+      expect(find.descendant(of: choice, matching: find.text('Not downloaded')),
+          findsOneWidget);
       await tester.ensureVisible(choice);
       await pumpGardenTransition(tester);
       expect(
@@ -263,7 +259,7 @@ void main() {
 
         await tester.pumpWidget(const SizedBox());
         await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
-    await waitForGardenReady(tester);
+        await waitForGardenReady(tester);
         await pumpGardenTransition(tester);
         expectSameTree(treeInViewport(tester, editing: false), edited);
         expect(tester.takeException(), isNull);
@@ -276,7 +272,8 @@ void main() {
         (tester) async {
       await launchEditorTest(tester, bundle: packId);
       await openEditor(tester);
-      expect(find.byKey(const ValueKey('editor-draggable-tree')), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('editor-draggable-tree')), findsOneWidget);
       // Ownership is not proof that an optional pack is installed.
       // The scene must remain renderable from Default Garden art.
       expect(find.byKey(const ValueKey('default-3')), findsOneWidget);
@@ -325,8 +322,8 @@ void main() {
     final editedDefault = treeInViewport(tester, editing: true);
     await tester.tap(find.byKey(const ValueKey('editor-tool-assets')));
     await pumpGardenTransition(tester);
-    final sakura = find.byKey(
-        const ValueKey('editor-choice-background-sakura_garden'));
+    final sakura =
+        find.byKey(const ValueKey('editor-choice-background-sakura_garden'));
     await tester.ensureVisible(sakura);
     await tester.tap(sakura);
     await pumpGardenTransition(tester);
@@ -340,8 +337,8 @@ void main() {
     expect(prefs.getString('betterseed_tree_placements_v1'), isNull);
     await tester.tap(find.text('Keep editing'));
     await pumpGardenTransition(tester);
-    final fallback = find.byKey(
-        const ValueKey('editor-choice-background-default'));
+    final fallback =
+        find.byKey(const ValueKey('editor-choice-background-default'));
     await tester.ensureVisible(fallback);
     await tester.tap(fallback);
     await pumpGardenTransition(tester);

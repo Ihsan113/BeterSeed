@@ -1,3 +1,4 @@
+import { DatabaseGate } from "./database-gate.js";
 import { setTimeout } from "node:timers/promises";
 import { configFromEnv } from "./config.js";
 import { createPool } from "./db.js";
@@ -9,6 +10,7 @@ const c = configFromEnv(),
   pool = createPool(c),
   a = new Auth(pool, c, providers(c)),
   b = new Billing(a);
+const gate = new DatabaseGate(c);
 let stopping = false;
 for (const signal of ["SIGTERM", "SIGINT"])
   process.on(signal, () => {
@@ -17,7 +19,7 @@ for (const signal of ["SIGTERM", "SIGINT"])
 async function loop(name: string, interval: number, work: () => Promise<void>) {
   while (!stopping) {
     try {
-      await work();
+      await gate.run(work);
     } catch {
       console.error(
         `${name} incomplete; retry scheduled. Check service health and credentials.`,
@@ -36,4 +38,5 @@ await Promise.all([
     if (c.GOOGLE_APPLICATION_CREDENTIALS) await b.reconcile();
   }),
 ]);
+await gate.close();
 await pool.end();

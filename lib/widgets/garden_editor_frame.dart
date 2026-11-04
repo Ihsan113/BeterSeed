@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 /// Keeps editor controls outside a uniformly scaled, full Garden viewport.
@@ -36,21 +37,26 @@ class GardenEditorFrame extends StatelessWidget {
                   children: [
                     IconButton(
                       key: const ValueKey('asset-editor-cancel'),
-                      tooltip: 'Cancel changes',
+                      tooltip: context.tr("Cancel changes"),
                       onPressed: onCancel,
                       icon: const Icon(Icons.close_rounded),
                     ),
-                    const Expanded(
-                      child: Text('Edit garden',
+                    Expanded(
+                      child: Text(context.tr("Edit garden"),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                               fontSize: 18, fontWeight: FontWeight.w700)),
                     ),
-                    FilledButton(
-                      key: const ValueKey('asset-editor-save'),
-                      onPressed: onSave,
-                      child: const Text('Save'),
+                    ConstrainedBox(
+                      constraints:
+                          BoxConstraints(maxWidth: viewport.width * .4),
+                      child: FilledButton(
+                        key: const ValueKey('asset-editor-save'),
+                        onPressed: onSave,
+                        child: Text(context.tr("Save"),
+                            textAlign: TextAlign.center),
+                      ),
                     ),
                   ],
                 ),
@@ -89,8 +95,8 @@ class GardenEditorFrame extends StatelessWidget {
                         const SizedBox(height: 8),
                         Text(
                           tool == 'position'
-                              ? 'Drag the tree or adjust below'
-                              : 'Preview your garden before saving',
+                              ? context.tr("Drag the tree or adjust below")
+                              : context.tr("Preview your garden before saving"),
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
@@ -141,7 +147,7 @@ class GardenEditorFrame extends StatelessWidget {
                                         children: [
                                           Icon(item.$2, size: 20),
                                           const SizedBox(height: 4),
-                                          Text(item.$3,
+                                          Text(context.tr(item.$3),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis),
                                         ],

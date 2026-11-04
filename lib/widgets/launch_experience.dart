@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -44,7 +45,8 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
     _IntroSlide(
       label: 'WELCOME',
       title: 'Grow one step at a time',
-      detail: 'Small habits can become something beautiful. Welcome to your own peaceful garden.',
+      detail:
+          'Small habits can become something beautiful. Welcome to your own peaceful garden.',
       artwork: _sprout,
     ),
     _IntroSlide(
@@ -56,13 +58,15 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
     _IntroSlide(
       label: 'YOUR GARDEN',
       title: 'Earn water. Nurture your tree.',
-      detail: 'Use your water to grow your tree and unlock new stages, one step at a time.',
+      detail:
+          'Use your water to grow your tree and unlock new stages, one step at a time.',
       artwork: _sapling,
     ),
     _IntroSlide(
       label: 'FOCUS & AMBIENCE',
       title: 'Relax in your own garden',
-      detail: 'Enjoy the moonlit scenery, gentle music and soothing nature sounds.',
+      detail:
+          'Enjoy the moonlit scenery, gentle music and soothing nature sounds.',
       artwork: _sprout,
     ),
   ];
@@ -91,7 +95,8 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
     await duration;
     if (!mounted) return;
     _glow.stop();
-    setState(() => _page = hasSeenIntro ? _LaunchPage.garden : _LaunchPage.welcome);
+    setState(
+        () => _page = hasSeenIntro ? _LaunchPage.garden : _LaunchPage.welcome);
   }
 
   void _next() {
@@ -158,13 +163,18 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
         body: Stack(
           fit: StackFit.expand,
           children: [
-            Image.asset(_backdrop, fit: BoxFit.cover, alignment: Alignment.center),
+            Image.asset(_backdrop,
+                fit: BoxFit.cover, alignment: Alignment.center),
             const DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0xB008182A), Color(0x7E071B22), Color(0xEF071B22)],
+                  colors: [
+                    Color(0xB008182A),
+                    Color(0x7E071B22),
+                    Color(0xEF071B22)
+                  ],
                   stops: [0, .43, 1],
                 ),
               ),
@@ -196,7 +206,7 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 33, fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
-            const Text('Grow one step at a time',
+            Text(context.tr("Grow one step at a time"),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: Color(0xFFD2E8DC))),
             const SizedBox(height: 22),
@@ -211,14 +221,14 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
               ),
             ),
             const Spacer(),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text('Preparing your calm garden...',
+              child: Text(context.tr("Preparing your calm garden..."),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             ),
             const SizedBox(height: 10),
-            const Text('A moment to breathe. A space to grow.',
+            Text(context.tr("A moment to breathe. A space to grow."),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: Color(0xFFCEE2DC))),
             const SizedBox(height: 22),
@@ -227,20 +237,26 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
               builder: (_, __) => Row(
                 key: const ValueKey('launch-loading-dots'),
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(4, (i) => Container(
-                  width: 7.0 + (i == (_glow.value * 4).floor().clamp(0, 3) ? 3.0 : 0.0),
-                  height: 7,
-                  margin: const EdgeInsets.symmetric(horizontal: 5),
-                  decoration: BoxDecoration(
-                    color: i == (_glow.value * 4).floor().clamp(0, 3)
-                        ? _mint : const Color(0x667A9B91),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                )),
+                children: List.generate(
+                    4,
+                    (i) => Container(
+                          width: 7.0 +
+                              (i == (_glow.value * 4).floor().clamp(0, 3)
+                                  ? 3.0
+                                  : 0.0),
+                          height: 7,
+                          margin: const EdgeInsets.symmetric(horizontal: 5),
+                          decoration: BoxDecoration(
+                            color: i == (_glow.value * 4).floor().clamp(0, 3)
+                                ? _mint
+                                : const Color(0x667A9B91),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        )),
               ),
             ),
             const SizedBox(height: 20),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -248,9 +264,10 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
                   Icon(Icons.headphones_rounded, size: 16, color: _mint),
                   SizedBox(width: 8),
                   Flexible(
-                    child: Text('Tip: best enjoyed with headphones',
+                    child: Text(context.tr("Tip: best enjoyed with headphones"),
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Color(0xFFD3E6DD), fontSize: 12)),
+                        style:
+                            TextStyle(color: Color(0xFFD3E6DD), fontSize: 12)),
                   ),
                 ],
               ),
@@ -271,12 +288,15 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text('BetterSeed',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w800)),
                   ),
+                  const LanguageButton(),
                   TextButton(
                     key: const ValueKey('onboarding-skip'),
                     onPressed: _finish,
-                    child: const Text('Skip', style: TextStyle(color: Color(0xFFE5F1E9))),
+                    child: Text(context.tr("Skip"),
+                        style: TextStyle(color: Color(0xFFE5F1E9))),
                   ),
                 ],
               ),
@@ -288,7 +308,8 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
                 itemCount: _intro.length,
                 onPageChanged: (value) => setState(() => _index = value),
                 itemBuilder: (context, index) => _buildIntroSlide(
-                  _intro[index], constraints.maxHeight,
+                  _intro[index],
+                  constraints.maxHeight,
                   index,
                 ),
               ),
@@ -296,17 +317,20 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
             const SizedBox(height: 5),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_intro.length, (index) => AnimatedContainer(
-                key: ValueKey('onboarding-dot-$index'),
-                duration: const Duration(milliseconds: 230),
-                width: index == _index ? 26 : 7,
-                height: 7,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: index == _index ? _mint : const Color(0x887C9B95),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              )),
+              children: List.generate(
+                  _intro.length,
+                  (index) => AnimatedContainer(
+                        key: ValueKey('onboarding-dot-$index'),
+                        duration: const Duration(milliseconds: 230),
+                        width: index == _index ? 26 : 7,
+                        height: 7,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          color:
+                              index == _index ? _mint : const Color(0x887C9B95),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      )),
             ),
             const SizedBox(height: 16),
             Padding(
@@ -320,10 +344,15 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
                   style: FilledButton.styleFrom(
                     backgroundColor: _mint,
                     foregroundColor: _navy,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(17)),
                   ),
-                  child: Text(_index == _intro.length - 1 ? 'Enter Garden' : 'Next',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  child: Text(
+                      _index == _intro.length - 1
+                          ? context.tr("Enter Garden")
+                          : context.tr("Next"),
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w800)),
                 ),
               ),
             ),
@@ -338,17 +367,23 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
         child: Column(
           children: [
             const SizedBox(height: 8),
-            Text(item.label, textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800,
-                    letterSpacing: 2.0, color: _mint)),
+            Text(context.tr(item.label),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 2.0,
+                    color: _mint)),
             const SizedBox(height: 13),
-            Text(item.title, textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800,
-                    height: 1.12)),
+            Text(context.tr(item.title),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 25, fontWeight: FontWeight.w800, height: 1.12)),
             const SizedBox(height: 9),
-            Text(item.detail, textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13,
-                    color: Color(0xFFE0EDE6), height: 1.45)),
+            Text(context.tr(item.detail),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 13, color: Color(0xFFE0EDE6), height: 1.45)),
             const SizedBox(height: 18),
             if (index == 1)
               _habitExamples()
@@ -359,13 +394,16 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
               ),
             if (index == 2) ...[
               const SizedBox(height: 12),
-              const Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.water_drop_rounded, color: _blue, size: 18),
                   SizedBox(width: 7),
-                  Flexible(child: Text('Complete habits → earn water → grow',
-                      style: TextStyle(color: Color(0xFFE1F7E9), fontSize: 12))),
+                  Flexible(
+                      child: Text(
+                          context.tr("Complete habits → earn water → grow"),
+                          style: TextStyle(
+                              color: Color(0xFFE1F7E9), fontSize: 12))),
                 ],
               ),
             ],
@@ -379,18 +417,23 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: const Color(0x6678CBA8)),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     Icon(Icons.headphones_rounded, color: _mint, size: 27),
                     SizedBox(width: 12),
-                    Expanded(child: Column(
+                    Expanded(
+                        child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Best experienced with headphones',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                        Text(context.tr("Best experienced with headphones"),
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: 13)),
                         SizedBox(height: 3),
-                        Text('Optional. You can enjoy BetterSeed without them, too.',
-                            style: TextStyle(color: Color(0xFFCFDFD8), fontSize: 11)),
+                        Text(
+                            context.tr(
+                                "Optional. You can enjoy BetterSeed without them, too."),
+                            style: TextStyle(
+                                color: Color(0xFFCFDFD8), fontSize: 11)),
                       ],
                     )),
                   ],
@@ -410,13 +453,23 @@ class _BetterSeedLaunchFlowState extends State<BetterSeedLaunchFlow>
           border: Border.all(color: const Color(0x667AC5A4)),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: const Column(
+        child: Column(
           children: [
-            _WelcomeHabit(icon: Icons.local_drink_outlined, title: 'Drink water', note: 'Stay hydrated', checked: true),
+            _WelcomeHabit(
+                icon: Icons.local_drink_outlined,
+                title: context.tr("Drink water"),
+                note: 'Stay hydrated',
+                checked: true),
             Divider(height: 1, color: Color(0x336B9D90)),
-            _WelcomeHabit(icon: Icons.directions_walk_rounded, title: 'Take a walk', note: 'Move your body'),
+            _WelcomeHabit(
+                icon: Icons.directions_walk_rounded,
+                title: context.tr("Take a walk"),
+                note: 'Move your body'),
             Divider(height: 1, color: Color(0x336B9D90)),
-            _WelcomeHabit(icon: Icons.menu_book_outlined, title: 'Read a book', note: 'Feed your mind'),
+            _WelcomeHabit(
+                icon: Icons.menu_book_outlined,
+                title: context.tr("Read a book"),
+                note: 'Feed your mind'),
           ],
         ),
       );
@@ -456,15 +509,24 @@ class _WelcomeHabit extends StatelessWidget {
           children: [
             Icon(icon, color: _blue, size: 24),
             const SizedBox(width: 13),
-            Expanded(child: Column(
+            Expanded(
+                child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                Text(note, style: const TextStyle(fontSize: 11, color: Color(0xFFCEDFD7))),
+                Text(context.tr(title),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14)),
+                Text(context.tr(note),
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFFCEDFD7))),
               ],
             )),
-            Icon(checked ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-                size: 22, color: checked ? _mint : const Color(0xFF7EAAA1)),
+            Icon(
+                checked
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked,
+                size: 22,
+                color: checked ? _mint : const Color(0xFF7EAAA1)),
           ],
         ),
       );

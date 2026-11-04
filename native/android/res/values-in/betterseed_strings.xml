@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_water_count">💧 %1$d air</string>
+    <string name="widget_stage_count">Tahap %1$d / 6</string>
+    <string name="widget_habits_count">%1$d / %2$d selesai</string>
+    <string name="widget_open_garden">Buka tamanmu  ›</string>
+    <string name="widget_tree_description">Tahap pertumbuhan pohon</string>
+    <string name="reminder_title">Waktunya kebiasaanmu 🌱</string>
+    <string name="reminder_default_body">Saatnya merawat taman BetterSeed</string>
+    <string name="reminder_channel_name">Pengingat kebiasaan</string>
+    <string name="reminder_channel_description">Pengingat lembut untuk kebiasaan pilihanmu</string>
+    <string name="live_wallpaper_name">BetterSeed · Taman hidup</string>
+    <string name="live_wallpaper_description">Gambar taman BetterSeed dengan animasi.</string>
+    <string name="live_wallpaper_setup">Buka BetterSeed untuk memulai</string>
+</resources>

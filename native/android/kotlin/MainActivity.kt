@@ -170,6 +170,7 @@ class MainActivity : FlutterActivity() {
                         .putString("widget_day", call.argument<String>("day") ?: "")
                         .putString("widget_theme", call.argument<String>("theme") ?: "default")
                         .putString("widget_tree_asset", call.argument<String>("treeAsset") ?: "")
+                        .putString("widget_language", call.argument<String>("language") ?: "en-US")
                         .putString("widget_tree_file", call.argument<String>("treeFile") ?: "")
                         .apply()
                     BetterSeedWidget.updateAll(this)
@@ -204,6 +205,7 @@ class MainActivity : FlutterActivity() {
     @Deprecated("Uses Android SAF document selection results")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (gardenWallpaper?.onActivityResult(requestCode, resultCode) == true) return
         if (requestCode == musicOpenRequest) {
             val reply = pendingMusic ?: return
             pendingMusic = null

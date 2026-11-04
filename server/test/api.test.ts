@@ -1432,3 +1432,193 @@ test("sync accepts future valid cosmetic and placement IDs without granting owne
     400,
   );
 });
+
+test("pack JSON import validates, previews, applies atomically and rejects stale edits", async () => {
+  const admin = await adminLogin();
+  const document = (await adminRequest(admin,"GET","/packs/export")).body;
+  document.packs.find((p:any)=>p.packId==="sakura").priceCoins=320;
+  document.packs.push({packId:"test_new",name:"New garden",description:"Test",accessType:"free",priceCoins:0,status:"draft",minimumAppBuild:58,displayOrder:90,revision:null});
+  const preview=await adminRequest(admin,"POST","/packs/import/preview",document);
+  assert.equal(preview.status,200,JSON.stringify(preview.body));
+  const result=await adminRequest(admin,"POST","/packs/import",{document,proof:preview.body.proof,reason:"Bulk catalog update"});
+  assert.equal(result.status,200); assert.equal(result.body.changed,2);
+  assert.equal((await adminRequest(admin,"POST","/packs/import",{document,proof:preview.body.proof,reason:"Repeated import"})).status,409);
+  const invalid=structuredClone(document);invalid.packs.push(invalid.packs[0]);
+  assert.equal((await adminRequest(admin,"POST","/packs/import/preview",invalid)).status,400);
+  const fresh=(await adminRequest(admin,"GET","/packs/export")).body;
+  const next=await adminRequest(admin,"POST","/packs/import/preview",fresh);
+  fresh.packs[0].name="Changed after preview";
+  assert.equal((await adminRequest(admin,"POST","/packs/import",{document:fresh,proof:next.body.proof,reason:"Tampered preview"})).status,409);
+  fresh.packs.find((p:any)=>p.packId==="default").status="hidden";
+  assert.equal((await adminRequest(admin,"POST","/packs/import/preview",fresh)).status,400);
+  assert.equal((await adminRequest(admin,"POST","/packs/import/preview",document,{"x-csrf-token":""})).status,403);
+});
+
+test("encrypted database backup restores balances and purchase proofs and revokes sessions", async () => {
+  const {openSnapshot,sealSnapshot}=await import("../src/database-backup.js");
+  const admin=await adminLogin(), user=await account();
+  await exec(pool,"INSERT INTO wallets(user_id,balance,revision) VALUES(?,321,7)",[user.user.id]);
+  await exec(pool,"INSERT INTO purchases(token_hash,user_id,product_id,coins,state) VALUES(?,?,?,100,'consumed')",["ab".repeat(32),user.user.id,"leaf_coins_100"]);
+  const credentials=async()=>{await exec(pool,"UPDATE admin_users SET totp_last_step=-1");return {password:pw,code:totpAt(admin.secret,Math.floor(Date.now()/30000))};};
+  const passphrase="my-test-backup-passphrase-123";
+  const exported=await adminRequest(admin,"POST","/database/export",{passphrase,credentials:await credentials(),reason:"Backup round trip"});
+  assert.equal(exported.status,200,JSON.stringify(exported.body));
+  assert.ok(!JSON.stringify(exported.body).includes("a@example.com"));
+  const snapshot=await openSnapshot(exported.body,passphrase);
+  assert.equal(snapshot.tables.wallets!.rows.length,1);assert.ok(!snapshot.tables.sessions);
+  assert.equal((await adminRequest(admin,"POST","/database/preview",{backup:exported.body,passphrase:"wrong-password-long-enough"})).status,400);
+  const tampered={...exported.body,data:"AAAA"+exported.body.data.slice(4)};
+  assert.equal((await adminRequest(admin,"POST","/database/preview",{backup:tampered,passphrase})).status,400);
+  const wrongKey=structuredClone(snapshot);wrongKey.keyId="00".repeat(32);
+  assert.equal((await adminRequest(admin,"POST","/database/preview",{backup:await sealSnapshot(wrongKey,passphrase),passphrase})).body.error,"backup_key_mismatch");
+  const preview=await adminRequest(admin,"POST","/database/preview",{backup:exported.body,passphrase});assert.equal(preview.status,200);
+  await exec(pool,"UPDATE wallets SET balance=1");
+  const restored=await adminRequest(admin,"POST","/database/restore",{backup:exported.body,passphrase,proof:preview.body.proof,credentials:await credentials(),reason:"Restore backup test",confirmation:"RESTORE",safetyBackupSaved:true});
+  assert.equal(restored.status,200,JSON.stringify(restored.body));
+  assert.equal(Number((await rows(pool,"SELECT balance FROM wallets"))[0]!.balance),321);
+  assert.equal((await rows(pool,"SELECT * FROM purchases"))[0]!.token_hash,"ab".repeat(32));
+  assert.equal((await rows(pool,"SELECT * FROM sessions")).length,0);
+  assert.equal((await adminRequest(admin,"GET","/me")).status,401);
+  assert.equal((await rows(pool,"SELECT * FROM admin_audit WHERE action='database.restore'")).length,1);
+});
+
+test("invalid restore rolls back and database gate waits for in-flight work", async () => {
+  const {makeSnapshot,restoreSnapshot}=await import("../src/database-backup.js");
+  const {DatabaseGate}=await import("../src/database-gate.js");
+  await adminLogin();const user=await account();const snapshot=await makeSnapshot(pool,c);
+  const bad:Record<string,unknown>={user_id:id(),balance:12,revision:1};
+  snapshot.tables.wallets!.rows.push(snapshot.tables.wallets!.columns.map(k=>bad[k] as string));
+  await assert.rejects(restoreSnapshot(pool,c,snapshot,id(),"Invalid foreign key"));
+  assert.equal((await rows(pool,"SELECT id FROM users WHERE id=?",[user.user.id])).length,1);
+  assert.ok((await rows(pool,"SELECT * FROM admin_sessions")).length);
+  const first=new DatabaseGate(c),second=new DatabaseGate(c);const release=await first.acquire();let entered=false;
+  const pending=second.run(async()=>{entered=true;},true);
+  await new Promise(r=>setTimeout(r,50));assert.equal(entered,false);await release();await pending;assert.equal(entered,true);
+  await first.close();await second.close();
+});
+
+test("database tools require admin, CSRF, fresh TOTP and explicit restore confirmation", async () => {
+  assert.equal((await request("POST","/admin/api/database/export",{})).status,401);
+  assert.equal((await request("POST","/admin/api/database/restore",{})).status,401);
+  const admin=await adminLogin();
+  const body={passphrase:"long-backup-passphrase",reason:"Permission test",credentials:{password:pw,code:admin.code}};
+  assert.equal((await adminRequest(admin,"POST","/database/export",body,{"x-csrf-token":""})).status,403);
+  assert.equal((await adminRequest(admin,"POST","/database/export",body,{origin:"https://untrusted.example"})).status,403);
+  // A TOTP already consumed during login cannot authorize an export.
+  assert.equal((await adminRequest(admin,"POST","/database/export",body)).status,403);
+  assert.equal((await adminRequest(admin,"POST","/database/restore",{confirmation:"YES"})).status,400);
+  assert.equal((await rows(pool,"SELECT * FROM admin_sessions")).length,1);
+});
+
+test("bulk import never partially writes when another admin changes a revision", async () => {
+  const admin=await adminLogin();
+  const doc=(await adminRequest(admin,"GET","/packs/export")).body;
+  doc.packs.find((p:any)=>p.packId==="moonlight").priceCoins=999;
+  const preview=await adminRequest(admin,"POST","/packs/import/preview",doc);
+  await exec(pool,"UPDATE garden_packs SET revision=revision+1 WHERE pack_id='sakura'");
+  const result=await adminRequest(admin,"POST","/packs/import",{document:doc,proof:preview.body.proof,reason:"Concurrent catalog edit"});
+  assert.equal(result.status,409);
+  assert.equal(Number((await rows(pool,"SELECT price_coins FROM garden_packs WHERE pack_id='moonlight'"))[0]!.price_coins),180);
+});
+
+test("database backup preserves JSON, UTC dates, large IDs and encrypted credentials", async () => {
+  const {makeSnapshot,sealSnapshot,openSnapshot,restoreSnapshot,inspectSnapshot}=await import("../src/database-backup.js");
+  await adminLogin();const user=await account();
+  const snapshotData={version:1,progress:{xp:25},habits:[{id:"a",title:"日本語 🌱"}]};
+  await exec(pool,"INSERT INTO gardens(user_id,revision,snapshot,updated_at) VALUES(?,4,?,'2026-10-28 12:34:56.123')",[user.user.id,JSON.stringify(snapshotData)]);
+  await exec(pool,"INSERT INTO coin_ledger(id,user_id,entry_key,delta) VALUES('9007199254740993',?,'backup-test',10)",[user.user.id]);
+  const snapshot=await makeSnapshot(pool,c),passphrase="test-passphrase-for-round-trip";
+  const decoded=await openSnapshot(await sealSnapshot(snapshot,passphrase),passphrase);
+  const ledger=decoded.tables.coin_ledger!;
+  assert.equal(ledger.rows[0]![ledger.columns.indexOf('id')],'9007199254740993');
+  const invalid=structuredClone(decoded);invalid.schema="00".repeat(32);
+  await assert.rejects(inspectSnapshot(pool,c,invalid),/backup_schema_mismatch/);
+  const columns=structuredClone(decoded);columns.tables.users!.columns[0]="id`); DROP TABLE users; --";
+  await assert.rejects(inspectSnapshot(pool,c,columns),/invalid_backup/);
+  const savedHash=(await rows(pool,"SELECT password_hash FROM users WHERE id=?",[user.user.id]))[0]!.password_hash;
+  await restoreSnapshot(pool,c,decoded,id(),"Round-trip restore test");
+  const [garden]=await rows(pool,"SELECT snapshot,DATE_FORMAT(updated_at,'%Y-%m-%d %H:%i:%s.%f') AS date FROM gardens");
+  assert.deepEqual(garden!.snapshot,snapshotData);assert.equal(garden!.date,'2026-10-28 12:34:56.123000');
+  assert.equal((await rows(pool,"SELECT password_hash FROM users WHERE id=?",[user.user.id]))[0]!.password_hash,savedHash);
+});
+
+test("staged password reset reveals MFA only after email proof, revokes sessions and rejects replay", async () => {
+  const s = await account();
+  const start = await request("POST", "/v1/auth/forgot-password", { email: s.user.email });
+  assert.equal(start.body.twoFactorRequired, undefined);
+  const unknown = await request("POST", "/v1/auth/forgot-password", { email: "unknown@example.test" });
+  assert.deepEqual(Object.keys(unknown.body).sort(), Object.keys(start.body).sort());
+  await deliverMail(system.auth);
+  const code = mails.at(-1)!.html.match(/<strong>(\d{6})/)![1];
+  const proof = { challengeId: start.body.challengeId, code };
+  assert.equal((await request("POST", "/v1/auth/password-reset/verify-email", { ...proof, code: "xxxxxx" })).status, 400);
+  const verified = await request("POST", "/v1/auth/password-reset/verify-email", proof);
+  assert.equal(verified.status, 200); assert.equal(verified.body.twoFactorRequired, false);
+  const grant = { challengeId: verified.body.challengeId, resetToken: verified.body.resetToken };
+  assert.equal((await request("POST", "/v1/auth/password-reset/verify-email", proof)).status, 400);
+  const body = { ...grant, password: "new-long-password-123" };
+  assert.equal((await request("POST", "/v1/auth/password-reset/complete", body)).status, 200);
+  assert.equal((await request("POST", "/v1/auth/password-reset/complete", body)).status, 400);
+  assert.equal((await request("GET", "/v1/account", undefined, s.accessToken)).status, 401);
+  assert.equal((await request("POST", "/v1/auth/login", { email: s.user.email, password: body.password })).status, 200);
+});
+
+test("staged reset requires the enrolled factor and preserves MFA for future sign-in", async () => {
+  const s = await account();
+  const setup = await request("POST", "/v1/account/two-factor/setup", { password: pw }, s.accessToken);
+  const code = totpAt(setup.body.secret, Math.floor(Date.now()/30000));
+  const enabled = await request("POST", "/v1/account/two-factor/confirm", { factor: code }, s.accessToken);
+  assert.equal(enabled.status, 200);
+  const begin = await request("POST", "/v1/auth/forgot-password", { email: s.user.email });
+  await deliverMail(system.auth);
+  const emailCode = mails.at(-1)!.html.match(/<strong>(\d{6})/)![1];
+  const verified = await request("POST", "/v1/auth/password-reset/verify-email", { challengeId: begin.body.challengeId, code: emailCode });
+  assert.equal(verified.body.twoFactorRequired, true);
+  const grant = { challengeId: verified.body.challengeId, resetToken: verified.body.resetToken };
+  assert.equal((await request("POST", "/v1/auth/password-reset/complete", { ...grant, password: "new-long-password-123" })).status, 400);
+  assert.equal((await request("POST", "/v1/auth/password-reset/verify-factor", { ...grant, factor: code })).status, 400); // already-used TOTP
+  const factor = await request("POST", "/v1/auth/password-reset/verify-factor", { ...grant, factor: enabled.body.recoveryCodes[0] });
+  assert.equal(factor.status, 200);
+  assert.equal((await request("POST", "/v1/auth/password-reset/verify-factor", { ...grant, factor: enabled.body.recoveryCodes[1] })).status, 400);
+  assert.equal((await request("POST", "/v1/auth/password-reset/complete", { ...factor.body, password: "new-long-password-123" })).status, 200);
+  const login = await request("POST", "/v1/auth/login", { email: s.user.email, password: "new-long-password-123" });
+  assert.equal(login.body.twoFactorRequired, true);
+  assert.equal((await request("POST", "/v1/auth/two-factor", { challengeId: login.body.challengeId, challengeToken: login.body.challengeToken, factor: enabled.body.recoveryCodes[0] })).status, 401);
+});
+
+test("recovery grants expire, limit failed attempts, and cannot be swapped between users", async () => {
+  async function grant(email: string) {
+    const s = await account(email);
+    const reset = await request("POST", "/v1/auth/forgot-password", { email: s.user.email });
+    await deliverMail(system.auth);
+    const code = mails.at(-1)!.html.match(/<strong>(\d{6})/)![1];
+    const verified = await request("POST", "/v1/auth/password-reset/verify-email", { challengeId: reset.body.challengeId, code });
+    return { challengeId: verified.body.challengeId, resetToken: verified.body.resetToken };
+  }
+  const a = await grant("reset-a@example.test"), b = await grant("reset-b@example.test");
+  const url = "/v1/auth/password-reset/complete";
+  assert.equal((await request("POST", url, { challengeId: a.challengeId, resetToken: b.resetToken, password: pw })).status, 400);
+  for (let i=0;i<4;i++) assert.equal((await request("POST", url, { ...a, resetToken: "x".repeat(43), password: pw })).status, 400);
+  assert.equal((await request("POST", url, { ...a, password: pw })).status, 400);
+  await exec(pool, "UPDATE challenges SET expires_at=DATE_SUB(NOW(3),INTERVAL 1 SECOND) WHERE id=?", [b.challengeId]);
+  assert.equal((await request("POST", url, { ...b, password: pw })).status, 400);
+});
+
+test("fresh authenticator code authorizes exactly one password reset", async () => {
+  const s = await account();
+  const secret = newTotpSecret();
+  await exec(pool, "UPDATE users SET totp_secret=?,totp_last_step=-1 WHERE id=?", [encrypt(c, secret), s.user.id]);
+  const begin = await request("POST", "/v1/auth/forgot-password", { email: s.user.email });
+  await deliverMail(system.auth);
+  const code = mails.at(-1)!.html.match(/<strong>(\d{6})/)![1];
+  const email = await request("POST", "/v1/auth/password-reset/verify-email", { challengeId: begin.body.challengeId, code });
+  const verified = await request("POST", "/v1/auth/password-reset/verify-factor", {
+    challengeId: email.body.challengeId, resetToken: email.body.resetToken,
+    factor: totpAt(secret, Math.floor(Date.now()/30000)),
+  });
+  assert.equal(verified.status, 200);
+  const results = await Promise.all([1,2].map(() => request("POST", "/v1/auth/password-reset/complete", {
+    ...verified.body, password: "new-long-password-123",
+  })));
+  assert.deepEqual(results.map(r => r.status).sort(), [200,400]);
+});

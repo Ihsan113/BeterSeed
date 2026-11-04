@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_water_count">💧 %1$d de água</string>
+    <string name="widget_stage_count">Estágio %1$d / 6</string>
+    <string name="widget_habits_count">%1$d / %2$d concluídos</string>
+    <string name="widget_open_garden">Abra seu jardim  ›</string>
+    <string name="widget_tree_description">Estágio de crescimento</string>
+    <string name="reminder_title">Um momento para seu hábito 🌱</string>
+    <string name="reminder_default_body">Hora de cuidar do seu jardim BetterSeed</string>
+    <string name="reminder_channel_name">Lembretes de hábitos</string>
+    <string name="reminder_channel_description">Lembretes suaves para seus hábitos</string>
+    <string name="live_wallpaper_name">BetterSeed · Jardim animado</string>
+    <string name="live_wallpaper_description">Imagem animada do seu jardim BetterSeed.</string>
+    <string name="live_wallpaper_setup">Abra o BetterSeed para começar</string>
+</resources>

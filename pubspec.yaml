@@ -1,7 +1,7 @@
 name: betterseed
 description: An offline-first habit garden with optional secure cloud accounts.
 publish_to: none
-version: 1.7.0+58
+version: 1.8.0+59
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
   shared_preferences: ^2.5.6
   audioplayers: ^6.8.1
   video_player: ^2.11.1
@@ -44,3 +47,4 @@ flutter:
     - assets/icon_512.png
     - assets/audio/
     - assets/legal/
+    - assets/l10n/

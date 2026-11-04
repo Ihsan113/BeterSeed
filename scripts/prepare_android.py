@@ -52,6 +52,24 @@ ET.SubElement(widget, 'meta-data', {
     a('name'): 'android.appwidget.provider', a('resource'): '@xml/betterseed_widget_info'
 })
 
+for service in list(application.findall('service')):
+    if service.get(a('name')) == '.BetterSeedLiveWallpaperService':
+        application.remove(service)
+live = ET.SubElement(application, 'service', {
+    a('name'): '.BetterSeedLiveWallpaperService', a('exported'): 'true',
+    a('permission'): 'android.permission.BIND_WALLPAPER',
+    a('label'): '@string/live_wallpaper_name',
+})
+live_filter = ET.SubElement(live, 'intent-filter')
+ET.SubElement(live_filter, 'action', {a('name'): 'android.service.wallpaper.WallpaperService'})
+ET.SubElement(live, 'meta-data', {
+    a('name'): 'android.service.wallpaper', a('resource'): '@xml/betterseed_live_wallpaper',
+})
+if not any(e.get(a('name')) == 'android.software.live_wallpaper' for e in manifest_root.findall('uses-feature')):
+    ET.SubElement(manifest_root, 'uses-feature', {
+        a('name'): 'android.software.live_wallpaper', a('required'): 'false',
+    })
+
 ET.indent(xtree, space='    ')
 xtree.write(manifest, encoding='utf-8', xml_declaration=True)
 
@@ -73,10 +91,12 @@ native = root / 'native/android'
 # Fail before writing an incomplete integration when native/android was ignored
 # by an unanchored `android/` rule in a previous .gitignore.
 required_kotlin = [
+    'BetterSeedLiveWallpaperService.kt', 'LiveWallpaperStore.kt',
     'GardenWallpaper.kt', 'MainActivity.kt', 'ReminderScheduler.kt', 'ReminderReceiver.kt',
     'ReminderBootReceiver.kt', 'BetterSeedWidget.kt',
 ]
 required_res = [
+    'xml/betterseed_live_wallpaper.xml',
     'layout/betterseed_widget.xml', 'xml/betterseed_widget_info.xml',
     'drawable/widget_background.xml', 'drawable/ic_notification.xml',
     *[f'drawable-nodpi/widget_tree_{i}.webp' for i in range(6)],

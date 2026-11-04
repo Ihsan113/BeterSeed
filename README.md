@@ -1,3 +1,13 @@
+# BetterSeed — 1.8.0+59 · Admin tools, seven languages & live wallpaper
+
+The admin dashboard now supports Garden Pack JSON export/import with a change preview, encrypted application database backups and restore/migration, and responsive navigation. The app defaults to US English and supports Indonesian, Japanese, German, French, Latin American Spanish and Brazilian Portuguese; Leaf Coins keeps its name.
+
+See [the feature and migration guide](docs/ADMIN_TRANSFER_AND_LOCALIZATION.md), [backend 1.3.0 upgrade instructions](server/UPGRADE.md), and [the clean backend ZIP](distribution/BetterSeed-server.zip). Database transfer requires compatible schema and the original server encryption keys. Official policy documents retain their published language. Android live wallpaper is available with animated butterflies/fireflies over a saved garden snapshot; see [setup and device behavior](docs/LIVE_WALLPAPER.md). Apply it again when your garden changes.
+
+Customization now opens directly from the Garden toolbar, with a shortcut at the top of My Collection. Password recovery uses separate email verification, enrolled authenticator/recovery-code verification, and new-password screens. Install the updated backend before releasing the app.
+
+This change uses GitHub `main` at `413d605`. No production deployment is performed. Older release notes follow.
+
 # BetterSeed — 1.7.0+58 · Optional Garden Pack Downloads
 
 See `docs/ON_DEMAND_PACK_DELIVERY.md` for hosting and administrator setup. The install bundles only Original Garden and all Shop thumbnails. All other garden videos/sprites are downloaded individually, with checksum validation.

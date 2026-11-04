@@ -26,8 +26,8 @@ object ReminderScheduler {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(
-                NotificationChannel(CHANNEL, "Habit reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                    description = "Gentle reminders for the habits you choose"
+                NotificationChannel(CHANNEL, BetterSeedLocale.context(context).getString(R.string.reminder_channel_name), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    description = BetterSeedLocale.context(context).getString(R.string.reminder_channel_description)
                 }
             )
         }

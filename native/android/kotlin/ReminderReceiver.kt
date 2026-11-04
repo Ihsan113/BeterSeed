@@ -37,9 +37,10 @@ class ReminderReceiver : BroadcastReceiver() {
         } else {
             Notification.Builder(context)
         }
+        val localized = BetterSeedLocale.context(context)
         builder.setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("A moment for your habit 🌱")
-            .setContentText(habit.optString("title", "Time to grow your BetterSeed garden"))
+            .setContentTitle(localized.getString(R.string.reminder_title))
+            .setContentText(habit.optString("title", localized.getString(R.string.reminder_default_body)))
             .setAutoCancel(true)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             builder.setPriority(Notification.PRIORITY_DEFAULT)

@@ -1,3 +1,4 @@
+import '../l10n/app_localizations.dart';
 import 'local_pack_video_background.dart';
 import '../data/pack_downloads.dart';
 import 'dart:math' as math;
@@ -83,7 +84,7 @@ class _GardenPackPreviewState extends State<GardenPackPreview>
         title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         leading: IconButton(
           key: const ValueKey('pack-preview-close'),
-          tooltip: 'Close preview',
+          tooltip: context.tr("Close preview"),
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.close_rounded),
         ),
@@ -111,7 +112,7 @@ class _GardenPackPreviewState extends State<GardenPackPreview>
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               children: [
-                Text('Preview only · your garden stays unchanged',
+                Text(context.tr("Preview only · your garden stays unchanged"),
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 8),
@@ -119,19 +120,21 @@ class _GardenPackPreviewState extends State<GardenPackPreview>
                   children: [
                     IconButton(
                       key: const ValueKey('pack-preview-previous'),
-                      tooltip: 'Previous growth stage',
+                      tooltip: context.tr("Previous growth stage"),
                       onPressed:
                           _stage == 0 ? null : () => setState(() => _stage--),
                       icon: const Icon(Icons.chevron_left),
                     ),
                     Expanded(
-                      child: Text('Growth stage ${_stage + 1} of 6',
+                      child: Text(
+                          context
+                              .tr("Growth stage {p0} of 6", {'p0': _stage + 1}),
                           key: const ValueKey('pack-preview-stage'),
                           textAlign: TextAlign.center),
                     ),
                     IconButton(
                       key: const ValueKey('pack-preview-next'),
-                      tooltip: 'Next growth stage',
+                      tooltip: context.tr("Next growth stage"),
                       onPressed:
                           _stage == 5 ? null : () => setState(() => _stage++),
                       icon: const Icon(Icons.chevron_right),
@@ -155,7 +158,8 @@ class _GardenPackPreviewState extends State<GardenPackPreview>
                               painter: GardenLifePainter(.3,
                                   palette: appearance.fireflies)),
                         ),
-                        const Text('Fireflies', style: TextStyle(fontSize: 12)),
+                        Text(context.tr("Fireflies"),
+                            style: TextStyle(fontSize: 12)),
                       ],
                     ),
                   ],
@@ -184,7 +188,7 @@ class _GardenPackPreviewState extends State<GardenPackPreview>
         mainAxisSize: MainAxisSize.min,
         children: [
           GardenImage.asset(asset, width: 52, height: 48, fit: BoxFit.contain),
-          Text(label, style: const TextStyle(fontSize: 12)),
+          Text(context.tr(label), style: const TextStyle(fontSize: 12)),
         ],
       );
 
@@ -201,8 +205,10 @@ class _GardenPackPreviewState extends State<GardenPackPreview>
             children: [
               if (appearance.video != null)
                 LocalPackVideoBackground(
-                  key: ValueKey(appearance.video), animate: _animate,
-                  video: appearance.video!, poster: appearance.background)
+                    key: ValueKey(appearance.video),
+                    animate: _animate,
+                    video: appearance.video!,
+                    poster: appearance.background)
               else
                 GardenImage.asset(appearance.background, fit: BoxFit.cover),
               Positioned.fromRect(
@@ -228,8 +234,8 @@ class _GardenPackPreviewState extends State<GardenPackPreview>
                 left: size.width * .20 +
                     (_animate ? math.sin(_motion.value * math.pi * 2) * 8 : 0),
                 top: size.height * .5,
-                child:
-                    GardenImage.asset(appearance.butterfly, width: size.width * .14),
+                child: GardenImage.asset(appearance.butterfly,
+                    width: size.width * .14),
               ),
             ],
           );

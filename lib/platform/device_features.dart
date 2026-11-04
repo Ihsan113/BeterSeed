@@ -51,6 +51,7 @@ class DeviceFeatures {
       required int total,
       required String day,
       String theme = 'default',
+      String language = 'en-US',
       String? treeAsset,
       String? treeFile}) async {
     try {
@@ -61,6 +62,7 @@ class DeviceFeatures {
         'total': total,
         'day': day,
         'theme': theme,
+        'language': language,
         if (treeAsset != null) 'treeAsset': treeAsset,
         if (treeFile != null) 'treeFile': treeFile
       });

@@ -31,9 +31,9 @@ class PlayWorkflowTests(unittest.TestCase):
 
     def test_play_bundle_and_target_are_consistent(self):
         pubspec = (ROOT / 'pubspec.yaml').read_text()
-        self.assertRegex(pubspec, r'(?m)^version:\s*1\.7\.0\+58\s*$')
+        self.assertRegex(pubspec, r'(?m)^version:\s*1\.8\.0\+59\s*$')
         readme = (ROOT / 'README.md').read_text()
-        self.assertIn('1.7.0+58', readme)
+        self.assertIn('1.8.0+59', readme)
         configure = (ROOT / 'scripts/configure_play_sdk.py').read_text()
         self.assertIn('PLAY_API_LEVEL = 36', configure)
         workflow = (ROOT / '.github/workflows/android-apk.yml').read_text()

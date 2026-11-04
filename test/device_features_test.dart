@@ -60,12 +60,12 @@ void main() {
     await DeviceFeatures.updateWidget(water: 3, stage: 2, done: 1,
         total: 4, day: '2026-10-24');
     expect(snapshot, {'water': 3, 'stage': 2, 'done': 1,
-        'total': 4, 'day': '2026-10-24', 'theme': 'default'});
+        'total': 4, 'day': '2026-10-24', 'theme': 'default', 'language': 'en-US'});
     // A claimed Moonlight pack must update the native widget too.
     await DeviceFeatures.updateWidget(water: 3, stage: 2, done: 1,
-        total: 4, day: '2026-10-24', theme: 'moonlight');
+        total: 4, day: '2026-10-24', theme: 'moonlight', language: 'ja');
     expect(snapshot, {'water': 3, 'stage': 2, 'done': 1,
-        'total': 4, 'day': '2026-10-24', 'theme': 'moonlight'});
+        'total': 4, 'day': '2026-10-24', 'theme': 'moonlight', 'language': 'ja'});
     await DeviceFeatures.updateWidget(water:3,stage:2,done:1,total:4,day:'2026-10-24',theme:'crystal_forest',treeAsset:'assets/images/trees/crystal/stage_1_sprout.webp');
     expect(snapshot?['treeAsset'],'assets/images/trees/crystal/stage_1_sprout.webp');
     expect(await DeviceFeatures.widgetInstalled(), isFalse);

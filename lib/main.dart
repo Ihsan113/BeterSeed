@@ -1,3 +1,4 @@
+import 'l10n/app_localizations.dart';
 import 'account/pack_catalog.dart';
 import 'data/garden_pack_registry.dart';
 import 'data/pack_downloads.dart';
@@ -7,6 +8,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -42,10 +45,13 @@ const _gold = Color(0xFFFFD989);
 const _blue = Color(0xFF80DFFF);
 const _glass = Color(0xDF102C31);
 const _stageNames = <String>[
-  'A New Seed', 'First Sprout', 'Growing Sapling',
-  'Young Tree', 'Thriving Tree', 'Legendary Tree',
+  'A New Seed',
+  'First Sprout',
+  'Growing Sapling',
+  'Young Tree',
+  'Thriving Tree',
+  'Legendary Tree',
 ];
-
 
 const _habitIconChoices = <MapEntry<String, IconData>>[
   MapEntry('leaf', Icons.spa_outlined),
@@ -58,7 +64,14 @@ const _habitIconChoices = <MapEntry<String, IconData>>[
   MapEntry('meditate', Icons.self_improvement_outlined),
 ];
 
-enum _SettingsSection { home, soundGarden, routine, gardenProgress, widgetDisplay, backupRestore }
+enum _SettingsSection {
+  home,
+  soundGarden,
+  routine,
+  gardenProgress,
+  widgetDisplay,
+  backupRestore
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -76,31 +89,62 @@ Future<void> main() async {
   runApp(const BetterSeedApp());
 }
 
-class BetterSeedApp extends StatelessWidget {
+class BetterSeedApp extends StatefulWidget {
   const BetterSeedApp({super.key, this.showLaunchFlow = true});
 
   /// Disable only in legacy widget tests that exercise the garden directly.
   final bool showLaunchFlow;
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'BetterSeed',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          brightness: Brightness.dark,
-          useMaterial3: true,
-          scaffoldBackgroundColor: _deepNavy,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: _mint,
-            brightness: Brightness.dark,
-          ),
-        ),
-        home: showLaunchFlow
-            ? BetterSeedLaunchFlow(
-                gardenBuilder: (replay) => GrowthHome(onShowWelcomeGuide: replay),
-              )
-            : const GrowthHome(),
-      );
+  State<BetterSeedApp> createState() => _BetterSeedAppState();
+}
+
+class _BetterSeedAppState extends State<BetterSeedApp> {
+  final _locale = AppLocale();
+  @override
+  void initState() {
+    super.initState();
+    _locale.load();
+  }
+
+  @override
+  void dispose() {
+    _locale.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AppLocaleScope(
+      controller: _locale,
+      child: ListenableBuilder(
+          listenable: _locale,
+          builder: (context, _) => MaterialApp(
+                locale: _locale.locale,
+                supportedLocales: AppLocalizations.locales,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate
+                ],
+                title: 'BetterSeed',
+                debugShowCheckedModeBanner: false,
+                theme: ThemeData(
+                  brightness: Brightness.dark,
+                  useMaterial3: true,
+                  scaffoldBackgroundColor: _deepNavy,
+                  colorScheme: ColorScheme.fromSeed(
+                    seedColor: _mint,
+                    brightness: Brightness.dark,
+                  ),
+                ),
+                home: widget.showLaunchFlow
+                    ? BetterSeedLaunchFlow(
+                        gardenBuilder: (replay) =>
+                            GrowthHome(onShowWelcomeGuide: replay),
+                      )
+                    : const GrowthHome(),
+              )));
 }
 
 class GrowthHome extends StatefulWidget {
@@ -134,7 +178,8 @@ class _GrowthHomeState extends State<GrowthHome>
   static const _storageOwnedSakura = 'betterseed_owned_sakura_v1';
   static const _storageOwnedAutumn = 'betterseed_owned_autumn_v1';
   static const _storageLeafCoins = 'betterseed_leaf_coins_v1';
-  static const _storageDeliveredLeafPurchases = 'betterseed_delivered_leaf_purchases_v1';
+  static const _storageDeliveredLeafPurchases =
+      'betterseed_delivered_leaf_purchases_v1';
   static const _starterHabits = <Habit>[
     Habit(id: 'drink', title: 'Drink water', iconKey: 'water'),
     Habit(id: 'read', title: 'Read 10 pages', iconKey: 'book'),
@@ -146,14 +191,27 @@ class _GrowthHomeState extends State<GrowthHome>
   final PackDownloadService _packs = PackDownloadService();
   late final PackCatalog _catalog = PackCatalog(_cloud.api);
   Set<String> get _ownedPacks => _cloud.signedIn
-      ? {'default',...((_cloud.wallet?['packs'] as List?)??[]).cast<String>()}
-      : {'default',if(_moonlightOwned)'moonlight',if(_sakuraOwned)'sakura',if(_autumnOwned)'golden_autumn'};
-  void _catalogChanged(){if(mounted)setState((){});}
+      ? {
+          'default',
+          ...((_cloud.wallet?['packs'] as List?) ?? []).cast<String>()
+        }
+      : {
+          'default',
+          if (_moonlightOwned) 'moonlight',
+          if (_sakuraOwned) 'sakura',
+          if (_autumnOwned) 'golden_autumn'
+        };
+  void _catalogChanged() {
+    if (mounted) setState(() {});
+  }
+
   String _installedPackSignature = '';
   void _downloadsChanged() {
     if (!mounted) return;
     final signature = GardenPackRegistry.packs
-        .where((p) => _packs.installed(p.id)).map((p) => p.id).join(',');
+        .where((p) => _packs.installed(p.id))
+        .map((p) => p.id)
+        .join(',');
     final changed = signature != _installedPackSignature;
     _installedPackSignature = signature;
     setState(() {});
@@ -161,6 +219,7 @@ class _GrowthHomeState extends State<GrowthHome>
     // install/removal/startup scan changes the image available to the widget.
     if (changed && _loaded) unawaited(_save(syncCloud: false));
   }
+
   PlayBilling? _billing;
   bool _unlockBusy = false;
   bool _accountPageOpen = false;
@@ -174,6 +233,7 @@ class _GrowthHomeState extends State<GrowthHome>
   Future<void>? _loadWork;
   bool _loaded = false;
   String _gardenMessage = GardenMessages.pick();
+  String _interfaceLanguage = 'en-US';
   bool _musicEnabled = true;
   bool _musicImportBusy = false;
   bool _settingsOpen = false;
@@ -192,11 +252,14 @@ class _GrowthHomeState extends State<GrowthHome>
   void _rememberUnavailableCosmetics(Map data) {
     _unavailableCosmetics = {
       for (final key in ShopLoadout.defaultPack.toJson().keys)
-        if (data[key] is String && RegExp(r'^[a-z][a-z0-9_]{0,79}$').hasMatch(data[key] as String) &&
-            !GardenPackRegistry.packs.any((p) => p.loadout.toJson()[key] == data[key]))
+        if (data[key] is String &&
+            RegExp(r'^[a-z][a-z0-9_]{0,79}$').hasMatch(data[key] as String) &&
+            !GardenPackRegistry.packs
+                .any((p) => p.loadout.toJson()[key] == data[key]))
           key: data[key] as String,
     };
   }
+
   bool _moonlightOwned = false;
   bool _sakuraOwned = false;
   bool _autumnOwned = false;
@@ -212,7 +275,8 @@ class _GrowthHomeState extends State<GrowthHome>
   String _editorAssetCategory = 'background';
 
   ShopLoadout get _visibleLoadout {
-    final wanted = _assetEditMode ? (_editLoadout ?? _shopLoadout) : _shopLoadout;
+    final wanted =
+        _assetEditMode ? (_editLoadout ?? _shopLoadout) : _shopLoadout;
     return _availableLoadout(wanted);
   }
 
@@ -235,8 +299,10 @@ class _GrowthHomeState extends State<GrowthHome>
   FireflyPalette get _activeFireflyPalette => _appearance.fireflies;
 
   GardenTreePlacement get _visiblePlacement =>
-      (_assetEditMode ? _editPlacements : _treePlacements)[_visibleLoadout.backgroundId]
-          ?? const GardenTreePlacement();
+      (_assetEditMode
+          ? _editPlacements
+          : _treePlacements)[_visibleLoadout.backgroundId] ??
+      const GardenTreePlacement();
 
   late final AnimationController _windController;
   late final AnimationController _waterController;
@@ -262,7 +328,8 @@ class _GrowthHomeState extends State<GrowthHome>
       duration: const Duration(milliseconds: 1700),
       animationBehavior: AnimationBehavior.preserve,
     );
-    _dayTimer = Timer.periodic(const Duration(minutes: 1), (_) => _ensureToday());
+    _dayTimer =
+        Timer.periodic(const Duration(minutes: 1), (_) => _ensureToday());
     _packs.addListener(_downloadsChanged);
     _catalog.addListener(_catalogChanged);
     _loadWork = _load();
@@ -272,6 +339,11 @@ class _GrowthHomeState extends State<GrowthHome>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final language = Localizations.localeOf(context).toLanguageTag();
+    if (_interfaceLanguage != language) {
+      _interfaceLanguage = language;
+      if (_loaded) unawaited(_save(syncCloud: false));
+    }
     _systemReduceMotion = MediaQuery.disableAnimationsOf(context);
     _applyAnimationPreference();
   }
@@ -331,7 +403,8 @@ class _GrowthHomeState extends State<GrowthHome>
     if (_focusMode == enabled || !mounted) return;
     setState(() => _focusMode = enabled);
     if (enabled) {
-      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+          overlays: []);
       SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: Colors.transparent,
@@ -363,12 +436,15 @@ class _GrowthHomeState extends State<GrowthHome>
       // Optional downloads can fail without preventing the offline garden.
     }));
     final prefs = await SharedPreferences.getInstance();
-    var loaded = List<Habit>.from(_starterHabits);
+    var loaded = _starterHabits
+        .map((h) => h.copyWith(title: context.tr(h.title)))
+        .toList();
     final rawHabits = prefs.getString(_storageHabits);
     if (rawHabits != null) {
       try {
         loaded = (jsonDecode(rawHabits) as List)
-            .map((value) => Habit.fromJson(Map<String, dynamic>.from(value as Map)))
+            .map((value) =>
+                Habit.fromJson(Map<String, dynamic>.from(value as Map)))
             .toList();
       } catch (_) {
         // Preserve app usability on corrupted legacy data.
@@ -381,7 +457,8 @@ class _GrowthHomeState extends State<GrowthHome>
     if (prefs.getString(_storageDate) != freshDay) {
       loaded = loaded.map((habit) => habit.copyWith(completed: false)).toList();
     }
-    var progress = WaterProgress(xp: math.max(0, prefs.getInt(_storageXp) ?? 0));
+    var progress =
+        WaterProgress(xp: math.max(0, prefs.getInt(_storageXp) ?? 0));
     final rawProgress = prefs.getString(_storageProgress);
     if (rawProgress != null) {
       try {
@@ -398,40 +475,56 @@ class _GrowthHomeState extends State<GrowthHome>
       _progress = progress;
       _today = freshDay;
       _musicEnabled = prefs.getBool(_storageMusic) ?? true;
-      _musicMode = prefs.getString(_storageMusicMode) == 'custom' ? 'custom' : 'default';
+      _musicMode =
+          prefs.getString(_storageMusicMode) == 'custom' ? 'custom' : 'default';
       _effectsEnabled = prefs.getBool(_storageSfx) ?? true;
       _motionEnabled = prefs.getBool(_storageMotion) ?? true;
       _motionOverride = prefs.getBool(_storageMotionOverride) ?? false;
       // Migrate previous per-cosmetic preferences into a single full pack.
       // Existing users keep their Moonlight entitlement rather than losing it.
       final legacyMoonlight = <String?>[
-        prefs.getString(_storageTreeSkin), prefs.getString(_storageBackground),
-        prefs.getString(_storageButterfly), prefs.getString(_storageWateringCan),
+        prefs.getString(_storageTreeSkin),
+        prefs.getString(_storageBackground),
+        prefs.getString(_storageButterfly),
+        prefs.getString(_storageWateringCan),
         prefs.getString(_storageFirefly),
       ].any((value) => const <String>{
-        'moonlight_tree_skin', 'twilight_overlook', 'cosmic_butterfly',
-        'celestial_watering_can', 'prism_fireflies',
-      }.contains(value));
+            'moonlight_tree_skin',
+            'twilight_overlook',
+            'cosmic_butterfly',
+            'celestial_watering_can',
+            'prism_fireflies',
+          }.contains(value));
       final legacyAutumn = <String?>[
-        prefs.getString(_storageTreeSkin), prefs.getString(_storageBackground),
-        prefs.getString(_storageButterfly), prefs.getString(_storageWateringCan),
+        prefs.getString(_storageTreeSkin),
+        prefs.getString(_storageBackground),
+        prefs.getString(_storageButterfly),
+        prefs.getString(_storageWateringCan),
         prefs.getString(_storageFirefly),
       ].any((value) => const <String>{
-        'golden_autumn_tree_skin', 'golden_autumn_garden', 'amber_butterfly',
-        'maple_watering_can', 'ember_fireflies',
-      }.contains(value));
+            'golden_autumn_tree_skin',
+            'golden_autumn_garden',
+            'amber_butterfly',
+            'maple_watering_can',
+            'ember_fireflies',
+          }.contains(value));
       final savedBundle = prefs.getString(_storageBundle);
-      _moonlightOwned = (prefs.getBool(_storageOwnedMoonlight) ?? false) || legacyMoonlight;
+      _moonlightOwned =
+          (prefs.getBool(_storageOwnedMoonlight) ?? false) || legacyMoonlight;
       _sakuraOwned = prefs.getBool(_storageOwnedSakura) ?? false;
-      _autumnOwned = (prefs.getBool(_storageOwnedAutumn) ?? false) || legacyAutumn;
+      _autumnOwned =
+          (prefs.getBool(_storageOwnedAutumn) ?? false) || legacyAutumn;
       _leafCoins = math.max(0, prefs.getInt(_storageLeafCoins) ?? 0);
-      _deliveredLeafPurchases = (prefs.getStringList(_storageDeliveredLeafPurchases) ?? const <String>[]).toSet();
+      _deliveredLeafPurchases =
+          (prefs.getStringList(_storageDeliveredLeafPurchases) ??
+                  const <String>[])
+              .toSet();
       _shopLoadout = savedBundle == 'sakura' && _sakuraOwned
           ? ShopLoadout.sakuraPack
           : savedBundle == 'golden_autumn' && _autumnOwned
               ? ShopLoadout.autumnPack
               : (savedBundle == 'moonlight' ||
-                  (savedBundle == null && legacyMoonlight))
+                      (savedBundle == null && legacyMoonlight))
                   ? ShopLoadout.moonlightPack
                   : (savedBundle == null && legacyAutumn)
                       ? ShopLoadout.autumnPack
@@ -448,30 +541,47 @@ class _GrowthHomeState extends State<GrowthHome>
                   key: GardenTreePlacement.fromJson(raw[key]),
             };
           }
-        } catch (_) { /* An invalid placement never blocks app startup. */ }
+        } catch (_) {/* An invalid placement never blocks app startup. */}
       }
       if (savedBundle != null) {
         _shopLoadout = ShopLoadout.fromMap({
-          'treeSkinId': prefs.getString(_storageTreeSkin) ?? _shopLoadout.treeSkinId,
-          'backgroundId': prefs.getString(_storageBackground) ?? _shopLoadout.backgroundId,
-          'butterflyId': prefs.getString(_storageButterfly) ?? _shopLoadout.butterflyId,
-          'wateringCanId': prefs.getString(_storageWateringCan) ?? _shopLoadout.wateringCanId,
-          'fireflyId': prefs.getString(_storageFirefly) ?? _shopLoadout.fireflyId,
-        }, ownedPacks: _ownedPacks, moonlightOwned: _moonlightOwned, sakuraOwned: _sakuraOwned, autumnOwned: _autumnOwned);
+          'treeSkinId':
+              prefs.getString(_storageTreeSkin) ?? _shopLoadout.treeSkinId,
+          'backgroundId':
+              prefs.getString(_storageBackground) ?? _shopLoadout.backgroundId,
+          'butterflyId':
+              prefs.getString(_storageButterfly) ?? _shopLoadout.butterflyId,
+          'wateringCanId': prefs.getString(_storageWateringCan) ??
+              _shopLoadout.wateringCanId,
+          'fireflyId':
+              prefs.getString(_storageFirefly) ?? _shopLoadout.fireflyId,
+        },
+            ownedPacks: _ownedPacks,
+            moonlightOwned: _moonlightOwned,
+            sakuraOwned: _sakuraOwned,
+            autumnOwned: _autumnOwned);
       }
     });
     // Keep account data isolated before the active garden mirror is saved.
     if (_cloud.configured) {
       _cloud.onGarden = _receiveCloudGarden;
       _cloud.onWallet = _receiveCloudWallet;
-      await _cloud.initialize(_cloudSnapshot(), _freshCloudSnapshot(), guestWallet: {
+      await _cloud
+          .initialize(_cloudSnapshot(), _freshCloudSnapshot(), guestWallet: {
         'balance': _leafCoins,
-        'packs': [if (_moonlightOwned) 'moonlight', if (_sakuraOwned) 'sakura', if (_autumnOwned) 'golden_autumn'],
+        'packs': [
+          if (_moonlightOwned) 'moonlight',
+          if (_sakuraOwned) 'sakura',
+          if (_autumnOwned) 'golden_autumn'
+        ],
       });
       if (!mounted) return;
       _billing = PlayBilling(_cloud)..start();
-      if (!_cloud.signedIn && prefs.getBool('betterseed_account_choice_v1') != true) {
-        WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _openAccount(initialChoice: true); });
+      if (!_cloud.signedIn &&
+          prefs.getBool('betterseed_account_choice_v1') != true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _openAccount(initialChoice: true);
+        });
       }
     }
     if (!mounted) return;
@@ -480,7 +590,8 @@ class _GrowthHomeState extends State<GrowthHome>
     final reminder = await DeviceFeatures.getReminder();
     if (!mounted) return;
     setState(() {
-      _reminderEnabled = reminder['enabled'] == true && reminder['permissionGranted'] == true;
+      _reminderEnabled =
+          reminder['enabled'] == true && reminder['permissionGranted'] == true;
     });
     // Resolve an already-imported MP3 after loading preferences. If the file
     // was erased externally, default ambience is always the safe fallback.
@@ -506,22 +617,36 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   GardenData _cloudSnapshot() => {
-    'version': 1,
-    'habits': _habits.map((h) => h.toJson()).toList(),
-    'progress': _progress.toJson(),
-    'day': _today,
-    'cosmetics': {..._shopLoadout.toJson(), ..._unavailableCosmetics},
-    'treePlacements': {for (final e in _treePlacements.entries) e.key: e.value.toJson()},
-    'preferences': {'music': _musicEnabled, 'effects': _effectsEnabled, 'motion': _motionEnabled, 'motionOverride': _motionOverride},
-  };
+        'version': 1,
+        'habits': _habits.map((h) => h.toJson()).toList(),
+        'progress': _progress.toJson(),
+        'day': _today,
+        'cosmetics': {..._shopLoadout.toJson(), ..._unavailableCosmetics},
+        'treePlacements': {
+          for (final e in _treePlacements.entries) e.key: e.value.toJson()
+        },
+        'preferences': {
+          'music': _musicEnabled,
+          'effects': _effectsEnabled,
+          'motion': _motionEnabled,
+          'motionOverride': _motionOverride
+        },
+      };
 
   GardenData _freshCloudSnapshot() => {
-    'version': 1,
-    'habits': _starterHabits.map((h) => h.toJson()).toList(),
-    'progress': WaterProgress().toJson(), 'day': todayLocalKey(),
-    'cosmetics': ShopLoadout.defaultPack.toJson(), 'treePlacements': <String, dynamic>{},
-    'preferences': {'music': true, 'effects': true, 'motion': true, 'motionOverride': false},
-  };
+        'version': 1,
+        'habits': _starterHabits.map((h) => h.toJson()).toList(),
+        'progress': WaterProgress().toJson(),
+        'day': todayLocalKey(),
+        'cosmetics': ShopLoadout.defaultPack.toJson(),
+        'treePlacements': <String, dynamic>{},
+        'preferences': {
+          'music': true,
+          'effects': true,
+          'motion': true,
+          'motionOverride': false
+        },
+      };
 
   void _receiveCloudGarden(GardenData data) {
     if (!mounted) return;
@@ -540,11 +665,19 @@ class _GrowthHomeState extends State<GrowthHome>
         return data['day'] == today ? habit : habit.copyWith(completed: false);
       }).toList();
       _today = today;
-      _progress = WaterProgress.fromJson(Map<String, dynamic>.from(data['progress'] as Map));
+      _progress = WaterProgress.fromJson(
+          Map<String, dynamic>.from(data['progress'] as Map));
       _rememberUnavailableCosmetics(data['cosmetics'] as Map);
-      _shopLoadout = ShopLoadout.fromMap(Map<String, dynamic>.from(data['cosmetics'] as Map),
-        ownedPacks: _ownedPacks, moonlightOwned: _moonlightOwned, sakuraOwned: _sakuraOwned, autumnOwned: _autumnOwned);
-      _treePlacements = {for (final e in (data['treePlacements'] as Map).entries) e.key as String: GardenTreePlacement.fromJson(e.value)};
+      _shopLoadout = ShopLoadout.fromMap(
+          Map<String, dynamic>.from(data['cosmetics'] as Map),
+          ownedPacks: _ownedPacks,
+          moonlightOwned: _moonlightOwned,
+          sakuraOwned: _sakuraOwned,
+          autumnOwned: _autumnOwned);
+      _treePlacements = {
+        for (final e in (data['treePlacements'] as Map).entries)
+          e.key as String: GardenTreePlacement.fromJson(e.value)
+      };
       _musicEnabled = prefs['music'] == true;
       _effectsEnabled = prefs['effects'] == true;
       _motionEnabled = prefs['motion'] == true;
@@ -578,8 +711,12 @@ class _GrowthHomeState extends State<GrowthHome>
     });
     final cosmetics = _cloud.currentGarden?['cosmetics'];
     if (cosmetics is Map) {
-      setState(() => _shopLoadout = ShopLoadout.fromMap(Map<String, dynamic>.from(cosmetics),
-          ownedPacks: _ownedPacks, moonlightOwned: _moonlightOwned, sakuraOwned: _sakuraOwned, autumnOwned: _autumnOwned));
+      setState(() => _shopLoadout = ShopLoadout.fromMap(
+          Map<String, dynamic>.from(cosmetics),
+          ownedPacks: _ownedPacks,
+          moonlightOwned: _moonlightOwned,
+          sakuraOwned: _sakuraOwned,
+          autumnOwned: _autumnOwned));
     }
     _save(syncCloud: false);
   }
@@ -591,16 +728,23 @@ class _GrowthHomeState extends State<GrowthHome>
       await _loadWork;
       await _saveQueue;
       if (!mounted) return;
-      await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AccountPage(account: _cloud, initialChoice: initialChoice)));
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) =>
+              AccountPage(account: _cloud, initialChoice: initialChoice)));
       if (mounted) setState(() {});
-    } finally { _accountPageOpen = false; }
+    } finally {
+      _accountPageOpen = false;
+    }
   }
 
   Future<void> _save({bool syncCloud = true}) {
-    final cloudSnapshot = syncCloud && _cloud.initialized ? _cloudSnapshot() : null;
+    final cloudSnapshot =
+        syncCloud && _cloud.initialized ? _cloudSnapshot() : null;
     // Capture synchronously before queued disk/native work so a network reply
     // cannot overwrite edits that have not reached SharedPreferences yet.
-    final cloudWrite = cloudSnapshot == null ? Future<void>.value() : _cloud.capture(cloudSnapshot);
+    final cloudWrite = cloudSnapshot == null
+        ? Future<void>.value()
+        : _cloud.capture(cloudSnapshot);
     final habitSnapshot = _habits.map((habit) => habit.toJson()).toList();
     final habits = jsonEncode(habitSnapshot);
     final progress = jsonEncode(_progress.toJson());
@@ -616,12 +760,14 @@ class _GrowthHomeState extends State<GrowthHome>
     final activeLoadout = _shopLoadout;
     // Editor drafts never become the launcher's saved appearance.
     final widgetLoadout = _availableLoadout(activeLoadout);
-    final widgetTreeAsset = GardenAppearance(widgetLoadout).treeAsset(stage - 1);
+    final widgetTreeAsset =
+        GardenAppearance(widgetLoadout).treeAsset(stage - 1);
     final widgetTreeFile = GardenPackFiles.fileFor(widgetTreeAsset)?.path;
     final leafCoins = _leafCoins;
     final deliveredLeafPurchases = _deliveredLeafPurchases.toList()..sort();
     final savedPlacements = jsonEncode({
-      for (final entry in _treePlacements.entries) entry.key: entry.value.toJson(),
+      for (final entry in _treePlacements.entries)
+        entry.key: entry.value.toJson(),
     });
     // Serialized writes avoid an earlier slow SharedPreferences write
     // overwriting newer completion/water data.
@@ -636,7 +782,8 @@ class _GrowthHomeState extends State<GrowthHome>
       await prefs.setBool(_storageOwnedSakura, ownedSakura);
       await prefs.setBool(_storageOwnedAutumn, ownedAutumn);
       await prefs.setInt(_storageLeafCoins, leafCoins);
-      await prefs.setStringList(_storageDeliveredLeafPurchases, deliveredLeafPurchases);
+      await prefs.setStringList(
+          _storageDeliveredLeafPurchases, deliveredLeafPurchases);
       await prefs.setString(_storageTreeSkin, activeLoadout.treeSkinId);
       await prefs.setString(_storageBackground, activeLoadout.backgroundId);
       await prefs.setString(_storageButterfly, activeLoadout.butterflyId);
@@ -644,7 +791,16 @@ class _GrowthHomeState extends State<GrowthHome>
       await prefs.setString(_storageFirefly, activeLoadout.fireflyId);
       await cloudWrite;
       await DeviceFeatures.syncHabitReminders(habits: habitSnapshot, day: day);
-      await DeviceFeatures.updateWidget(water: water, stage: stage, done: done, total: total, day: day, theme: widgetLoadout.packId, treeAsset: widgetTreeAsset, treeFile: widgetTreeFile);
+      await DeviceFeatures.updateWidget(
+          water: water,
+          stage: stage,
+          done: done,
+          total: total,
+          day: day,
+          theme: widgetLoadout.packId,
+          treeAsset: widgetTreeAsset,
+          treeFile: widgetTreeFile,
+          language: _interfaceLanguage);
     });
     return _saveQueue;
   }
@@ -655,7 +811,8 @@ class _GrowthHomeState extends State<GrowthHome>
     if (_today == now) return;
     setState(() {
       _today = now;
-      _habits = _habits.map((habit) => habit.copyWith(completed: false)).toList();
+      _habits =
+          _habits.map((habit) => habit.copyWith(completed: false)).toList();
     });
     _save();
   }
@@ -682,8 +839,9 @@ class _GrowthHomeState extends State<GrowthHome>
     _audio.effect(done ? 'complete' : 'tap');
     if (awarded && mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('+1 water earned! Visit Garden to water your tree. 💧'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            context.tr("+1 water earned! Visit Garden to water your tree. 💧")),
         duration: Duration(milliseconds: 1500),
         behavior: SnackBarBehavior.floating,
       ));
@@ -720,48 +878,66 @@ class _GrowthHomeState extends State<GrowthHome>
         insetPadding: const EdgeInsets.symmetric(horizontal: 22),
         child: SingleChildScrollView(
           child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(25),
-            gradient: const LinearGradient(begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF24464E), Color(0xFF10252D), Color(0xFF302949)]),
-            border: Border.all(color: _gold.withValues(alpha: .75)),
-            boxShadow: const [BoxShadow(color: Color(0x88000000), blurRadius: 30)],
-          ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.auto_awesome_rounded, color: _gold, size: 29),
-            const SizedBox(height: 10),
-            const Text('Congratulations!',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: _gold, fontSize: 23, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 7),
-            Text('Your tree reached Stage ${stage + 1}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-            SizedBox(height: 175, child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: .72, end: 1),
-              duration: _showAnimation ? const Duration(milliseconds: 550) : Duration.zero,
-              curve: Curves.easeOutBack,
-              builder: (_, value, child) => Transform.scale(
-                scale: value, alignment: Alignment.bottomCenter, child: child),
-              child: GardenImage.asset(_activeTreeImages[stage], fit: BoxFit.contain),
-            )),
-            const Text('Every small step helps your garden grow ✨',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFFE2EEDC), fontSize: 12)),
-            const SizedBox(height: 15),
-            SizedBox(width: double.infinity,
-              child: FilledButton(
-                key: const ValueKey('stage-congratulations-close'),
-                style: FilledButton.styleFrom(backgroundColor: _mint,
-                  foregroundColor: _deepNavy),
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Continue Growing'),
-              ),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(25),
+              gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF24464E),
+                    Color(0xFF10252D),
+                    Color(0xFF302949)
+                  ]),
+              border: Border.all(color: _gold.withValues(alpha: .75)),
+              boxShadow: const [
+                BoxShadow(color: Color(0x88000000), blurRadius: 30)
+              ],
             ),
-          ]),
-        ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.auto_awesome_rounded, color: _gold, size: 29),
+              const SizedBox(height: 10),
+              Text(context.tr("Congratulations!"),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: _gold, fontSize: 23, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 7),
+              Text(
+                  context.tr("Your tree reached Stage {p0}", {'p0': stage + 1}),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 15)),
+              SizedBox(
+                  height: 175,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: .72, end: 1),
+                    duration: _showAnimation
+                        ? const Duration(milliseconds: 550)
+                        : Duration.zero,
+                    curve: Curves.easeOutBack,
+                    builder: (_, value, child) => Transform.scale(
+                        scale: value,
+                        alignment: Alignment.bottomCenter,
+                        child: child),
+                    child: GardenImage.asset(_activeTreeImages[stage],
+                        fit: BoxFit.contain),
+                  )),
+              Text(context.tr("Every small step helps your garden grow ✨"),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFFE2EEDC), fontSize: 12)),
+              const SizedBox(height: 15),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  key: const ValueKey('stage-congratulations-close'),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: _mint, foregroundColor: _deepNavy),
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(context.tr("Continue Growing")),
+                ),
+              ),
+            ]),
+          ),
         ),
       ),
     );
@@ -774,7 +950,8 @@ class _GrowthHomeState extends State<GrowthHome>
         showDragHandle: true,
         backgroundColor: const Color(0xFF102D31),
         builder: (_) => _HabitComposer(
-          initial: initial, masterEnabled: _reminderEnabled,
+          initial: initial,
+          masterEnabled: _reminderEnabled,
           onEnableMaster: () => _configureReminder(true),
         ),
       );
@@ -800,12 +977,12 @@ class _GrowthHomeState extends State<GrowthHome>
     final index = _habits.indexWhere((item) => item.id == habit.id);
     if (index < 0) return;
     setState(() => _habits[index] = _habits[index].copyWith(
-      title: draft.title,
-      iconKey: draft.iconKey,
-      reminderEnabled: draft.reminderEnabled,
-      reminderHour: draft.hour,
-      reminderMinute: draft.minute,
-    ));
+          title: draft.title,
+          iconKey: draft.iconKey,
+          reminderEnabled: draft.reminderEnabled,
+          reminderHour: draft.hour,
+          reminderMinute: draft.minute,
+        ));
     _save();
   }
 
@@ -813,16 +990,17 @@ class _GrowthHomeState extends State<GrowthHome>
     final remove = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Remove habit?'),
-        content: Text('Remove “${habit.title}” from your checklist?'),
+        title: Text(context.tr("Remove habit?")),
+        content: Text(context
+            .tr("Remove “{p0}” from your checklist?", {'p0': habit.title})),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr("Cancel")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Remove'),
+            child: Text(context.tr("Remove")),
           ),
         ],
       ),
@@ -853,11 +1031,21 @@ class _GrowthHomeState extends State<GrowthHome>
     if (!_assetEditMode || current == null) return;
     setState(() {
       switch (field) {
-        case 'tree': _editLoadout = current.copyWith(treeSkinId: value); break;
-        case 'background': _editLoadout = current.copyWith(backgroundId: value); break;
-        case 'butterfly': _editLoadout = current.copyWith(butterflyId: value); break;
-        case 'watering': _editLoadout = current.copyWith(wateringCanId: value); break;
-        case 'firefly': _editLoadout = current.copyWith(fireflyId: value); break;
+        case 'tree':
+          _editLoadout = current.copyWith(treeSkinId: value);
+          break;
+        case 'background':
+          _editLoadout = current.copyWith(backgroundId: value);
+          break;
+        case 'butterfly':
+          _editLoadout = current.copyWith(butterflyId: value);
+          break;
+        case 'watering':
+          _editLoadout = current.copyWith(wateringCanId: value);
+          break;
+        case 'firefly':
+          _editLoadout = current.copyWith(fireflyId: value);
+          break;
       }
     });
   }
@@ -870,28 +1058,49 @@ class _GrowthHomeState extends State<GrowthHome>
   void _closeAssetEditor({required bool save}) {
     if (!_assetEditMode) return;
     if (save && _editLoadout != null) {
-      final locked = _editLoadout!.toJson().values
+      final locked = _editLoadout!
+          .toJson()
+          .values
           .where((id) => !_ownsEditorAsset(id))
-          .map((id) => ShopLoadout.assetPackName(id)).toSet().join(', ');
+          .map((id) => ShopLoadout.assetPackName(id))
+          .toSet()
+          .join(', ');
       if (locked.isNotEmpty) {
-        showDialog<void>(context: context, builder: (dialog) => AlertDialog(
-          title: const Text('Unlock this look'),
-          content: Text('Your preview includes $locked assets. Unlock the pack in the Shop, or choose assets you own before saving. Your changes are still here.'),
-          actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Keep editing'))],
-        ));
+        showDialog<void>(
+            context: context,
+            builder: (dialog) => AlertDialog(
+                  title: Text(context.tr("Unlock this look")),
+                  content: Text(context.tr(
+                      "Your preview includes {p0} assets. Unlock the pack in the Shop, or choose assets you own before saving. Your changes are still here.",
+                      {'p0': locked})),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(dialog),
+                        child: Text(context.tr("Keep editing")))
+                  ],
+                ));
         return;
       }
       final missing = <String>{
         for (final entry in _editLoadout!.toJson().entries)
-          if (!_packs.installed(GardenPackRegistry.forAsset(entry.key, entry.value).id))
+          if (!_packs.installed(
+              GardenPackRegistry.forAsset(entry.key, entry.value).id))
             GardenPackRegistry.forAsset(entry.key, entry.value).name,
       };
       if (missing.isNotEmpty) {
-        showDialog<void>(context: context, builder: (dialog) => AlertDialog(
-          title: const Text('Download this look'),
-          content: Text('Download ${missing.join(', ')} from My Collection before saving this garden look.'),
-          actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Keep editing'))],
-        ));
+        showDialog<void>(
+            context: context,
+            builder: (dialog) => AlertDialog(
+                  title: Text(context.tr("Download this look")),
+                  content: Text(context.tr(
+                      "Download {p0} from My Collection before saving this garden look.",
+                      {'p0': missing.join(', ')})),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(dialog),
+                        child: Text(context.tr("Keep editing")))
+                  ],
+                ));
         return;
       }
     }
@@ -901,11 +1110,13 @@ class _GrowthHomeState extends State<GrowthHome>
         _unavailableCosmetics.clear();
         _shopLoadout = ShopLoadout.fromMap(
           chosen.toJson(),
-          ownedPacks: _ownedPacks, moonlightOwned: _moonlightOwned,
+          ownedPacks: _ownedPacks,
+          moonlightOwned: _moonlightOwned,
           sakuraOwned: _sakuraOwned,
           autumnOwned: _autumnOwned,
         );
-        _treePlacements = Map<String, GardenTreePlacement>.from(_editPlacements);
+        _treePlacements =
+            Map<String, GardenTreePlacement>.from(_editPlacements);
       }
       _assetEditMode = false;
       _editLoadout = null;
@@ -920,14 +1131,19 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   void _applyShopLoadout(ShopLoadout loadout) {
-    if (!_ownedPacks.contains(loadout.packId) || !_packs.installed(loadout.packId)) return;
-    setState(() { _unavailableCosmetics.clear(); _shopLoadout = loadout; });
+    if (!_ownedPacks.contains(loadout.packId) ||
+        !_packs.installed(loadout.packId)) return;
+    setState(() {
+      _unavailableCosmetics.clear();
+      _shopLoadout = loadout;
+    });
     _save();
   }
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(context.tr(message))));
   }
 
   Future<void> _openCoinStore() async {
@@ -937,28 +1153,58 @@ class _GrowthHomeState extends State<GrowthHome>
     }
     _billing ??= PlayBilling(_cloud)..start();
     await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => BetterSeedCoinStorePage(account: _cloud, billing: _billing!),
+      builder: (_) =>
+          BetterSeedCoinStorePage(account: _cloud, billing: _billing!),
     ));
     if (mounted) setState(() {});
   }
 
   Future<void> _acquirePack(GardenOffer offer) async {
-    if(_unlockBusy||!_catalog.online||!_catalog.assetReady(offer.id))return;
-    if(!_cloud.signedIn||_cloud.needsSignIn){await _openAccount();return;}
-    final yes=await showDialog<bool>(context:context,builder:(dialog)=>AlertDialog(
-      title:Text(offer.price==0?'Claim ${offer.name}?':'Unlock ${offer.name}?'),
-      content:Text(offer.price==0?'Add this free pack to your account. It stays yours if the price changes later.':'Use ${offer.price} Leaf Coins to unlock this pack for your account?'),
-      actions:[TextButton(onPressed:()=>Navigator.pop(dialog,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(dialog,true),child:Text(offer.price==0?'Claim free':'Unlock'))]));
-    if(yes!=true||!mounted)return;
-    setState(()=>_unlockBusy=true);
-    try{await _cloud.unlock(offer.id,offer:offer);_showMessage('Pack added to your collection.');}
-    on AccountException catch(e){_showMessage(e.toString());await _catalog.load();}
-    finally{if(mounted)setState(()=>_unlockBusy=false);}
+    if (_unlockBusy || !_catalog.online || !_catalog.assetReady(offer.id))
+      return;
+    if (!_cloud.signedIn || _cloud.needsSignIn) {
+      await _openAccount();
+      return;
+    }
+    final yes = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+                title: Text(offer.price == 0
+                    ? context.tr("Claim {p0}?", {'p0': offer.name})
+                    : context.tr("Unlock {p0}?", {'p0': offer.name})),
+                content: Text(offer.price == 0
+                    ? context.tr(
+                        "Add this free pack to your account. It stays yours if the price changes later.")
+                    : context.tr(
+                        "Use {p0} Leaf Coins to unlock this pack for your account?",
+                        {'p0': offer.price})),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dialog, false),
+                      child: Text(context.tr("Cancel"))),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(dialog, true),
+                      child: Text(offer.price == 0
+                          ? context.tr("Claim free")
+                          : context.tr("Unlock")))
+                ]));
+    if (yes != true || !mounted) return;
+    setState(() => _unlockBusy = true);
+    try {
+      await _cloud.unlock(offer.id, offer: offer);
+      _showMessage(context.tr("Pack added to your collection."));
+    } on AccountException catch (e) {
+      _showMessage(e.toString());
+      await _catalog.load();
+    } finally {
+      if (mounted) setState(() => _unlockBusy = false);
+    }
   }
 
   void _setMusic(bool value) {
     setState(() => _musicEnabled = value);
-    SharedPreferences.getInstance().then((prefs) => prefs.setBool(_storageMusic, value));
+    SharedPreferences.getInstance()
+        .then((prefs) => prefs.setBool(_storageMusic, value));
     _save();
     _audio.setMusic(value);
   }
@@ -996,11 +1242,18 @@ class _GrowthHomeState extends State<GrowthHome>
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_storageMusicMode, 'custom');
       await _audio.setCustomMusicPath(imported.path, forceRestart: true);
-      if (mounted) _backupMessage('Selected music: ${imported.name}');
+      if (mounted)
+        _backupMessage(
+            context.tr("Selected music: {p0}", {'p0': imported.name}));
     } on PlatformException catch (e) {
-      if (mounted) _backupMessage('MP3 import failed (${e.code}). Your previous music is unchanged.');
+      if (mounted)
+        _backupMessage(context.tr(
+            "MP3 import failed ({p0}). Your previous music is unchanged.",
+            {'p0': e.code}));
     } catch (_) {
-      if (mounted) _backupMessage('MP3 could not be imported. Please choose another file.');
+      if (mounted)
+        _backupMessage(context
+            .tr("MP3 could not be imported. Please choose another file."));
     } finally {
       if (mounted) {
         setState(() => _musicImportBusy = false);
@@ -1011,28 +1264,25 @@ class _GrowthHomeState extends State<GrowthHome>
 
   Future<void> _confirmResetTreeGrowth() async {
     if (_progress.xp == 0) {
-      _backupMessage('Your plant is already at the first growth stage.');
+      _backupMessage(
+          context.tr("Your plant is already at the first growth stage."));
       return;
     }
     final approved = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
-        title: const Text('Reset plant growth?'),
-        content: const Text(
-          'This resets only your plant to Stage 1 (0 XP). '
-          'Your habits, completed checklists, streaks, water balance, '
-          'earned water and spent water will stay unchanged. '
-          'Previously spent water is not refunded. This cannot be undone '
-          'unless you restore an earlier backup.'),
+        title: Text(context.tr("Reset plant growth?")),
+        content: Text(context.tr(
+            "This resets only your plant to Stage 1 (0 XP). Your habits, completed checklists, streaks, water balance, earned water and spent water will stay unchanged. Previously spent water is not refunded. This cannot be undone unless you restore an earlier backup.")),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr("Cancel")),
           ),
           FilledButton(
             key: const ValueKey('confirm-reset-tree'),
             onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('Reset plant only'),
+            child: Text(context.tr("Reset plant only")),
           ),
         ],
       ),
@@ -1040,12 +1290,15 @@ class _GrowthHomeState extends State<GrowthHome>
     if (approved != true || !mounted) return;
     setState(() => _progress.resetTreeGrowth());
     await _save(); // also refreshes the native home-screen widget stage
-    if (mounted) _backupMessage('Plant growth reset. Your habits and water are preserved.');
+    if (mounted)
+      _backupMessage(context
+          .tr("Plant growth reset. Your habits and water are preserved."));
   }
 
   void _setEffects(bool value) {
     setState(() => _effectsEnabled = value);
-    SharedPreferences.getInstance().then((prefs) => prefs.setBool(_storageSfx, value));
+    SharedPreferences.getInstance()
+        .then((prefs) => prefs.setBool(_storageSfx, value));
     _save();
     _audio.setEffects(value);
   }
@@ -1053,7 +1306,8 @@ class _GrowthHomeState extends State<GrowthHome>
   void _setMotion(bool value) {
     setState(() => _motionEnabled = value);
     _applyAnimationPreference();
-    SharedPreferences.getInstance().then((prefs) => prefs.setBool(_storageMotion, value));
+    SharedPreferences.getInstance()
+        .then((prefs) => prefs.setBool(_storageMotion, value));
     _save();
   }
 
@@ -1069,7 +1323,8 @@ class _GrowthHomeState extends State<GrowthHome>
   Future<void> _refreshReminderPermission() async {
     final status = await DeviceFeatures.getReminder();
     if (!mounted) return;
-    final enabled = status['enabled'] == true && status['permissionGranted'] == true;
+    final enabled =
+        status['enabled'] == true && status['permissionGranted'] == true;
     if (enabled != _reminderEnabled) setState(() => _reminderEnabled = enabled);
   }
 
@@ -1083,8 +1338,9 @@ class _GrowthHomeState extends State<GrowthHome>
       _reminderEnabled = result;
     });
     if (enabled && !result) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Allow notifications in Android Settings to enable reminders.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.tr(
+            "Allow notifications in Android Settings to enable reminders.")),
       ));
     }
     // Refresh the native schedule for each opt-in habit on master changes.
@@ -1098,25 +1354,30 @@ class _GrowthHomeState extends State<GrowthHome>
     final installed = await DeviceFeatures.widgetInstalled();
     if (!mounted) return;
     if (installed) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('BetterSeed widget is already on your home screen.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            context.tr("BetterSeed widget is already on your home screen.")),
       ));
       return;
     }
     final accepted = await DeviceFeatures.requestPinWidget();
     if (!mounted) return;
     if (accepted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Confirm the widget placement in your Android launcher.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context
+            .tr("Confirm the widget placement in your Android launcher.")),
       ));
     } else {
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Add BetterSeed widget'),
-          content: const Text('On your Android home screen, long-press an empty area, choose Widgets, find BetterSeed, then drag the widget onto your screen. Widget availability depends on your launcher.'),
+          title: Text(context.tr("Add BetterSeed widget")),
+          content: Text(context.tr(
+              "On your Android home screen, long-press an empty area, choose Widgets, find BetterSeed, then drag the widget onto your screen. Widget availability depends on your launcher.")),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Got it')),
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(context.tr("Got it"))),
           ],
         ),
       );
@@ -1132,14 +1393,18 @@ class _GrowthHomeState extends State<GrowthHome>
         ownedSakura: _sakuraOwned,
         ownedAutumn: _autumnOwned,
         cosmetics: {..._shopLoadout.toJson(), ..._unavailableCosmetics},
-        treePlacements: {for (final e in _treePlacements.entries) e.key: e.value.toJson()},
+        treePlacements: {
+          for (final e in _treePlacements.entries) e.key: e.value.toJson()
+        },
         savedAtUtc: DateTime.now().toUtc(),
       );
 
   void _backupMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
+      SnackBar(
+          content: Text(context.tr(message)),
+          duration: const Duration(seconds: 5)),
     );
   }
 
@@ -1152,19 +1417,25 @@ class _GrowthHomeState extends State<GrowthHome>
       final snapshot = _snapshotForFile();
       final name = 'BetterSeed-backup-${snapshot.day}.json';
       final saved = await LocalBackupFiles.saveJson(
-        suggestedName: name, contents: snapshot.encode(),
+        suggestedName: name,
+        contents: snapshot.encode(),
       );
       if (saved) {
-        _backupMessage('Backup saved. Keep this file somewhere safe.');
+        _backupMessage(
+            context.tr("Backup saved. Keep this file somewhere safe."));
       } else {
-        _backupMessage('Backup canceled. Your local data is unchanged.');
+        _backupMessage(
+            context.tr("Backup canceled. Your local data is unchanged."));
       }
     } on PlatformException {
-      _backupMessage('Unable to save your backup. Try a different folder.');
+      _backupMessage(
+          context.tr("Unable to save your backup. Try a different folder."));
     } on FormatException {
-      _backupMessage('Backup data could not be prepared. Your local progress is safe.');
+      _backupMessage(context.tr(
+          "Backup data could not be prepared. Your local progress is safe."));
     } catch (_) {
-      _backupMessage('Backup was not saved. Your local progress is safe.');
+      _backupMessage(
+          context.tr("Backup was not saved. Your local progress is safe."));
     } finally {
       if (mounted) setState(() => _backupBusy = false);
     }
@@ -1176,7 +1447,8 @@ class _GrowthHomeState extends State<GrowthHome>
     try {
       final contents = await LocalBackupFiles.openJson();
       if (contents == null) {
-        _backupMessage('Restore canceled. Your local data is unchanged.');
+        _backupMessage(
+            context.tr("Restore canceled. Your local data is unchanged."));
         return;
       }
       // Decode and validate BEFORE any write or state change.
@@ -1185,20 +1457,23 @@ class _GrowthHomeState extends State<GrowthHome>
       final approved = await showDialog<bool>(
         context: context,
         builder: (dialog) => AlertDialog(
-          title: const Text('Restore BetterSeed backup?'),
+          title: Text(context.tr("Restore BetterSeed backup?")),
           content: Text(
-            'Saved: ${backup.savedAtUtc.toLocal()}\n'
-            'Habits: ${backup.habits.length}\n'
-            'XP: ${backup.progress.xp}\n\n'
-            'This replaces your checklist, water, XP and selected Garden theme. '
-            'A safety copy is saved on this phone first. Notification permission '
-            'and the master switch remain device-specific.',
+            context.tr(
+                "Saved: {p0}\nHabits: {p1}\nXP: {p2}\n\nThis replaces your checklist, water, XP and selected Garden theme. A safety copy is saved on this phone first. Notification permission and the master switch remain device-specific.",
+                {
+                  'p0': backup.savedAtUtc.toLocal(),
+                  'p1': backup.habits.length,
+                  'p2': backup.progress.xp
+                }),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialog, false),
-                child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(dialog, true),
-                child: const Text('Restore backup')),
+            TextButton(
+                onPressed: () => Navigator.pop(dialog, false),
+                child: Text(context.tr("Cancel"))),
+            FilledButton(
+                onPressed: () => Navigator.pop(dialog, true),
+                child: Text(context.tr("Restore backup"))),
           ],
         ),
       );
@@ -1207,8 +1482,11 @@ class _GrowthHomeState extends State<GrowthHome>
       final prefs = await SharedPreferences.getInstance();
       // No local state is changed until the rollback checkpoint is saved.
       final checkpoint = _snapshotForFile().encode();
-      if (!await prefs.setString('betterseed_pre_restore_checkpoint_v1_${_cloud.userId ?? 'guest'}', checkpoint)) {
-        _backupMessage('Restore canceled: could not save the local safety copy.');
+      if (!await prefs.setString(
+          'betterseed_pre_restore_checkpoint_v1_${_cloud.userId ?? 'guest'}',
+          checkpoint)) {
+        _backupMessage(context
+            .tr("Restore canceled: could not save the local safety copy."));
         return;
       }
       final today = todayLocalKey();
@@ -1218,9 +1496,16 @@ class _GrowthHomeState extends State<GrowthHome>
             : backup.habits.map((h) => h.copyWith(completed: false)).toList();
         _progress = backup.progress;
         _today = today;
-        _moonlightOwned = _cloud.signedIn ? (_cloud.wallet?['packs'] as List?)?.contains('moonlight') == true : _moonlightOwned;
-        _sakuraOwned = _cloud.signedIn ? (_cloud.wallet?['packs'] as List?)?.contains('sakura') == true : _sakuraOwned;
-        _autumnOwned = _cloud.signedIn ? (_cloud.wallet?['packs'] as List?)?.contains('golden_autumn') == true : _autumnOwned;
+        _moonlightOwned = _cloud.signedIn
+            ? (_cloud.wallet?['packs'] as List?)?.contains('moonlight') == true
+            : _moonlightOwned;
+        _sakuraOwned = _cloud.signedIn
+            ? (_cloud.wallet?['packs'] as List?)?.contains('sakura') == true
+            : _sakuraOwned;
+        _autumnOwned = _cloud.signedIn
+            ? (_cloud.wallet?['packs'] as List?)?.contains('golden_autumn') ==
+                true
+            : _autumnOwned;
         _rememberUnavailableCosmetics(backup.cosmetics);
         _shopLoadout = backup.loadoutFor(_ownedPacks);
         _treePlacements = {
@@ -1230,13 +1515,17 @@ class _GrowthHomeState extends State<GrowthHome>
         };
       });
       await _save();
-      _backupMessage('Backup restored. Garden and checklist updated.');
+      _backupMessage(
+          context.tr("Backup restored. Garden and checklist updated."));
     } on FormatException {
-      _backupMessage('Invalid or unsupported BetterSeed backup. Your progress is unchanged.');
+      _backupMessage(context.tr(
+          "Invalid or unsupported BetterSeed backup. Your progress is unchanged."));
     } on PlatformException {
-      _backupMessage('Unable to open this backup. Your progress is unchanged.');
+      _backupMessage(context
+          .tr("Unable to open this backup. Your progress is unchanged."));
     } catch (_) {
-      _backupMessage('Restore failed. Try Undo last restore if data changed.');
+      _backupMessage(
+          context.tr("Restore failed. Try Undo last restore if data changed."));
     } finally {
       if (mounted) setState(() => _backupBusy = false);
     }
@@ -1245,27 +1534,34 @@ class _GrowthHomeState extends State<GrowthHome>
   Future<void> _restorePreviousLocal() async {
     if (_backupBusy || !_loaded) return;
     final prefs = await SharedPreferences.getInstance();
-    final checkpoint = prefs.getString('betterseed_pre_restore_checkpoint_v1_${_cloud.userId ?? 'guest'}');
+    final checkpoint = prefs.getString(
+        'betterseed_pre_restore_checkpoint_v1_${_cloud.userId ?? 'guest'}');
     if (!mounted) return;
     if (checkpoint == null) {
-      _backupMessage('There is no earlier backup to restore.');
+      _backupMessage(context.tr("There is no earlier backup to restore."));
       return;
     }
     BackupSnapshot backup;
     try {
       backup = BackupSnapshot.decode(checkpoint);
     } catch (_) {
-      _backupMessage('The earlier backup could not be opened.');
+      _backupMessage(context.tr("The earlier backup could not be opened."));
       return;
     }
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
-        title: const Text('Undo last restore?'),
-        content: Text('Restore ${backup.habits.length} habits and ${backup.progress.xp} XP from the safety copy?'),
+        title: Text(context.tr("Undo last restore?")),
+        content: Text(context.tr(
+            "Restore {p0} habits and {p1} XP from the safety copy?",
+            {'p0': backup.habits.length, 'p1': backup.progress.xp})),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Undo restore')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: Text(context.tr("Cancel"))),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialog, true),
+              child: Text(context.tr("Undo restore"))),
         ],
       ),
     );
@@ -1278,9 +1574,16 @@ class _GrowthHomeState extends State<GrowthHome>
           : backup.habits.map((h) => h.copyWith(completed: false)).toList();
       _progress = backup.progress;
       _today = today;
-      _moonlightOwned = _cloud.signedIn ? (_cloud.wallet?['packs'] as List?)?.contains('moonlight') == true : _moonlightOwned;
-      _sakuraOwned = _cloud.signedIn ? (_cloud.wallet?['packs'] as List?)?.contains('sakura') == true : _sakuraOwned;
-      _autumnOwned = _cloud.signedIn ? (_cloud.wallet?['packs'] as List?)?.contains('golden_autumn') == true : _autumnOwned;
+      _moonlightOwned = _cloud.signedIn
+          ? (_cloud.wallet?['packs'] as List?)?.contains('moonlight') == true
+          : _moonlightOwned;
+      _sakuraOwned = _cloud.signedIn
+          ? (_cloud.wallet?['packs'] as List?)?.contains('sakura') == true
+          : _sakuraOwned;
+      _autumnOwned = _cloud.signedIn
+          ? (_cloud.wallet?['packs'] as List?)?.contains('golden_autumn') ==
+              true
+          : _autumnOwned;
       _rememberUnavailableCosmetics(backup.cosmetics);
       _shopLoadout = backup.loadoutFor(_ownedPacks);
       _treePlacements = {
@@ -1290,8 +1593,10 @@ class _GrowthHomeState extends State<GrowthHome>
       };
     });
     await _save();
-    await prefs.remove('betterseed_pre_restore_checkpoint_v1_${_cloud.userId ?? 'guest'}');
-    _backupMessage('Your previous local progress has been restored.');
+    await prefs.remove(
+        'betterseed_pre_restore_checkpoint_v1_${_cloud.userId ?? 'guest'}');
+    _backupMessage(
+        context.tr("Your previous local progress has been restored."));
   }
 
   void _openWallpaper() {
@@ -1299,7 +1604,8 @@ class _GrowthHomeState extends State<GrowthHome>
     final stage = _progress.treeStage;
     final media = MediaQuery.of(context);
     final assets = <String>[
-      _activeBackgroundAsset, _activeTreeImages[stage],
+      _activeBackgroundAsset,
+      _activeTreeImages[stage],
       if (_showAnimation) _activeButterflyAsset,
     ];
     Navigator.of(context).push(MaterialPageRoute<void>(
@@ -1307,6 +1613,16 @@ class _GrowthHomeState extends State<GrowthHome>
         viewport: media.size,
         mediaQuery: media,
         assets: assets,
+        liveButterfly: _activeButterflyAsset,
+        livePalette: _appearance.fireflies,
+        liveGarden: Stack(
+          fit: StackFit.expand,
+          children: [
+            _buildGardenBackdrop(still: true),
+            _buildGardenLayout(stage,
+                preview: true, still: true, ambient: false),
+          ],
+        ),
         garden: Stack(
           fit: StackFit.expand,
           children: [
@@ -1326,39 +1642,43 @@ class _GrowthHomeState extends State<GrowthHome>
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: const Color(0xFF102D31),
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (sheetContext, refresh) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: .72,
-          minChildSize: .46,
-          maxChildSize: .92,
-          builder: (sheetContext, scrollController) => SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              key: const ValueKey('settings-scroll'),
-              controller: scrollController,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 3, 20, 26),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: _settingsPageChildren(
-                    section: section,
-                    refresh: refresh,
-                    openSection: (next) {
-                      refresh(() => section = next);
-                      // Keep the header and back button visible after a
-                      // category switch, even if the previous page scrolled.
-                      if (scrollController.hasClients) {
-                        scrollController.jumpTo(0);
-                      }
-                    },
+      builder: (sheetContext) {
+        Localizations.localeOf(
+            sheetContext); // Rebuild the open sheet after language changes.
+        return StatefulBuilder(
+          builder: (sheetContext, refresh) => DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: .72,
+            minChildSize: .46,
+            maxChildSize: .92,
+            builder: (sheetContext, scrollController) => SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                key: const ValueKey('settings-scroll'),
+                controller: scrollController,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 3, 20, 26),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: _settingsPageChildren(
+                      section: section,
+                      refresh: refresh,
+                      openSection: (next) {
+                        refresh(() => section = next);
+                        // Keep the header and back button visible after a
+                        // category switch, even if the previous page scrolled.
+                        if (scrollController.hasClients) {
+                          scrollController.jumpTo(0);
+                        }
+                      },
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
     _settingsOpen = false;
   }
@@ -1370,93 +1690,131 @@ class _GrowthHomeState extends State<GrowthHome>
   }) {
     switch (section) {
       case _SettingsSection.soundGarden:
-        return _buildSoundGardenSettings(refresh, () => openSection(_SettingsSection.home));
+        return _buildSoundGardenSettings(
+            refresh, () => openSection(_SettingsSection.home));
       case _SettingsSection.routine:
-        return _buildRoutineSettings(refresh, () => openSection(_SettingsSection.home));
+        return _buildRoutineSettings(
+            refresh, () => openSection(_SettingsSection.home));
       case _SettingsSection.gardenProgress:
-        return _buildGardenProgressSettings(() => openSection(_SettingsSection.home));
+        return _buildGardenProgressSettings(
+            () => openSection(_SettingsSection.home));
       case _SettingsSection.widgetDisplay:
-        return _buildWidgetDisplaySettings(refresh, () => openSection(_SettingsSection.home));
+        return _buildWidgetDisplaySettings(
+            refresh, () => openSection(_SettingsSection.home));
       case _SettingsSection.backupRestore:
-        return _buildBackupSettings(refresh, () => openSection(_SettingsSection.home));
+        return _buildBackupSettings(
+            refresh, () => openSection(_SettingsSection.home));
       case _SettingsSection.home:
         return _buildSettingsHome(openSection);
     }
   }
 
-  List<Widget> _buildSettingsHome(void Function(_SettingsSection next) openSection) => [
+  List<Widget> _buildSettingsHome(
+          void Function(_SettingsSection next) openSection) =>
+      [
         _settingsPageHeader(
-          title: 'Settings',
-          subtitle: 'Make BetterSeed feel right for you.',
+          title: context.tr("Settings"),
+          subtitle: context.tr("Make BetterSeed feel right for you."),
         ),
         const SizedBox(height: 16),
         _settingsCategoryTile(
+          key: const ValueKey('settings-menu-language'),
+          trailingLabel: context.tr('Change'),
+          icon: Icons.language_rounded,
+          title: context.tr('App language'),
+          subtitle: AppLocalizations.languageNames[AppLocalizations.locales
+              .indexOf(AppLocaleScope.of(context)?.locale ??
+                  AppLocalizations.locales.first)],
+          onTap: () => showLanguagePicker(context),
+        ),
+        const SizedBox(height: 10),
+        _settingsCategoryTile(
           key: const ValueKey('settings-menu-sound'),
           icon: Icons.tune_rounded,
-          title: 'Sound & Garden',
-          subtitle: 'Music, sound effects and living garden motion',
-          trailingLabel: _motionEnabled ? 'Motion on' : 'Motion off',
+          title: context.tr("Sound & Garden"),
+          subtitle: context.tr("Music, sound effects and living garden motion"),
+          trailingLabel: _motionEnabled
+              ? context.tr("Motion on")
+              : context.tr("Motion off"),
           onTap: () => openSection(_SettingsSection.soundGarden),
         ),
         const SizedBox(height: 10),
         _settingsCategoryTile(
           key: const ValueKey('settings-menu-routine'),
           icon: Icons.notifications_active_outlined,
-          title: 'Daily Routine',
-          subtitle: 'Habit reminders and notification controls',
-          trailingLabel: _reminderEnabled ? 'Enabled' : 'Off',
+          title: context.tr("Daily Routine"),
+          subtitle: context.tr("Habit reminders and notification controls"),
+          trailingLabel:
+              _reminderEnabled ? context.tr("Enabled") : context.tr("Off"),
           onTap: () => openSection(_SettingsSection.routine),
         ),
         const SizedBox(height: 10),
         _settingsCategoryTile(
           key: const ValueKey('settings-menu-growth'),
           icon: Icons.spa_outlined,
-          title: 'Garden Progress',
-          subtitle: 'Restart plant growth without changing any habits',
-          trailingLabel: 'Manage',
+          title: context.tr("Garden Progress"),
+          subtitle:
+              context.tr("Restart plant growth without changing any habits"),
+          trailingLabel: context.tr("Manage"),
           onTap: () => openSection(_SettingsSection.gardenProgress),
         ),
         const SizedBox(height: 10),
         _settingsCategoryTile(
           key: const ValueKey('settings-menu-widget'),
           icon: Icons.widgets_outlined,
-          title: 'Widget & Display',
-          subtitle: 'Garden wallpaper, home widget and focus mode',
-          trailingLabel: 'Open',
+          title: context.tr("Widget & Display"),
+          subtitle: context.tr("Garden wallpaper, home widget and focus mode"),
+          trailingLabel: context.tr("Open"),
           onTap: () => openSection(_SettingsSection.widgetDisplay),
         ),
         const SizedBox(height: 10),
         _settingsCategoryTile(
           key: const ValueKey('settings-menu-backup'),
           icon: Icons.backup_outlined,
-          title: 'Backup & Restore',
-          subtitle: 'Android backup plus manual backup file tools',
-          trailingLabel: 'Manage',
+          title: context.tr("Backup & Restore"),
+          subtitle: context.tr("Android backup plus manual backup file tools"),
+          trailingLabel: context.tr("Manage"),
           onTap: () => openSection(_SettingsSection.backupRestore),
         ),
         const SizedBox(height: 10),
         _settingsCategoryTile(
-          key: const ValueKey('settings-menu-account'), icon: Icons.account_circle_outlined,
-          title: 'Account & sync', subtitle: _cloud.signedIn ? _cloud.status : 'Sign in to keep your garden across devices',
-          trailingLabel: _cloud.signedIn ? 'Manage' : 'Sign in',
-          onTap: () { Navigator.of(context).pop(); _openAccount(); },
+          key: const ValueKey('settings-menu-account'),
+          icon: Icons.account_circle_outlined,
+          title: context.tr("Account & sync"),
+          subtitle: _cloud.signedIn
+              ? context.tr(_cloud.status)
+              : context.tr("Sign in to keep your garden across devices"),
+          trailingLabel:
+              _cloud.signedIn ? context.tr("Manage") : context.tr("Sign in"),
+          onTap: () {
+            Navigator.of(context).pop();
+            _openAccount();
+          },
         ),
         const SizedBox(height: 10),
         _settingsCategoryTile(
-          key: const ValueKey('settings-menu-legal'), icon: Icons.info_outline,
-          title: 'Help & information', subtitle: 'Common questions, privacy and app information', trailingLabel: 'Read',
-          onTap: () { Navigator.of(context).pop(); Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => LegalPage(api: _cloud.api))); },
+          key: const ValueKey('settings-menu-legal'),
+          icon: Icons.info_outline,
+          title: context.tr("Help & information"),
+          subtitle: context.tr("Common questions, privacy and app information"),
+          trailingLabel: context.tr("Read"),
+          onTap: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => LegalPage(api: _cloud.api)));
+          },
         ),
         const SizedBox(height: 18),
         _glassPanel(
           padding: const EdgeInsets.all(14),
-          child: const Row(
+          child: Row(
             children: [
               Icon(Icons.auto_awesome_rounded, color: _gold),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Your garden, your pace. Adjust your preferences whenever you need.',
+                  context.tr(
+                      "Your garden, your pace. Adjust your preferences whenever you need."),
                   style: TextStyle(fontSize: 12, color: Color(0xFFD4E2DC)),
                 ),
               ),
@@ -1465,19 +1823,22 @@ class _GrowthHomeState extends State<GrowthHome>
         ),
       ];
 
-  List<Widget> _buildSoundGardenSettings(StateSetter refresh, VoidCallback onBack) => [
+  List<Widget> _buildSoundGardenSettings(
+          StateSetter refresh, VoidCallback onBack) =>
+      [
         _settingsPageHeader(
-          title: 'Sound & Garden',
-          subtitle: 'Tune the mood of your garden.',
+          title: context.tr("Sound & Garden"),
+          subtitle: context.tr("Tune the mood of your garden."),
           onBack: onBack,
         ),
         const SizedBox(height: 16),
         _settingsSectionCard(
-          title: 'AMBIENCE',
+          title: context.tr("AMBIENCE"),
           children: [
             SwitchListTile.adaptive(
-              title: const Text('Background music'),
-              subtitle: const Text('Play selected soundtrack while the app is open'),
+              title: Text(context.tr("Background music")),
+              subtitle: Text(
+                  context.tr("Play selected soundtrack while the app is open")),
               secondary: const Icon(Icons.music_note_rounded, color: _gold),
               value: _musicEnabled,
               onChanged: (v) {
@@ -1486,8 +1847,8 @@ class _GrowthHomeState extends State<GrowthHome>
               },
             ),
             SwitchListTile.adaptive(
-              title: const Text('Gentle sound effects'),
-              subtitle: const Text('Checklist and watering sounds'),
+              title: Text(context.tr("Gentle sound effects")),
+              subtitle: Text(context.tr("Checklist and watering sounds")),
               secondary: const Icon(Icons.graphic_eq_rounded, color: _gold),
               value: _effectsEnabled,
               onChanged: (v) {
@@ -1499,52 +1860,62 @@ class _GrowthHomeState extends State<GrowthHome>
         ),
         const SizedBox(height: 14),
         _settingsSectionCard(
-          title: 'BACKGROUND MUSIC SOURCE',
+          title: context.tr("BACKGROUND MUSIC SOURCE"),
           children: [
             ListTile(
               key: const ValueKey('music-source-default'),
-              leading: Icon(_musicMode == 'default'
-                  ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              leading: Icon(
+                  _musicMode == 'default'
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
                   color: _mint),
-              title: const Text('Default forest piano'),
-              subtitle: const Text('Built-in offline soundtrack'),
+              title: Text(context.tr("Default forest piano")),
+              subtitle: Text(context.tr("Built-in offline soundtrack")),
               onTap: () => _useDefaultMusic(refresh),
             ),
             ListTile(
               key: const ValueKey('music-source-custom'),
-              leading: Icon(_musicMode == 'custom'
-                  ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              leading: Icon(
+                  _musicMode == 'custom'
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
                   color: _importedMusic == null ? Colors.white38 : _mint),
-              title: const Text('My MP3'),
-              subtitle: Text(_importedMusic?.name ?? 'Choose a local MP3 first'),
+              title: Text(context.tr("My MP3")),
+              subtitle: Text(_importedMusic?.name ??
+                  context.tr("Choose a local MP3 first")),
               onTap: _importedMusic == null
-                  ? null : () => _useImportedMusic(refresh),
+                  ? null
+                  : () => _useImportedMusic(refresh),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 3, 12, 8),
               child: OutlinedButton.icon(
                 key: const ValueKey('music-import-mp3'),
-                onPressed: _musicImportBusy ? null : () => _pickLocalMusic(refresh),
+                onPressed:
+                    _musicImportBusy ? null : () => _pickLocalMusic(refresh),
                 icon: const Icon(Icons.library_music_outlined),
-                label: Text(_musicImportBusy ? 'Importing...' : 'Choose MP3 from device'),
+                label: Text(_musicImportBusy
+                    ? context.tr("Importing...")
+                    : context.tr("Choose MP3 from device")),
               ),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text('MP3 only • up to 25 MB • stays offline in private app storage. '
-                'Switch back to the default music any time. '
-                'Your music stays on this phone and is not included in backups.',
-                style: TextStyle(fontSize: 11, color: Color(0xFFCEDFD7))),
+              child: Text(
+                  context.tr(
+                      "MP3 only • up to 25 MB • stays offline in private app storage. Switch back to the default music any time. Your music stays on this phone and is not included in backups."),
+                  style: TextStyle(fontSize: 11, color: Color(0xFFCEDFD7))),
             ),
           ],
         ),
         const SizedBox(height: 14),
         _settingsSectionCard(
-          title: 'GARDEN MOTION',
+          title: context.tr("GARDEN MOTION"),
           children: [
             SwitchListTile.adaptive(
-              title: const Text('Living garden'),
-              subtitle: const Text('Continuous butterflies and fireflies'),
+              title: Text(context.tr("Living garden")),
+              subtitle:
+                  Text(context.tr("Continuous butterflies and fireflies")),
               secondary: const Icon(Icons.auto_awesome, color: _mint),
               value: _motionEnabled,
               onChanged: (v) {
@@ -1554,9 +1925,10 @@ class _GrowthHomeState extends State<GrowthHome>
             ),
             SwitchListTile.adaptive(
               key: const ValueKey('garden-motion-override'),
-              title: const Text('Keep Garden effects animated'),
-              subtitle: const Text(
-                'Explicitly play garden effects even when device animations are disabled',
+              title: Text(context.tr("Keep Garden effects animated")),
+              subtitle: Text(
+                context.tr(
+                    "Explicitly play garden effects even when device animations are disabled"),
               ),
               secondary: const Icon(Icons.auto_awesome_outlined, color: _mint),
               value: _motionOverride,
@@ -1572,9 +1944,12 @@ class _GrowthHomeState extends State<GrowthHome>
                 padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
                 child: Text(
                   _motionOverride
-                      ? 'Garden effects are enabled by your choice. You can switch them off anytime.'
-                      : 'Android currently requests reduced motion. Enable the option above if you want Garden effects anyway.',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFFCEDFD7)),
+                      ? context.tr(
+                          "Garden effects are enabled by your choice. You can switch them off anytime.")
+                      : context.tr(
+                          "Android currently requests reduced motion. Enable the option above if you want Garden effects anyway."),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFFCEDFD7)),
                 ),
               ),
           ],
@@ -1583,24 +1958,28 @@ class _GrowthHomeState extends State<GrowthHome>
 
   List<Widget> _buildGardenProgressSettings(VoidCallback onBack) => [
         _settingsPageHeader(
-          title: 'Garden Progress',
-          subtitle: 'Your plant grows independently from your habits.',
+          title: context.tr("Garden Progress"),
+          subtitle:
+              context.tr("Your plant grows independently from your habits."),
           onBack: onBack,
         ),
         const SizedBox(height: 16),
         _settingsSectionCard(
-          title: 'PLANT GROWTH',
+          title: context.tr("PLANT GROWTH"),
           children: [
             ListTile(
               leading: const Icon(Icons.spa_outlined, color: _mint),
-              title: Text('Stage ${_progress.treeStage + 1} of 6'),
-              subtitle: Text('${_progress.xp} XP • ${_progress.waterBalance} water available'),
+              title: Text(context
+                  .tr("Stage {p0} of 6", {'p0': _progress.treeStage + 1})),
+              subtitle: Text(context.tr("{p0} XP • {p1} water available",
+                  {'p0': _progress.xp, 'p1': _progress.waterBalance})),
             ),
             ListTile(
               key: const ValueKey('settings-reset-tree'),
               leading: const Icon(Icons.restart_alt_rounded, color: _gold),
-              title: const Text('Reset plant growth'),
-              subtitle: const Text('Start your tree at Stage 1 without resetting habits, streaks or water'),
+              title: Text(context.tr("Reset plant growth")),
+              subtitle: Text(context.tr(
+                  "Start your tree at Stage 1 without resetting habits, streaks or water")),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: _confirmResetTreeGrowth,
             ),
@@ -1608,21 +1987,25 @@ class _GrowthHomeState extends State<GrowthHome>
         ),
       ];
 
-  List<Widget> _buildRoutineSettings(StateSetter refresh, VoidCallback onBack) => [
+  List<Widget> _buildRoutineSettings(
+          StateSetter refresh, VoidCallback onBack) =>
+      [
         _settingsPageHeader(
-          title: 'Daily Routine',
-          subtitle: 'Reminders and day-to-day habit flow.',
+          title: context.tr("Daily Routine"),
+          subtitle: context.tr("Reminders and day-to-day habit flow."),
           onBack: onBack,
         ),
         const SizedBox(height: 16),
         _settingsSectionCard(
-          title: 'REMINDERS',
+          title: context.tr("REMINDERS"),
           children: [
             SwitchListTile.adaptive(
               key: const ValueKey('reminder-toggle'),
-              secondary: const Icon(Icons.notifications_active_outlined, color: _mint),
-              title: const Text('Notifications master switch'),
-              subtitle: const Text('Enable or pause reminders for all habits'),
+              secondary:
+                  const Icon(Icons.notifications_active_outlined, color: _mint),
+              title: Text(context.tr("Notifications master switch")),
+              subtitle:
+                  Text(context.tr("Enable or pause reminders for all habits")),
               value: _reminderEnabled,
               onChanged: _reminderBusy
                   ? null
@@ -1631,10 +2014,11 @@ class _GrowthHomeState extends State<GrowthHome>
                       if (mounted) refresh(() {});
                     },
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(16, 2, 12, 14),
               child: Text(
-                'Choose a reminder time separately when you add or edit each habit. Only habits with reminders enabled will notify you.',
+                context.tr(
+                    "Choose a reminder time separately when you add or edit each habit. Only habits with reminders enabled will notify you."),
                 style: TextStyle(color: Color(0xFFBCD1C8), fontSize: 12),
               ),
             ),
@@ -1642,29 +2026,35 @@ class _GrowthHomeState extends State<GrowthHome>
         ),
       ];
 
-  List<Widget> _buildWidgetDisplaySettings(StateSetter refresh, VoidCallback onBack) => [
+  List<Widget> _buildWidgetDisplaySettings(
+          StateSetter refresh, VoidCallback onBack) =>
+      [
         _settingsPageHeader(
-          title: 'Widget & Display',
-          subtitle: 'Shortcut access and a cleaner full-screen garden.',
+          title: context.tr("Widget & Display"),
+          subtitle:
+              context.tr("Shortcut access and a cleaner full-screen garden."),
           onBack: onBack,
         ),
         const SizedBox(height: 16),
         _settingsSectionCard(
-          title: 'HOME SCREEN',
+          title: context.tr("HOME SCREEN"),
           children: [
             ListTile(
               key: const ValueKey('widget-add'),
               leading: const Icon(Icons.widgets_outlined, color: _mint),
-              title: const Text('Home screen widget'),
-              subtitle: const Text('See tree stage, water and checklist at a glance'),
-              trailing: const Icon(Icons.add_circle_outline_rounded, color: _mint),
+              title: Text(context.tr("Home screen widget")),
+              subtitle: Text(context
+                  .tr("See tree stage, water and checklist at a glance")),
+              trailing:
+                  const Icon(Icons.add_circle_outline_rounded, color: _mint),
               onTap: _installHomeWidget,
             ),
             ListTile(
               key: const ValueKey('settings-garden-wallpaper'),
               leading: const Icon(Icons.wallpaper_outlined, color: _mint),
-              title: const Text('Garden wallpaper'),
-              subtitle: const Text('Set your current garden on your home or lock screen'),
+              title: Text(context.tr("Garden wallpaper")),
+              subtitle: Text(context
+                  .tr("Set your current garden on your home or lock screen")),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () {
                 Navigator.of(context).pop();
@@ -1675,19 +2065,21 @@ class _GrowthHomeState extends State<GrowthHome>
         ),
         const SizedBox(height: 14),
         _settingsSectionCard(
-          title: 'DISPLAY NOTES',
+          title: context.tr("DISPLAY NOTES"),
           children: [
-            const ListTile(
+            ListTile(
               leading: Icon(Icons.fullscreen_rounded, color: _gold),
-              title: Text('Focus mode'),
-              subtitle: Text('Enjoy your garden full-screen. Tap the exit button to return.'),
+              title: Text(context.tr("Focus mode")),
+              subtitle: Text(context.tr(
+                  "Enjoy your garden full-screen. Tap the exit button to return.")),
             ),
             if (widget.onShowWelcomeGuide != null)
               ListTile(
                 key: const ValueKey('settings-replay-onboarding'),
                 leading: const Icon(Icons.auto_stories_outlined, color: _mint),
-                title: const Text('Welcome guide'),
-                subtitle: const Text('Replay the introduction and headphone tips'),
+                title: Text(context.tr("Welcome guide")),
+                subtitle: Text(
+                    context.tr("Replay the introduction and headphone tips")),
                 trailing: const Icon(Icons.chevron_right_rounded, color: _mint),
                 onTap: () {
                   Navigator.of(context).pop();
@@ -1698,34 +2090,37 @@ class _GrowthHomeState extends State<GrowthHome>
         ),
       ];
 
-  List<Widget> _buildBackupSettings(StateSetter refresh, VoidCallback onBack) => [
+  List<Widget> _buildBackupSettings(StateSetter refresh, VoidCallback onBack) =>
+      [
         _settingsPageHeader(
-          title: 'Backup & Restore',
-          subtitle: 'Keep your progress safe without a login.',
+          title: context.tr("Backup & Restore"),
+          subtitle: context.tr("Keep your progress safe without a login."),
           onBack: onBack,
         ),
         const SizedBox(height: 16),
         _settingsSectionCard(
-          title: 'ANDROID BACKUP',
-          children: const [
+          title: context.tr("ANDROID BACKUP"),
+          children: [
             ListTile(
               key: ValueKey('backup-auto-info'),
               leading: Icon(Icons.cloud_done_outlined, color: _mint),
-              title: Text('Android Auto Backup'),
+              title: Text(context.tr("Android Auto Backup")),
               subtitle: Text(
-                'Android can include your progress in your phone backup when device backup is enabled. Sign in to BetterSeed to keep your garden updated across devices.',
+                context.tr(
+                    "Android can include your progress in your phone backup when device backup is enabled. Sign in to BetterSeed to keep your garden updated across devices."),
               ),
             ),
           ],
         ),
         const SizedBox(height: 14),
         _settingsSectionCard(
-          title: 'MANUAL FILE BACKUP',
+          title: context.tr("MANUAL FILE BACKUP"),
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(16, 2, 16, 10),
               child: Text(
-                'Save a backup file to your phone or Google Drive, if available. You can restore it later without signing in.',
+                context.tr(
+                    "Save a backup file to your phone or Google Drive, if available. You can restore it later without signing in."),
                 style: TextStyle(color: Color(0xFFBCD1C8), fontSize: 12),
               ),
             ),
@@ -1744,7 +2139,7 @@ class _GrowthHomeState extends State<GrowthHome>
                             if (mounted) refresh(() {});
                           },
                     icon: const Icon(Icons.save_alt_rounded),
-                    label: const Text('Backup to file'),
+                    label: Text(context.tr("Backup to file")),
                   ),
                   OutlinedButton.icon(
                     key: const ValueKey('saf-restore'),
@@ -1755,7 +2150,7 @@ class _GrowthHomeState extends State<GrowthHome>
                             if (mounted) refresh(() {});
                           },
                     icon: const Icon(Icons.settings_backup_restore_rounded),
-                    label: const Text('Restore from file'),
+                    label: Text(context.tr("Restore from file")),
                   ),
                 ],
               ),
@@ -1770,7 +2165,8 @@ class _GrowthHomeState extends State<GrowthHome>
                       if (mounted) refresh(() {});
                     },
               icon: const Icon(Icons.undo_rounded, color: _gold),
-              label: const Text('Undo last manual restore (if available)'),
+              label:
+                  Text(context.tr("Undo last manual restore (if available)")),
             ),
           ],
         ),
@@ -1780,7 +2176,8 @@ class _GrowthHomeState extends State<GrowthHome>
     required String title,
     required String subtitle,
     VoidCallback? onBack,
-  }) => Row(
+  }) =>
+      Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (onBack != null)
@@ -1790,7 +2187,7 @@ class _GrowthHomeState extends State<GrowthHome>
                 key: const ValueKey('settings-back'),
                 onPressed: onBack,
                 icon: const Icon(Icons.arrow_back_rounded, color: _mint),
-                tooltip: 'Back',
+                tooltip: context.tr("Back"),
               ),
             )
           else
@@ -1804,12 +2201,14 @@ class _GrowthHomeState extends State<GrowthHome>
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                      fontSize: 23, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(color: Color(0xFFCDDED5), fontSize: 12),
+                  style:
+                      const TextStyle(color: Color(0xFFCDDED5), fontSize: 12),
                 ),
               ],
             ),
@@ -1824,7 +2223,8 @@ class _GrowthHomeState extends State<GrowthHome>
     required String subtitle,
     required String trailingLabel,
     required VoidCallback onTap,
-  }) => Material(
+  }) =>
+      Material(
         key: key,
         color: const Color(0xA5183A3F),
         borderRadius: BorderRadius.circular(20),
@@ -1850,29 +2250,27 @@ class _GrowthHomeState extends State<GrowthHome>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title,
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 3),
                       Text(subtitle,
-                          style: const TextStyle(fontSize: 12, color: Color(0xFFD0E1DA))),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFFD0E1DA))),
+                      const SizedBox(height: 7),
+                      Text(
+                        trailingLabel,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: _mint,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      trailingLabel,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: _mint,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Icon(Icons.chevron_right_rounded, color: Color(0xFFD0E1DA)),
-                  ],
-                ),
+                const Icon(Icons.chevron_right_rounded,
+                    color: Color(0xFFD0E1DA)),
               ],
             ),
           ),
@@ -1882,7 +2280,8 @@ class _GrowthHomeState extends State<GrowthHome>
   Widget _settingsSectionCard({
     required String title,
     required List<Widget> children,
-  }) => Material(
+  }) =>
+      Material(
         // ListTile and SwitchListTile paint ink on their nearest Material.
         // A colored DecoratedBox between them and Material obscures the ink
         // and is rejected by Flutter's widget tests. Paint the card using
@@ -1904,7 +2303,8 @@ class _GrowthHomeState extends State<GrowthHome>
                 padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
                 child: Text(
                   title,
-                  style: const TextStyle(color: _mint, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                      color: _mint, fontWeight: FontWeight.w800),
                 ),
               ),
               ...children,
@@ -1955,7 +2355,7 @@ class _GrowthHomeState extends State<GrowthHome>
                                       borderRadius: BorderRadius.circular(18),
                                       child: IconButton(
                                         key: const ValueKey('exit-focus-mode'),
-                                        tooltip: 'Exit focus mode',
+                                        tooltip: context.tr("Exit focus mode"),
                                         onPressed: () => _setFocusMode(false),
                                         icon: const Icon(
                                           Icons.fullscreen_exit_rounded,
@@ -1981,117 +2381,125 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   Widget _buildGardenBackdrop({bool still = false}) => Stack(
-    fit: StackFit.expand,
-    children: [
-      if (!still && _appearance.video != null)
-        LocalPackVideoBackground(
-          key: ValueKey(_appearance.video),
-          animate: _showAnimation && (_selectedTab == 0 || _focusMode),
-          video: _appearance.video!, poster: _activeBackgroundAsset)
-      else
-        AdaptiveGardenBackground(asset: _activeBackgroundAsset),
-      const DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: [0, .20, .75, 1],
-            colors: [
-              Color(0x85071820),
-              Color(0x26071921),
-              Color(0x00071921),
-              Color(0x7003151A),
-            ],
-          ),
-        ),
-      ),
-      if (_loaded &&
-          _showAnimation &&
-          _visibleLoadout.backgroundId == 'twilight_overlook')
-        Positioned.fill(
-          child: IgnorePointer(
-            child: AnimatedBuilder(
-              animation: _windController,
-              builder: (_, __) => RepaintBoundary(
-                child: CustomPaint(
-                  key: const ValueKey('moonlight-dynamic-background'),
-                  painter: MoonlightAmbiencePainter(still ? .3 : _windController.value),
-                ),
+        fit: StackFit.expand,
+        children: [
+          if (!still && _appearance.video != null)
+            LocalPackVideoBackground(
+                key: ValueKey(_appearance.video),
+                animate: _showAnimation && (_selectedTab == 0 || _focusMode),
+                video: _appearance.video!,
+                poster: _activeBackgroundAsset)
+          else
+            AdaptiveGardenBackground(asset: _activeBackgroundAsset),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: [0, .20, .75, 1],
+                colors: [
+                  Color(0x85071820),
+                  Color(0x26071921),
+                  Color(0x00071921),
+                  Color(0x7003151A),
+                ],
               ),
             ),
           ),
-        ),
-    ],
-  );
+          if (_loaded &&
+              _showAnimation &&
+              _visibleLoadout.backgroundId == 'twilight_overlook')
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _windController,
+                  builder: (_, __) => RepaintBoundary(
+                    child: CustomPaint(
+                      key: const ValueKey('moonlight-dynamic-background'),
+                      painter: MoonlightAmbiencePainter(
+                          still ? .3 : _windController.value),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
 
   // Keep the same layout and safe-area insets in the editor. Hiding chrome
   // must not change the scene's size, origin, or background crop.
   Widget _previewChrome(Widget child, {required bool preview}) => IgnorePointer(
-    ignoring: preview,
-    child: ExcludeFocus(
-      excluding: preview,
-      child: ExcludeSemantics(
-        excluding: preview,
-        child: Opacity(opacity: preview ? 0 : 1, child: child),
-      ),
-    ),
-  );
-
-  Widget _buildGardenLayout(int stage, {bool preview = false, bool still = false}) => SafeArea(
-    child: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600),
-        child: Column(
-          children: [
-            _previewChrome(_buildHeader(), preview: preview),
-            Expanded(
-              child: preview
-                  ? _buildGarden(stage, preview: true, still: still)
-                  : _loaded
-                  ? IndexedStack(
-                      index: _selectedTab,
-                      sizing: StackFit.expand,
-                      children: [
-                        _buildGarden(stage),
-                        _buildChecklist(),
-                        _buildStats(),
-                        BetterSeedShopPage(
-                          loadout: _shopLoadout,
-                          onApplyLoadout: _applyShopLoadout,
-                          ownedPacks: _ownedPacks, moonlightOwned: _moonlightOwned,
-                          sakuraOwned: _sakuraOwned,
-                          autumnOwned: _autumnOwned,
-                          leafCoins: _leafCoins,
-                          catalog: _catalog,
-                          downloads: _packs,
-                          onAcquire: _acquirePack,
-                          acquiring: _unlockBusy,
-                          onEditAssets: _openAssetEditor,
-                          onOpenCoinStore: _openCoinStore,
-                          currentStage: stage,
-                          animatePreviews: _showAnimation,
-                        ),
-                      ],
-                    )
-                  : const Center(
-                      child: CircularProgressIndicator(color: _mint),
-                    ),
-            ),
-            _previewChrome(_buildNavigation(), preview: preview),
-          ],
+        ignoring: preview,
+        child: ExcludeFocus(
+          excluding: preview,
+          child: ExcludeSemantics(
+            excluding: preview,
+            child: Opacity(opacity: preview ? 0 : 1, child: child),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
-  Widget _glassPanel({required Widget child, EdgeInsetsGeometry? padding}) => Container(
+  Widget _buildGardenLayout(int stage,
+          {bool preview = false, bool still = false, bool ambient = true}) =>
+      SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Column(
+              children: [
+                _previewChrome(_buildHeader(), preview: preview),
+                Expanded(
+                  child: preview
+                      ? _buildGarden(stage,
+                          preview: true, still: still, ambient: ambient)
+                      : _loaded
+                          ? IndexedStack(
+                              index: _selectedTab,
+                              sizing: StackFit.expand,
+                              children: [
+                                _buildGarden(stage),
+                                _buildChecklist(),
+                                _buildStats(),
+                                BetterSeedShopPage(
+                                  loadout: _shopLoadout,
+                                  onApplyLoadout: _applyShopLoadout,
+                                  ownedPacks: _ownedPacks,
+                                  moonlightOwned: _moonlightOwned,
+                                  sakuraOwned: _sakuraOwned,
+                                  autumnOwned: _autumnOwned,
+                                  leafCoins: _leafCoins,
+                                  catalog: _catalog,
+                                  downloads: _packs,
+                                  onAcquire: _acquirePack,
+                                  acquiring: _unlockBusy,
+                                  onEditAssets: _openAssetEditor,
+                                  onOpenCoinStore: _openCoinStore,
+                                  currentStage: stage,
+                                  animatePreviews: _showAnimation,
+                                ),
+                              ],
+                            )
+                          : const Center(
+                              child: CircularProgressIndicator(color: _mint),
+                            ),
+                ),
+                _previewChrome(_buildNavigation(), preview: preview),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _glassPanel({required Widget child, EdgeInsetsGeometry? padding}) =>
+      Container(
         padding: padding ?? const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: _glass,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: const Color(0x777AC5A4)),
           boxShadow: const [
-            BoxShadow(color: Color(0x44000000), blurRadius: 18, offset: Offset(0, 5)),
+            BoxShadow(
+                color: Color(0x44000000), blurRadius: 18, offset: Offset(0, 5)),
           ],
         ),
         child: child,
@@ -2111,23 +2519,26 @@ class _GrowthHomeState extends State<GrowthHome>
                 const Text('BetterSeed',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-                Text('Grow one step at a time',
+                    style:
+                        TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+                Text(context.tr("Grow one step at a time"),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 10, color: Color(0xFFCFDED6))),
+                    style: const TextStyle(
+                        fontSize: 10, color: Color(0xFFCFDED6))),
               ],
             ),
           ),
           Semantics(
             button: true,
-            label: '${_leafCoins} leaf coins available',
+            label: context.tr("{p0} Leaf Coins available", {'p0': _leafCoins}),
             child: InkWell(
               key: const ValueKey('open-coin-store-header'),
               onTap: _openCoinStore,
               borderRadius: BorderRadius.circular(20),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xD10B3033),
                   borderRadius: BorderRadius.circular(20),
@@ -2139,7 +2550,8 @@ class _GrowthHomeState extends State<GrowthHome>
                     const Icon(Icons.spa_rounded, size: 18, color: _mint),
                     const SizedBox(width: 4),
                     Text('${_leafCoins}',
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: 15)),
                   ],
                 ),
               ),
@@ -2147,7 +2559,7 @@ class _GrowthHomeState extends State<GrowthHome>
           ),
           const SizedBox(width: 5),
           IconButton(
-            tooltip: 'Settings',
+            tooltip: context.tr("Settings"),
             onPressed: _openSettings,
             icon: const Icon(Icons.settings_rounded, color: _mint, size: 23),
           ),
@@ -2174,10 +2586,10 @@ class _GrowthHomeState extends State<GrowthHome>
         ),
         child: Row(
           children: [
-            _navItem(0, Icons.spa_rounded, 'Garden'),
-            _navItem(1, Icons.fact_check_outlined, 'Checklist'),
-            _navItem(2, Icons.bar_chart_rounded, 'Stats'),
-            _navItem(3, Icons.storefront_outlined, 'Shop'),
+            _navItem(0, Icons.spa_rounded, context.tr("Garden")),
+            _navItem(1, Icons.fact_check_outlined, context.tr("Checklist")),
+            _navItem(2, Icons.bar_chart_rounded, context.tr("Stats")),
+            _navItem(3, Icons.storefront_outlined, context.tr("Shop")),
           ],
         ),
       ),
@@ -2190,7 +2602,7 @@ class _GrowthHomeState extends State<GrowthHome>
       child: Semantics(
         selected: active,
         button: true,
-        label: '$label tab',
+        label: context.tr("{p0} tab", {'p0': label}),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
           key: ValueKey('tab-$index'),
@@ -2198,7 +2610,8 @@ class _GrowthHomeState extends State<GrowthHome>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: active ? _mint : const Color(0xFFBDCCC8), size: 22),
+              Icon(icon,
+                  color: active ? _mint : const Color(0xFFBDCCC8), size: 22),
               const SizedBox(height: 3),
               Text(
                 label,
@@ -2213,7 +2626,8 @@ class _GrowthHomeState extends State<GrowthHome>
               ),
               const SizedBox(height: 3),
               Container(
-                width: 28, height: 2,
+                width: 28,
+                height: 2,
                 decoration: BoxDecoration(
                   color: active ? _mint : Colors.transparent,
                   borderRadius: BorderRadius.circular(2),
@@ -2226,7 +2640,8 @@ class _GrowthHomeState extends State<GrowthHome>
     );
   }
 
-  Widget _buildGarden(int stage, {bool preview = false, bool still = false}) {
+  Widget _buildGarden(int stage,
+      {bool preview = false, bool still = false, bool ambient = true}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -2241,7 +2656,7 @@ class _GrowthHomeState extends State<GrowthHome>
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        _stageNames[stage],
+                        context.tr(_stageNames[stage]),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -2251,7 +2666,7 @@ class _GrowthHomeState extends State<GrowthHome>
                       ),
                     ),
                     Text(
-                      'Stage ${stage + 1} / 6',
+                      context.tr("Stage {p0} / 6", {'p0': stage + 1}),
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFFE4F5E9),
@@ -2277,25 +2692,47 @@ class _GrowthHomeState extends State<GrowthHome>
         Expanded(
           child: Stack(
             children: [
-              Positioned.fill(child: _buildTreeScene(stage, clean: preview, still: still)),
+              Positioned.fill(
+                  child: _buildTreeScene(stage,
+                      clean: preview, still: still, ambient: ambient)),
               if (!preview)
                 Positioned(
+                  left: 12,
                   right: 12,
                   top: 8,
-                  child: Material(
-                    color: const Color(0xBC0A2B30),
-                    borderRadius: BorderRadius.circular(15),
-                    child: IconButton(
-                      key: const ValueKey('enter-focus-mode'),
-                      tooltip: 'Focus mode',
-                      onPressed: () => _setFocusMode(true),
-                      icon: const Icon(
-                        Icons.fullscreen_rounded,
-                        color: _mint,
-                        size: 25,
+                  child: Row(children: [
+                    Flexible(
+                        child: Material(
+                      color: const Color(0xBC0A2B30),
+                      borderRadius: BorderRadius.circular(15),
+                      child: Tooltip(
+                        message: context.tr("Customize garden"),
+                        child: TextButton.icon(
+                          key: const ValueKey('garden-customize'),
+                          onPressed: _openAssetEditor,
+                          icon: const Icon(Icons.tune_rounded,
+                              color: _mint, size: 21),
+                          label: Text(context.tr("Customize garden"),
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          style: TextButton.styleFrom(
+                              foregroundColor: _mint,
+                              minimumSize: const Size(48, 48)),
+                        ),
+                      ),
+                    )),
+                    const SizedBox(width: 8),
+                    Material(
+                      color: const Color(0xBC0A2B30),
+                      borderRadius: BorderRadius.circular(15),
+                      child: IconButton(
+                        key: const ValueKey('enter-focus-mode'),
+                        tooltip: context.tr("Focus mode"),
+                        onPressed: () => _setFocusMode(true),
+                        icon: const Icon(Icons.fullscreen_rounded,
+                            color: _mint, size: 25),
                       ),
                     ),
-                  ),
+                  ]),
                 ),
             ],
           ),
@@ -2314,7 +2751,8 @@ class _GrowthHomeState extends State<GrowthHome>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${_progress.waterBalance} water available',
+                          context.tr("{p0} water available",
+                              {'p0': _progress.waterBalance}),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -2324,8 +2762,9 @@ class _GrowthHomeState extends State<GrowthHome>
                         ),
                         Text(
                           _progress.waterBalance == 0
-                              ? 'Complete a habit to earn water'
-                              : 'Give your tree a drink to help it grow',
+                              ? context.tr("Complete a habit to earn water")
+                              : context
+                                  .tr("Give your tree a drink to help it grow"),
                           maxLines: 2,
                           style: const TextStyle(
                             fontSize: 10,
@@ -2345,7 +2784,9 @@ class _GrowthHomeState extends State<GrowthHome>
                           : Icons.fact_check_outlined,
                       size: 18,
                     ),
-                    label: Text(_progress.waterBalance > 0 ? 'Water' : 'Earn'),
+                    label: Text(_progress.waterBalance > 0
+                        ? context.tr("Water")
+                        : context.tr("Earn")),
                     style: FilledButton.styleFrom(
                       backgroundColor: _mint,
                       foregroundColor: _deepNavy,
@@ -2367,217 +2808,221 @@ class _GrowthHomeState extends State<GrowthHome>
     );
   }
 
-  Widget _buildTreeScene(int stage, {bool clean = false, bool still = false}) => LayoutBuilder(
-    builder: (context, constraints) {
-      final w = constraints.maxWidth;
-      final h = constraints.maxHeight;
-      final baseSize = GardenSceneGeometry.treeSize(Size(w, h));
-      // Sakura sprites need a dedicated visual calibration so the root mound
-      // sits inside the circular soil patch instead of reading too low.
-      final placement = _visiblePlacement;
-      final groundWidth = math.min(w * .70, baseSize * .82);
-      final scene = Size(w, h);
-      final treeRect = GardenSceneGeometry.treeRect(
-        scene,
-        ground: _activePlantingGround,
-        placement: placement,
-      );
-      final size = treeRect.width;
-      return Stack(
-        clipBehavior: Clip.hardEdge,
-        children: [
-          // Sakura and Golden Autumn already contain a visible planting zone;
-          // an extra blurred contact oval would look like a dark stain.
-          if (_activePlantingGround == PlantingGround.defaultGarden ||
-              _activePlantingGround == PlantingGround.moonlightGarden)
-            Positioned(
-              bottom:
-                  GardenSceneGeometry.plantingPlaneBottom(
-                    scene,
-                    ground: _activePlantingGround,
-                  ) -
-                  placement.dy * h,
-              left: (w - groundWidth) / 2 + placement.dx * w,
-              width: groundWidth,
-              height: GardenSceneGeometry.plantingPlaneHeight(scene),
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: _GroundContactPainter(
-                    // Theme palettes change without altering the root anchor.
-                    moonlight:
-                        _visibleLoadout.backgroundId == 'twilight_overlook',
-                  ),
-                ),
-              ),
-            ),
-          Positioned.fromRect(
-            rect: treeRect,
-            child: GestureDetector(
-              key: const ValueKey('editor-draggable-tree'),
-              behavior: HitTestBehavior.opaque,
-              onPanUpdate: _assetEditMode && _assetEditorPanel == 'position'
-                  ? (details) {
-                      _updateTreePlacement(
-                        _visiblePlacement.copyWith(
-                          dx: _visiblePlacement.dx + details.delta.dx / w,
-                          dy: _visiblePlacement.dy + details.delta.dy / h,
-                        ),
-                      );
-                    }
-                  : null,
-              child: RepaintBoundary(
-                child: AnimatedBuilder(
-                  animation: _windController,
-                  builder: (context, child) {
-                    if (!_showAnimation || _assetEditMode || still) return child!;
-                    final sway = math.sin(_windController.value * math.pi * 2);
-                    return Transform.rotate(
-                      angle: sway * .005,
-                      alignment: Alignment.bottomCenter,
-                      child: child,
-                    );
-                  },
-                  child: AnimatedSwitcher(
-                    duration: _showAnimation && !_assetEditMode && !still
-                        ? const Duration(milliseconds: 700)
-                        : Duration.zero,
-                    layoutBuilder: (current, previous) => Stack(
-                      alignment: Alignment.bottomCenter,
-                      children: [...previous, if (current != null) current],
-                    ),
-                    transitionBuilder: (child, animation) => FadeTransition(
-                      opacity: animation,
-                      child: ScaleTransition(
-                        alignment: Alignment.bottomCenter,
-                        scale: Tween<double>(begin: .83, end: 1).animate(
-                          CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOutCubic,
-                          ),
-                        ),
-                        child: child,
+  Widget _buildTreeScene(int stage,
+          {bool clean = false, bool still = false, bool ambient = true}) =>
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final h = constraints.maxHeight;
+          final baseSize = GardenSceneGeometry.treeSize(Size(w, h));
+          // Sakura sprites need a dedicated visual calibration so the root mound
+          // sits inside the circular soil patch instead of reading too low.
+          final placement = _visiblePlacement;
+          final groundWidth = math.min(w * .70, baseSize * .82);
+          final scene = Size(w, h);
+          final treeRect = GardenSceneGeometry.treeRect(
+            scene,
+            ground: _activePlantingGround,
+            placement: placement,
+          );
+          final size = treeRect.width;
+          return Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              // Sakura and Golden Autumn already contain a visible planting zone;
+              // an extra blurred contact oval would look like a dark stain.
+              if (_activePlantingGround == PlantingGround.defaultGarden ||
+                  _activePlantingGround == PlantingGround.moonlightGarden)
+                Positioned(
+                  bottom: GardenSceneGeometry.plantingPlaneBottom(
+                        scene,
+                        ground: _activePlantingGround,
+                      ) -
+                      placement.dy * h,
+                  left: (w - groundWidth) / 2 + placement.dx * w,
+                  width: groundWidth,
+                  height: GardenSceneGeometry.plantingPlaneHeight(scene),
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _GroundContactPainter(
+                        // Theme palettes change without altering the root anchor.
+                        moonlight:
+                            _visibleLoadout.backgroundId == 'twilight_overlook',
                       ),
                     ),
-                    child: GardenImage.asset(
-                      _activeTreeImages[stage],
-                      key: ValueKey('${_visibleLoadout.treeSkinId}-$stage'),
-                      width: size,
-                      height: size,
-                      fit: BoxFit.contain,
-                      filterQuality: FilterQuality.medium,
-                      gaplessPlayback: true,
-                    ),
                   ),
                 ),
-              ),
-            ),
-          ),
-          if (_showAnimation)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: _windController,
-                  builder: (_, __) => RepaintBoundary(
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        CustomPaint(
-                          key: const ValueKey('garden-live-ambient'),
-                          painter: GardenLifePainter(
-                            still ? .3 : _windController.value,
-                            palette: _activeFireflyPalette,
+              Positioned.fromRect(
+                rect: treeRect,
+                child: GestureDetector(
+                  key: const ValueKey('editor-draggable-tree'),
+                  behavior: HitTestBehavior.opaque,
+                  onPanUpdate: _assetEditMode && _assetEditorPanel == 'position'
+                      ? (details) {
+                          _updateTreePlacement(
+                            _visiblePlacement.copyWith(
+                              dx: _visiblePlacement.dx + details.delta.dx / w,
+                              dy: _visiblePlacement.dy + details.delta.dy / h,
+                            ),
+                          );
+                        }
+                      : null,
+                  child: RepaintBoundary(
+                    child: AnimatedBuilder(
+                      animation: _windController,
+                      builder: (context, child) {
+                        if (!_showAnimation || _assetEditMode || still)
+                          return child!;
+                        final sway =
+                            math.sin(_windController.value * math.pi * 2);
+                        return Transform.rotate(
+                          angle: sway * .005,
+                          alignment: Alignment.bottomCenter,
+                          child: child,
+                        );
+                      },
+                      child: AnimatedSwitcher(
+                        duration: _showAnimation && !_assetEditMode && !still
+                            ? const Duration(milliseconds: 700)
+                            : Duration.zero,
+                        layoutBuilder: (current, previous) => Stack(
+                          alignment: Alignment.bottomCenter,
+                          children: [...previous, if (current != null) current],
+                        ),
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          child: ScaleTransition(
+                            alignment: Alignment.bottomCenter,
+                            scale: Tween<double>(begin: .83, end: 1).animate(
+                              CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutCubic,
+                              ),
+                            ),
+                            child: child,
                           ),
                         ),
-                        ...(still
-                            ? _buildStillButterflySprites(w, h)
-                            : _buildButterflySprites(
-                                w,
-                                h,
-                                _windController.value,
-                              )),
-                      ],
+                        child: GardenImage.asset(
+                          _activeTreeImages[stage],
+                          key: ValueKey('${_visibleLoadout.treeSkinId}-$stage'),
+                          width: size,
+                          height: size,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.medium,
+                          gaplessPlayback: true,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          if (_showAnimation && !still)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: _waterController,
-                  builder: (_, __) => Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CustomPaint(
-                        key: const ValueKey('garden-watering-stream'),
-                        painter: _WateringPainter(
-                          _waterController.value,
-                          _activePlantingGround,
-                          placement,
-                          _appearance.spout,
+              if (_showAnimation && ambient)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: _windController,
+                      builder: (_, __) => RepaintBoundary(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            CustomPaint(
+                              key: const ValueKey('garden-live-ambient'),
+                              painter: GardenLifePainter(
+                                still ? .3 : _windController.value,
+                                palette: _activeFireflyPalette,
+                              ),
+                            ),
+                            ...(still
+                                ? _buildStillButterflySprites(w, h)
+                                : _buildButterflySprites(
+                                    w,
+                                    h,
+                                    _windController.value,
+                                  )),
+                          ],
                         ),
                       ),
-                      ..._buildWateringCanOverlay(w, h, _waterController.value),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-          if (_assetEditMode && _assetEditorPanel == 'position')
-            Positioned.fromRect(
-              rect: treeRect,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  key: const ValueKey('editor-tree-selection'),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: _mint.withValues(alpha: .7)),
-                    borderRadius: BorderRadius.circular(12),
+              if (_showAnimation && !still)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: _waterController,
+                      builder: (_, __) => Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CustomPaint(
+                            key: const ValueKey('garden-watering-stream'),
+                            painter: _WateringPainter(
+                              _waterController.value,
+                              _activePlantingGround,
+                              placement,
+                              _appearance.spout,
+                            ),
+                          ),
+                          ..._buildWateringCanOverlay(
+                              w, h, _waterController.value),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          if (!clean && !_assetEditMode && h > 260)
-            Positioned(
-              top: 8,
-              left: 12,
-              right: 12,
-              child: Text(
-                _gardenMessage,
-                key: const ValueKey('garden-message'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFFF0FBEA),
-                  fontSize: 11,
-                  shadows: [Shadow(blurRadius: 10, color: Colors.black)],
+              if (_assetEditMode && _assetEditorPanel == 'position')
+                Positioned.fromRect(
+                  rect: treeRect,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      key: const ValueKey('editor-tree-selection'),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: _mint.withValues(alpha: .7)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-        ],
+              if (!clean && !_assetEditMode && h > 260)
+                Positioned(
+                  top: 8,
+                  left: 12,
+                  right: 12,
+                  child: Text(
+                    context.tr(_gardenMessage),
+                    key: const ValueKey('garden-message'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFFF0FBEA),
+                      fontSize: 11,
+                      shadows: [Shadow(blurRadius: 10, color: Colors.black)],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       );
-    },
-  );
 
   Widget _buildAssetEditor(int stage, Size viewport) => GardenEditorFrame(
-    viewport: viewport,
-    mediaQuery: MediaQuery.of(context),
-    preview: Stack(
-      fit: StackFit.expand,
-      children: [
-        _buildGardenBackdrop(),
-        _buildGardenLayout(stage, preview: true),
-      ],
-    ),
-    tool: _assetEditorPanel,
-    onToolChanged: (tool) => setState(() => _assetEditorPanel = tool),
-    controls: _assetEditorPanel == 'assets'
-        ? _buildEditorAssetsPanel()
-        : _buildEditorPositionPanel(),
-    onCancel: () => _closeAssetEditor(save: false),
-    onSave: () => _closeAssetEditor(save: true),
-  );
+        viewport: viewport,
+        mediaQuery: MediaQuery.of(context),
+        preview: Stack(
+          fit: StackFit.expand,
+          children: [
+            _buildGardenBackdrop(),
+            _buildGardenLayout(stage, preview: true),
+          ],
+        ),
+        tool: _assetEditorPanel,
+        onToolChanged: (tool) => setState(() => _assetEditorPanel = tool),
+        controls: _assetEditorPanel == 'assets'
+            ? _buildEditorAssetsPanel()
+            : _buildEditorPositionPanel(),
+        onCancel: () => _closeAssetEditor(save: false),
+        onSave: () => _closeAssetEditor(save: true),
+      );
 
   Widget _buildEditorPositionPanel() {
     final placement = _visiblePlacement;
@@ -2586,13 +3031,13 @@ class _GrowthHomeState extends State<GrowthHome>
     final value = isSize
         ? placement.scale
         : horizontal
-        ? placement.dx
-        : placement.dy;
+            ? placement.dx
+            : placement.dy;
     final label = isSize
         ? 'Size'
         : horizontal
-        ? 'Horizontal'
-        : 'Vertical';
+            ? 'Horizontal'
+            : 'Vertical';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -2609,7 +3054,7 @@ class _GrowthHomeState extends State<GrowthHome>
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
                     key: ValueKey('editor-adjust-${item.$1}'),
-                    label: Text(item.$2),
+                    label: Text(context.tr(item.$2)),
                     selected: _editorAdjustment == item.$1,
                     onSelected: (_) =>
                         setState(() => _editorAdjustment = item.$1),
@@ -2620,7 +3065,7 @@ class _GrowthHomeState extends State<GrowthHome>
         ),
         Row(
           children: [
-            Expanded(child: Text(label)),
+            Expanded(child: Text(context.tr(label))),
             Text(
               isSize
                   ? '${(value * 100).round()}%'
@@ -2634,20 +3079,20 @@ class _GrowthHomeState extends State<GrowthHome>
             isSize
                 ? 'asset-tree-size'
                 : horizontal
-                ? 'asset-tree-x'
-                : 'asset-tree-y',
+                    ? 'asset-tree-x'
+                    : 'asset-tree-y',
           ),
           value: value,
           min: isSize ? .65 : -.35,
           max: isSize ? 1.35 : .35,
           semanticFormatterCallback: (v) =>
-              '$label ${(v * 100).round()} percent',
+              '${context.tr(label)} ${(v * 100).round()}%',
           onChanged: (v) => _updateTreePlacement(
             isSize
                 ? placement.copyWith(scale: v)
                 : horizontal
-                ? placement.copyWith(dx: v)
-                : placement.copyWith(dy: v),
+                    ? placement.copyWith(dx: v)
+                    : placement.copyWith(dy: v),
           ),
         ),
         Align(
@@ -2656,14 +3101,15 @@ class _GrowthHomeState extends State<GrowthHome>
             key: const ValueKey('asset-editor-reset'),
             onPressed: () => _updateTreePlacement(const GardenTreePlacement()),
             icon: const Icon(Icons.restart_alt_rounded, size: 18),
-            label: const Text('Reset position & size'),
+            label: Text(context.tr("Reset position & size")),
           ),
         ),
       ],
     );
   }
 
-  bool _ownsEditorAsset(String id) => GardenPackRegistry.packs.any((p)=>_ownedPacks.contains(p.id)&&p.loadout.toJson().values.contains(id));
+  bool _ownsEditorAsset(String id) => GardenPackRegistry.packs.any((p) =>
+      _ownedPacks.contains(p.id) && p.loadout.toJson().values.contains(id));
 
   Widget _buildEditorAssetsPanel() {
     final field = _editorAssetCategory;
@@ -2692,7 +3138,7 @@ class _GrowthHomeState extends State<GrowthHome>
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
                     key: ValueKey('editor-category-${item.$1}'),
-                    label: Text(item.$2),
+                    label: Text(context.tr(item.$2)),
                     selected: field == item.$1,
                     onSelected: (_) =>
                         setState(() => _editorAssetCategory = item.$1),
@@ -2715,7 +3161,7 @@ class _GrowthHomeState extends State<GrowthHome>
                     selected: choice.id == current,
                     button: true,
                     label:
-                        '${choice.label} ${field == 'watering' ? 'watering can' : field}${choice.installed ? '' : ', download required'}${_ownsEditorAsset(choice.id) ? '' : ', locked'}',
+                        '${choice.label} ${context.tr(field == 'watering' ? 'Watering can' : field == 'background' ? 'Background' : field == 'tree' ? 'Tree' : field == 'butterfly' ? 'Butterflies' : 'Fireflies')}${choice.installed ? '' : context.tr(', download required')}${_ownsEditorAsset(choice.id) ? '' : context.tr(', locked')}',
                     child: SizedBox(
                       width: 84,
                       child: InkWell(
@@ -2747,13 +3193,19 @@ class _GrowthHomeState extends State<GrowthHome>
                                     ),
                                   ),
                                   if (!_ownsEditorAsset(choice.id))
-                                    Align(alignment: Alignment.bottomLeft,
-                                      child: Container(
-                                        key: ValueKey('editor-lock-${choice.id}'),
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(6)),
-                                        child: const Icon(Icons.lock_rounded, color: Colors.white, size: 14),
-                                      )),
+                                    Align(
+                                        alignment: Alignment.bottomLeft,
+                                        child: Container(
+                                          key: ValueKey(
+                                              'editor-lock-${choice.id}'),
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                              color: Colors.black87,
+                                              borderRadius:
+                                                  BorderRadius.circular(6)),
+                                          child: const Icon(Icons.lock_rounded,
+                                              color: Colors.white, size: 14),
+                                        )),
                                   if (choice.id == current)
                                     const Align(
                                       alignment: Alignment.topRight,
@@ -2768,9 +3220,11 @@ class _GrowthHomeState extends State<GrowthHome>
                             ),
                             const SizedBox(height: 4),
                             Text(choice.label, textAlign: TextAlign.center),
-                            if (!choice.installed) const Text('Not downloaded',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 10, color: Color(0xFFB9D4CB))),
+                            if (!choice.installed)
+                              Text(context.tr("Not downloaded"),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                      fontSize: 10, color: Color(0xFFB9D4CB))),
                           ],
                         ),
                       ),
@@ -2798,8 +3252,10 @@ class _GrowthHomeState extends State<GrowthHome>
         decoration: const BoxDecoration(color: Color(0xFF17383E)),
         child: Stack(alignment: Alignment.center, children: [
           Icon(icon, size: 30, color: const Color(0xFFB9D4CB)),
-          const Positioned(right: 3, bottom: 3,
-            child: Icon(Icons.download_rounded, size: 14, color: _mint)),
+          const Positioned(
+              right: 3,
+              bottom: 3,
+              child: Icon(Icons.download_rounded, size: 14, color: _mint)),
         ]),
       );
     }
@@ -2843,7 +3299,10 @@ class _GrowthHomeState extends State<GrowthHome>
   Widget _buildFireflyChoiceArtwork(String id) {
     final palette = GardenPackRegistry.forAsset('fireflyId', id).fireflies;
     final dots = [palette.glow, palette.spark, palette.core];
-    final background = [const Color(0xFF101A18), palette.glow.withValues(alpha: .2)];
+    final background = [
+      const Color(0xFF101A18),
+      palette.glow.withValues(alpha: .2)
+    ];
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -2870,7 +3329,8 @@ class _GrowthHomeState extends State<GrowthHome>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: dots[(dot.dx * 10).toInt() % dots.length].withValues(alpha: .85),
+                      color: dots[(dot.dx * 10).toInt() % dots.length]
+                          .withValues(alpha: .85),
                       blurRadius: 14,
                       spreadRadius: 2,
                     ),
@@ -2885,30 +3345,30 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   List<_EditorAssetChoice> _editorChoicesFor(String field) => [
-    // Display every pack in the editor, including locked/uninstalled ones.
-    // Missing CDN content uses a category icon, never unrelated Shop artwork.
-    for (final pack in GardenPackRegistry.packs)
-      _EditorAssetChoice(
-        id: switch (field) {
-          'tree' => pack.loadout.treeSkinId,
-          'butterfly' => pack.loadout.butterflyId,
-          'watering' => pack.loadout.wateringCanId,
-          'firefly' => pack.loadout.fireflyId,
-          _ => pack.loadout.backgroundId,
-        },
-        label: pack.id == 'default' ? 'Default' : pack.name,
-        installed: _packs.installed(pack.id),
-        assetPath: !_packs.installed(pack.id)
-            ? null
-            : switch (field) {
-                'tree' => pack.trees.last,
-                'butterfly' => pack.butterfly,
-                'watering' => pack.wateringCan,
-                'firefly' => null,
-                _ => pack.background,
-              },
-      ),
-  ];
+        // Display every pack in the editor, including locked/uninstalled ones.
+        // Missing CDN content uses a category icon, never unrelated Shop artwork.
+        for (final pack in GardenPackRegistry.packs)
+          _EditorAssetChoice(
+            id: switch (field) {
+              'tree' => pack.loadout.treeSkinId,
+              'butterfly' => pack.loadout.butterflyId,
+              'watering' => pack.loadout.wateringCanId,
+              'firefly' => pack.loadout.fireflyId,
+              _ => pack.loadout.backgroundId,
+            },
+            label: pack.id == 'default' ? context.tr("Default") : pack.name,
+            installed: _packs.installed(pack.id),
+            assetPath: !_packs.installed(pack.id)
+                ? null
+                : switch (field) {
+                    'tree' => pack.trees.last,
+                    'butterfly' => pack.butterfly,
+                    'watering' => pack.wateringCan,
+                    'firefly' => null,
+                    _ => pack.background,
+                  },
+          ),
+      ];
 
   List<Widget> _buildButterflySprites(double width, double height, double t) {
     final animated = GardenSceneGeometry.animatedButterflies();
@@ -2989,14 +3449,16 @@ class _GrowthHomeState extends State<GrowthHome>
               .94 + .08 * math.sin(tau * 6 * progress + phase).abs(),
               1,
             ),
-            child: GardenImage.asset(_activeButterflyAsset, fit: BoxFit.contain),
+            child:
+                GardenImage.asset(_activeButterflyAsset, fit: BoxFit.contain),
           ),
         ),
       ),
     );
   }
 
-  List<Widget> _buildWateringCanOverlay(double width, double height, double progress) {
+  List<Widget> _buildWateringCanOverlay(
+      double width, double height, double progress) {
     if (progress <= 0 || progress >= 1) return const <Widget>[];
     final fade = math.min(1.0, (1 - progress) * 3).toDouble();
     final scene = Size(width, height);
@@ -3014,7 +3476,8 @@ class _GrowthHomeState extends State<GrowthHome>
           child: Transform.rotate(
             angle: angle,
             alignment: Alignment.center,
-            child: GardenImage.asset(_activeWateringCanAsset, fit: BoxFit.contain),
+            child:
+                GardenImage.asset(_activeWateringCanAsset, fit: BoxFit.contain),
           ),
         ),
       ),
@@ -3031,10 +3494,13 @@ class _GrowthHomeState extends State<GrowthHome>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Today’s Checklist',
-                    style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800)),
+                Text(context.tr("Today’s Checklist"),
+                    style:
+                        TextStyle(fontSize: 23, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
-                const Text('Complete habits to earn water for your tree 💧',
+                Text(
+                    context
+                        .tr("Complete habits to earn water for your tree 💧"),
                     style: TextStyle(color: Color(0xFFD1DFD9), fontSize: 12)),
                 const SizedBox(height: 12),
                 Row(
@@ -3050,7 +3516,8 @@ class _GrowthHomeState extends State<GrowthHome>
                     ),
                     const SizedBox(width: 12),
                     Text('$completed/${_habits.length}',
-                        style: const TextStyle(color: _mint, fontWeight: FontWeight.bold)),
+                        style: const TextStyle(
+                            color: _mint, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ],
@@ -3069,19 +3536,23 @@ class _GrowthHomeState extends State<GrowthHome>
                 child: Row(children: [
                   const Icon(Icons.notifications_off_outlined, color: _gold),
                   const SizedBox(width: 8),
-                  const Expanded(child: Text(
-                    'Habit reminders are paused because master notifications are off.',
+                  Expanded(
+                      child: Text(
+                    context.tr(
+                        "Habit reminders are paused because master notifications are off."),
                     style: TextStyle(fontSize: 12),
                   )),
-                  TextButton(onPressed: () => _configureReminder(true),
-                    child: const Text('Enable')),
+                  TextButton(
+                      onPressed: () => _configureReminder(true),
+                      child: Text(context.tr("Enable"))),
                 ]),
               ),
             ),
           ),
         Expanded(
           child: _habits.isEmpty
-              ? const Center(child: Text('Plant your first daily habit 🌱'))
+              ? Center(
+                  child: Text(context.tr("Plant your first daily habit 🌱")))
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 3, 16, 8),
                   itemCount: _habits.length,
@@ -3098,7 +3569,7 @@ class _GrowthHomeState extends State<GrowthHome>
             child: FilledButton.icon(
               onPressed: _addHabit,
               icon: const Icon(Icons.add_circle_outline),
-              label: const Text('Add a daily habit'),
+              label: Text(context.tr("Add a daily habit")),
               style: FilledButton.styleFrom(
                 foregroundColor: _deepNavy,
                 backgroundColor: _mint,
@@ -3122,12 +3593,18 @@ class _GrowthHomeState extends State<GrowthHome>
   IconData _iconFor(Habit habit) {
     if (habit.iconKey.isNotEmpty) return _iconDataForKey(habit.iconKey);
     final title = habit.title.toLowerCase();
-    if (title.contains('water') || title.contains('drink')) return Icons.local_drink_outlined;
-    if (title.contains('read') || title.contains('book') || title.contains('study')) {
+    if (title.contains('water') || title.contains('drink'))
+      return Icons.local_drink_outlined;
+    if (title.contains('read') ||
+        title.contains('book') ||
+        title.contains('study')) {
       return Icons.menu_book_outlined;
     }
-    if (title.contains('save') || title.contains('money')) return Icons.savings_outlined;
-    if (title.contains('walk') || title.contains('move') || title.contains('run')) {
+    if (title.contains('save') || title.contains('money'))
+      return Icons.savings_outlined;
+    if (title.contains('walk') ||
+        title.contains('move') ||
+        title.contains('run')) {
       return Icons.directions_run_outlined;
     }
     return Icons.spa_outlined;
@@ -3146,7 +3623,8 @@ class _GrowthHomeState extends State<GrowthHome>
           child: Row(
             children: [
               SizedBox(
-                height: 44, width: 44,
+                height: 44,
+                width: 44,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: const Color(0xAA1E4947),
@@ -3161,22 +3639,39 @@ class _GrowthHomeState extends State<GrowthHome>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(habit.title,
-                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w700,
-                          decoration: habit.completed ? TextDecoration.lineThrough : null,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          decoration: habit.completed
+                              ? TextDecoration.lineThrough
+                              : null,
                         )),
-                    Text(credited ? 'Water earned today' : 'Complete to earn +1 water',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFFBBD1CA))),
+                    Text(
+                        credited
+                            ? context.tr("Water earned today")
+                            : context.tr("Complete to earn +1 water"),
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xFFBBD1CA))),
                     if (habit.reminderEnabled)
-                      Text('Reminder ${TimeOfDay(hour: habit.reminderHour, minute: habit.reminderMinute).format(context)}${_reminderEnabled ? '' : ' · paused'}',
-                        style: const TextStyle(fontSize: 10, color: _gold)),
+                      Text(
+                          context.tr("Reminder {p0}{p1}", {
+                            'p0': TimeOfDay(
+                                    hour: habit.reminderHour,
+                                    minute: habit.reminderMinute)
+                                .format(context),
+                            'p1':
+                                _reminderEnabled ? '' : context.tr(' · paused')
+                          }),
+                          style: const TextStyle(fontSize: 10, color: _gold)),
                   ],
                 ),
               ),
               const Icon(Icons.water_drop_rounded, size: 16, color: _blue),
               const SizedBox(width: 2),
-              Text(credited ? '✓' : '+1', style: const TextStyle(color: _blue, fontSize: 12)),
+              Text(credited ? '✓' : '+1',
+                  style: const TextStyle(color: _blue, fontSize: 12)),
               Checkbox(
                 key: ValueKey('habit-${habit.id}'),
                 value: habit.completed,
@@ -3185,15 +3680,17 @@ class _GrowthHomeState extends State<GrowthHome>
                 checkColor: _deepNavy,
               ),
               PopupMenuButton<String>(
-                tooltip: 'Habit options',
+                tooltip: context.tr("Habit options"),
                 icon: const Icon(Icons.more_vert, size: 20),
                 onSelected: (value) {
                   if (value == 'remove') _removeHabit(habit);
                   if (value == 'edit') _editHabit(habit);
                 },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Edit habit')),
-                  PopupMenuItem(value: 'remove', child: Text('Remove habit')),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                      value: 'edit', child: Text(context.tr("Edit habit"))),
+                  PopupMenuItem(
+                      value: 'remove', child: Text(context.tr("Remove habit"))),
                 ],
               ),
             ],
@@ -3211,48 +3708,70 @@ class _GrowthHomeState extends State<GrowthHome>
           children: [
             Icon(icon, color: accent, size: 25),
             const SizedBox(height: 8),
-            Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            Text(title, style: const TextStyle(fontSize: 11, color: Color(0xFFCFDFD8))),
+            Text(value,
+                style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            Text(title,
+                style: const TextStyle(fontSize: 11, color: Color(0xFFCFDFD8))),
           ],
         ),
       );
 
   Widget _buildStats() {
     final now = DateTime.now();
-    final days = List<DateTime>.generate(7, (i) =>
-        DateTime(now.year, now.month, now.day - (6 - i)));
-    final values = days.map((day) => _progress.earnedOn(todayLocalKey(day))).toList();
+    final days = List<DateTime>.generate(
+        7, (i) => DateTime(now.year, now.month, now.day - (6 - i)));
+    final values =
+        days.map((day) => _progress.earnedOn(todayLocalKey(day))).toList();
     final maxValue = math.max(1, values.fold<int>(0, (a, b) => math.max(a, b)));
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
       children: [
-        const Text('Your Progress', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-        const Text('Every small win adds up.',
+        Text(context.tr("Your Progress"),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+        Text(context.tr("Every small win adds up."),
             style: TextStyle(color: Color(0xFFD7E9DD), fontSize: 12)),
         const SizedBox(height: 14),
         Row(children: [
-          Expanded(child: _statCard(Icons.local_fire_department_rounded,
-              '${_progress.dayStreak(now)}', 'Day streak', _gold)),
+          Expanded(
+              child: _statCard(
+                  Icons.local_fire_department_rounded,
+                  '${_progress.dayStreak(now)}',
+                  context.tr("Day streak"),
+                  _gold)),
           const SizedBox(width: 10),
-          Expanded(child: _statCard(Icons.water_drop_rounded,
-              '${_progress.totalEarned}', 'Water earned', _blue)),
+          Expanded(
+              child: _statCard(
+                  Icons.water_drop_rounded,
+                  '${_progress.totalEarned}',
+                  context.tr("Water earned"),
+                  _blue)),
         ]),
         const SizedBox(height: 10),
         Row(children: [
-          Expanded(child: _statCard(Icons.task_alt_rounded,
-              '${_progress.totalEarned}', 'Habits completed', _mint)),
+          Expanded(
+              child: _statCard(
+                  Icons.task_alt_rounded,
+                  '${_progress.totalEarned}',
+                  context.tr("Habits completed"),
+                  _mint)),
           const SizedBox(width: 10),
-          Expanded(child: _statCard(Icons.spa_rounded,
-              '${_progress.treeStage + 1} / 6', 'Tree stage', _mint)),
+          Expanded(
+              child: _statCard(
+                  Icons.spa_rounded,
+                  '${_progress.treeStage + 1} / 6',
+                  context.tr("Tree stage"),
+                  _mint)),
         ]),
         const SizedBox(height: 16),
         _glassPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('This week', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+              Text(context.tr("This week"),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
-              const Text('Water earned from daily checklists',
+              Text(context.tr("Water earned from daily checklists"),
                   style: TextStyle(fontSize: 11, color: Color(0xFFD1DFD9))),
               const SizedBox(height: 17),
               SizedBox(
@@ -3266,7 +3785,8 @@ class _GrowthHomeState extends State<GrowthHome>
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             Text('${values[i]}',
-                                style: const TextStyle(color: _blue, fontSize: 10)),
+                                style: const TextStyle(
+                                    color: _blue, fontSize: 10)),
                             const SizedBox(height: 5),
                             Container(
                               width: 22,
@@ -3277,9 +3797,12 @@ class _GrowthHomeState extends State<GrowthHome>
                               ),
                             ),
                             const SizedBox(height: 7),
-                            Text(const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-                                [days[i].weekday - 1],
-                                style: const TextStyle(fontSize: 9, color: Color(0xFFDBE7E3))),
+                            Text(
+                                DateFormat.E(Localizations.localeOf(context)
+                                        .toString())
+                                    .format(days[i]),
+                                style: const TextStyle(
+                                    fontSize: 9, color: Color(0xFFDBE7E3))),
                           ],
                         ),
                       ),
@@ -3294,8 +3817,9 @@ class _GrowthHomeState extends State<GrowthHome>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Tree growth • ${_progress.xp} XP',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              Text(context.tr("Tree growth • {p0} XP", {'p0': _progress.xp}),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
               SizedBox(
                 height: 90,
@@ -3306,16 +3830,21 @@ class _GrowthHomeState extends State<GrowthHome>
                   itemBuilder: (_, i) => Column(
                     children: [
                       SizedBox(
-                        width: 62, height: 62,
+                        width: 62,
+                        height: 62,
                         child: Opacity(
                           opacity: i <= _progress.treeStage ? 1 : .40,
-                          child: GardenImage.asset(_activeTreeImages[i], fit: BoxFit.contain),
+                          child: GardenImage.asset(_activeTreeImages[i],
+                              fit: BoxFit.contain),
                         ),
                       ),
-                      Text('${i + 1}', style: TextStyle(
-                        fontSize: 11,
-                        color: i <= _progress.treeStage ? _mint : Colors.white60,
-                      )),
+                      Text('${i + 1}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: i <= _progress.treeStage
+                                ? _mint
+                                : Colors.white60,
+                          )),
                     ],
                   ),
                 ),
@@ -3329,20 +3858,26 @@ class _GrowthHomeState extends State<GrowthHome>
                 borderRadius: BorderRadius.circular(5),
               ),
               const SizedBox(height: 8),
-              Text('${_progress.totalSpent} water drops used to grow your tree',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFFD1DFD9))),
+              Text(
+                  context.tr("{p0} water drops used to grow your tree",
+                      {'p0': _progress.totalSpent}),
+                  style:
+                      const TextStyle(fontSize: 11, color: Color(0xFFD1DFD9))),
             ],
           ),
         ),
       ],
     );
   }
-
 }
 
 class _HabitDraft {
-  const _HabitDraft({required this.title, required this.iconKey,
-      required this.reminderEnabled, required this.hour, required this.minute});
+  const _HabitDraft(
+      {required this.title,
+      required this.iconKey,
+      required this.reminderEnabled,
+      required this.hour,
+      required this.minute});
   final String title;
   final String iconKey;
   final bool reminderEnabled;
@@ -3351,7 +3886,9 @@ class _HabitDraft {
 }
 
 class _HabitComposer extends StatefulWidget {
-  const _HabitComposer({this.initial, required this.masterEnabled,
+  const _HabitComposer(
+      {this.initial,
+      required this.masterEnabled,
       required this.onEnableMaster});
   final Habit? initial;
   final bool masterEnabled;
@@ -3376,7 +3913,8 @@ class _HabitComposerState extends State<_HabitComposer> {
     _iconKey = widget.initial?.iconKey ?? 'leaf';
     _hasReminder = widget.initial?.reminderEnabled ?? false;
     _masterActive = widget.masterEnabled;
-    _reminderTime = TimeOfDay(hour: widget.initial?.reminderHour ?? 20,
+    _reminderTime = TimeOfDay(
+        hour: widget.initial?.reminderHour ?? 20,
         minute: widget.initial?.reminderMinute ?? 0);
   }
 
@@ -3389,14 +3927,20 @@ class _HabitComposerState extends State<_HabitComposer> {
   void _submit() {
     final title = _controller.text.trim();
     if (title.isEmpty) return;
-    Navigator.pop(context, _HabitDraft(title: title, iconKey: _iconKey,
-      reminderEnabled: _hasReminder,
-      hour: _reminderTime.hour, minute: _reminderTime.minute));
+    Navigator.pop(
+        context,
+        _HabitDraft(
+            title: title,
+            iconKey: _iconKey,
+            reminderEnabled: _hasReminder,
+            hour: _reminderTime.hour,
+            minute: _reminderTime.minute));
   }
 
   Future<void> _pickTime() async {
     final picked = await showTimePicker(
-      context: context, initialTime: _reminderTime,
+      context: context,
+      initialTime: _reminderTime,
       helpText: 'Remind me about this habit',
     );
     if (picked != null && mounted) setState(() => _reminderTime = picked);
@@ -3410,17 +3954,24 @@ class _HabitComposerState extends State<_HabitComposer> {
       child: Padding(
         padding: EdgeInsets.only(bottom: keyboard),
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: math.max(190.0, MediaQuery.sizeOf(context).height * .86 - keyboard)),
+          constraints: BoxConstraints(
+              maxHeight: math.max(
+                  190.0, MediaQuery.sizeOf(context).height * .86 - keyboard)),
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 5, 20, 22),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.initial == null ? 'Plant a new habit' : 'Edit habit',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                Text(
+                    widget.initial == null
+                        ? context.tr("Plant a new habit")
+                        : context.tr("Edit habit"),
+                    style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 5),
-                const Text('Small actions grow into something beautiful.'),
+                Text(
+                    context.tr("Small actions grow into something beautiful.")),
                 const SizedBox(height: 15),
                 TextField(
                   controller: _controller,
@@ -3430,7 +3981,7 @@ class _HabitComposerState extends State<_HabitComposer> {
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _submit(),
                   decoration: InputDecoration(
-                    hintText: 'e.g. Read 10 pages',
+                    hintText: context.tr("e.g. Read 10 pages"),
                     filled: true,
                     fillColor: const Color(0xFF234640),
                     border: OutlineInputBorder(
@@ -3439,33 +3990,41 @@ class _HabitComposerState extends State<_HabitComposer> {
                     ),
                   ),
                 ),
-                const Text('Pick an icon',
+                Text(context.tr("Pick an icon"),
                     style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
                 Wrap(
-                  spacing: 10, runSpacing: 10,
+                  spacing: 10,
+                  runSpacing: 10,
                   children: [
                     for (final choice in _habitIconChoices)
                       Semantics(
-                        button: true, selected: _iconKey == choice.key,
-                        label: '${choice.key} habit icon',
+                        button: true,
+                        selected: _iconKey == choice.key,
+                        label:
+                            context.tr("{p0} habit icon", {'p0': choice.key}),
                         child: InkWell(
                           onTap: () => setState(() => _iconKey = choice.key),
                           borderRadius: BorderRadius.circular(14),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 180),
-                            width: 54, height: 54,
+                            width: 54,
+                            height: 54,
                             decoration: BoxDecoration(
                               color: _iconKey == choice.key
-                                  ? const Color(0xFF2A5F56) : const Color(0xFF234640),
+                                  ? const Color(0xFF2A5F56)
+                                  : const Color(0xFF234640),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: _iconKey == choice.key ? _mint : const Color(0x556FC09D),
+                                color: _iconKey == choice.key
+                                    ? _mint
+                                    : const Color(0x556FC09D),
                                 width: _iconKey == choice.key ? 1.6 : 1,
                               ),
                             ),
                             child: Icon(choice.value,
-                                color: _iconKey == choice.key ? _mint : _gold, size: 26),
+                                color: _iconKey == choice.key ? _mint : _gold,
+                                size: 26),
                           ),
                         ),
                       ),
@@ -3475,10 +4034,13 @@ class _HabitComposerState extends State<_HabitComposer> {
                 SwitchListTile.adaptive(
                   key: const ValueKey('habit-reminder-toggle'),
                   contentPadding: EdgeInsets.zero,
-                  secondary: const Icon(Icons.notifications_active_outlined, color: _mint),
-                  title: const Text('Remind me daily'),
+                  secondary: const Icon(Icons.notifications_active_outlined,
+                      color: _mint),
+                  title: Text(context.tr("Remind me daily")),
                   subtitle: Text(_masterActive
-                      ? 'Set a time for this habit' : 'Master notifications are OFF — reminders will be paused'),
+                      ? context.tr("Set a time for this habit")
+                      : context.tr(
+                          "Master notifications are OFF — reminders will be paused")),
                   value: _hasReminder,
                   onChanged: (value) => setState(() => _hasReminder = value),
                 ),
@@ -3493,19 +4055,29 @@ class _HabitComposerState extends State<_HabitComposer> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Master notifications are disabled. This habit will NOT notify you until enabled.',
-                          style: TextStyle(color: Color(0xFFFFE5AC), fontSize: 12)),
+                        Text(
+                            context.tr(
+                                "Master notifications are disabled. This habit will NOT notify you until enabled."),
+                            style: TextStyle(
+                                color: Color(0xFFFFE5AC), fontSize: 12)),
                         const SizedBox(height: 6),
                         TextButton.icon(
                           key: const ValueKey('composer-enable-master'),
-                          onPressed: _enablingMaster ? null : () async {
-                            setState(() => _enablingMaster = true);
-                            final success = await widget.onEnableMaster();
-                            if (!mounted) return;
-                            setState(() { _enablingMaster = false; _masterActive = success; });
-                          },
+                          onPressed: _enablingMaster
+                              ? null
+                              : () async {
+                                  setState(() => _enablingMaster = true);
+                                  final success = await widget.onEnableMaster();
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _enablingMaster = false;
+                                    _masterActive = success;
+                                  });
+                                },
                           icon: const Icon(Icons.notifications_active_outlined),
-                          label: Text(_enablingMaster ? 'Enabling...' : 'Enable master notifications'),
+                          label: Text(_enablingMaster
+                              ? context.tr("Enabling...")
+                              : context.tr("Enable master notifications")),
                         ),
                       ],
                     ),
@@ -3515,7 +4087,7 @@ class _HabitComposerState extends State<_HabitComposer> {
                     key: const ValueKey('habit-reminder-time'),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                     leading: const Icon(Icons.schedule_rounded, color: _gold),
-                    title: const Text('Reminder time'),
+                    title: Text(context.tr("Reminder time")),
                     subtitle: Text(_reminderTime.format(context)),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: _pickTime,
@@ -3525,10 +4097,13 @@ class _HabitComposerState extends State<_HabitComposer> {
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: _submit,
-                    style: FilledButton.styleFrom(backgroundColor: _mint,
-                      foregroundColor: _deepNavy,
-                      padding: const EdgeInsets.symmetric(vertical: 15)),
-                    child: Text(widget.initial == null ? 'Create habit' : 'Save changes'),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: _mint,
+                        foregroundColor: _deepNavy,
+                        padding: const EdgeInsets.symmetric(vertical: 15)),
+                    child: Text(widget.initial == null
+                        ? context.tr("Create habit")
+                        : context.tr("Save changes")),
                   ),
                 ),
               ],
@@ -3539,7 +4114,6 @@ class _HabitComposerState extends State<_HabitComposer> {
     );
   }
 }
-
 
 class _EditorAssetChoice {
   const _EditorAssetChoice({
@@ -3577,7 +4151,8 @@ class _GroundContactPainter extends CustomPainter {
     canvas.drawOval(
       shadowRect,
       Paint()
-        ..color = (moonlight ? const Color(0x9C0B1832) : const Color(0x8E11231A))
+        ..color =
+            (moonlight ? const Color(0x9C0B1832) : const Color(0x8E11231A))
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
     );
     canvas.drawOval(
@@ -3597,11 +4172,11 @@ class _GroundContactPainter extends CustomPainter {
       oldDelegate.moonlight != moonlight;
 }
 
-
 /// Screen-space drops pour into the existing soil contact point. Entirely
 /// painted above the tree; never affects its constraints or root baseline.
 class _WateringPainter extends CustomPainter {
-  const _WateringPainter(this.progress, this.ground, this.placement, this.spout);
+  const _WateringPainter(
+      this.progress, this.ground, this.placement, this.spout);
   final double progress;
   final PlantingGround ground;
   final GardenTreePlacement placement;
@@ -3611,27 +4186,35 @@ class _WateringPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (progress == 0 || progress >= 1) return;
     final fade = math.min(1.0, (1 - progress) * 3);
-    final origin = GardenSceneGeometry.wateringSpout(size, progress, nozzle: spout);
+    final origin =
+        GardenSceneGeometry.wateringSpout(size, progress, nozzle: spout);
     // Match the visible sprite's actual root/soil contact (about 91% of
     // its 512px art box), including scale and the user's drag offset.
     final treeSize = GardenSceneGeometry.treeSize(size) *
-        GardenSceneGeometry.treeVisualScale(ground: ground) * placement.scale;
+        GardenSceneGeometry.treeVisualScale(ground: ground) *
+        placement.scale;
     final treeBottom = GardenSceneGeometry.groundBottom(size, ground: ground) -
         GardenSceneGeometry.treeBottomLift(treeSize, ground: ground) -
         placement.dy * size.height;
     final target = Offset(
       size.width * (.5 + placement.dx),
-      size.height - treeBottom - treeSize *
-          (ground == PlantingGround.defaultGarden ||
-           ground == PlantingGround.moonlightGarden ? .09 : .065),
+      size.height -
+          treeBottom -
+          treeSize *
+              (ground == PlantingGround.defaultGarden ||
+                      ground == PlantingGround.moonlightGarden
+                  ? .09
+                  : .065),
     );
     final p = Paint()..color = _blue.withValues(alpha: fade);
 
     // Repeated bright droplets travel a curved stream to the fixed tree base.
     for (var i = 0; i < 26; i++) {
       final t = (progress * 1.55 + i / 26) % 1.0;
-      final x = origin.dx + (target.dx - origin.dx) * t -
-          25 * math.sin(t * math.pi) + math.sin(i * 2.8) * 4;
+      final x = origin.dx +
+          (target.dx - origin.dx) * t -
+          25 * math.sin(t * math.pi) +
+          math.sin(i * 2.8) * 4;
       final y = origin.dy + (target.dy - origin.dy) * t * t;
       final r = 2.3 + (i % 4) * .45;
       canvas.drawCircle(Offset(x, y), r * 2.4,
@@ -3653,7 +4236,8 @@ class _WateringPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WateringPainter oldDelegate) =>
-      oldDelegate.progress != progress || oldDelegate.ground != ground ||
+      oldDelegate.progress != progress ||
+      oldDelegate.ground != ground ||
       oldDelegate.placement.dx != placement.dx ||
       oldDelegate.placement.dy != placement.dy ||
       oldDelegate.spout != spout;

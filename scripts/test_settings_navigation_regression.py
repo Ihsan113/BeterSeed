@@ -9,8 +9,8 @@ class SettingsCiRegressionTests(unittest.TestCase):
     def test_settings_cards_paint_their_own_material(self):
         content = (ROOT / 'lib/main.dart').read_text(encoding='utf-8')
         section = content.split('Widget _settingsSectionCard({', 1)[1].split('\n  @override', 1)[0]
-        self.assertIn('}) => Material(', section)
-        self.assertNotIn('}) => _glassPanel(', section)
+        self.assertRegex(section, r'\}\)\s*=>\s*Material\(')
+        self.assertNotRegex(section, r'\}\)\s*=>\s*_glassPanel\(')
         self.assertIn('clipBehavior: Clip.antiAlias', section)
 
     def test_navigation_resets_scroll_position(self):

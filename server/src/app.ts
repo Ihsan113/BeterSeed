@@ -1,4 +1,5 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyRequest } from "fastify";
+import { DatabaseGate } from "./database-gate.js";
 import helmet from "@fastify/helmet";
 import { ZodError } from "zod";
 import type { Pool } from "mysql2/promise";
@@ -31,6 +32,20 @@ export async function buildApp(c: Config, pool: Pool, p: Providers) {
     requestTimeout: 30000,
   });
   await app.register(helmet);
+  const gate = new DatabaseGate(c);
+  const held = new WeakMap<FastifyRequest, () => Promise<void>>();
+  app.addHook("onRequest", async (r) => {
+    // Restore authenticates first, then obtains its exclusive gate in the handler.
+    const path = r.url.split("?")[0];
+    if ((path?.startsWith("/v1/") || path?.startsWith("/admin/api/")) &&
+        path !== "/admin/api/database/restore") held.set(r, await gate.acquire());
+  });
+  const release = async (r: FastifyRequest) => {
+    const unlock = held.get(r); held.delete(r); if (unlock) await unlock();
+  };
+  app.addHook("onResponse", release);
+  app.addHook("onError", async (r) => { await release(r); });
+  app.addHook("onClose", () => gate.close());
   const auth = new Auth(pool, c, p),
     billing = new Billing(auth);
   app.addHook("onRequest", async (r, reply) => {
@@ -75,7 +90,7 @@ export async function buildApp(c: Config, pool: Pool, p: Providers) {
     billingEnabled: !!c.GOOGLE_APPLICATION_CREDENTIALS,
   }));
   authRoutes(app, auth);
-  adminRoutes(app, auth);
+  adminRoutes(app, auth, gate);
   syncRoutes(app, auth);
   billingRoutes(app, billing);
   catalogRoutes(app, auth);

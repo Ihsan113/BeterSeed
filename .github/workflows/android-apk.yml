@@ -77,6 +77,9 @@ jobs:
       - name: Unit tests
         run: timeout --signal=TERM 600s flutter test --reporter expanded
 
+      - name: Native live wallpaper snapshot tests
+        run: python3 scripts/test_native_wallpaper.py
+
       # Release artifacts are intentionally NOT published from pull requests:
       # PRs (especially forks) do not have access to the signing secrets.
       - name: Configure persistent release signing

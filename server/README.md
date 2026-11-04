@@ -1,6 +1,10 @@
 # BetterSeed backend
 
-**Server 1.2.0 / app 1.6.0+57:** dashboard admin ada di `/admin`. Untuk instalasi VPS yang sudah berjalan, ikuti [UPGRADE.md](UPGRADE.md) terlebih dahulu. Akun admin dibuat dengan CLI interaktif dan wajib memakai authenticator; tidak ada password bawaan. Folder `public/admin/` harus disertakan saat deploy.
+**Server 1.3.0 / app 1.8.0+59:** dashboard admin ada di `/admin`. Untuk instalasi VPS yang sudah berjalan, ikuti [UPGRADE.md](UPGRADE.md) terlebih dahulu. Akun admin dibuat dengan CLI interaktif dan wajib memakai authenticator; tidak ada password bawaan. Folder `public/admin/` harus disertakan saat deploy.
+
+## Admin transfer tools
+
+Garden Pack Manager supports JSON export/import with preview, revision checks and atomic bulk updates. The Database tab exports encrypted application backups and previews/restores compatible backups with fresh admin password + authenticator verification. Restore replaces supported data and admin accounts, revokes sessions and coordinates with API/worker operations through migration 004. See `ADMIN_TRANSFER_AND_LOCALIZATION.md` in the ZIP (repository: `../docs/ADMIN_TRANSFER_AND_LOCALIZATION.md`) for limits, migration, keys and recovery procedures. Encrypted backups contain sensitive account and financial data; store them privately, separately from their passphrase. They do not include environment/provider secrets or CDN assets.
 
 # BetterSeed account server
 
@@ -76,6 +80,9 @@ All request/response bodies are JSON, except public policy pages. Authenticated 
 | Method and route | Purpose / required fields |
 |---|---|
 | GET /v1/config, /v1/legal | Public capabilities and published policies |
+| POST /v1/auth/password-reset/verify-email | challengeId, code; proves email ownership and returns an MFA/password grant |
+| POST /v1/auth/password-reset/verify-factor | challengeId, resetToken, factor; consumes enrolled TOTP/recovery code and returns a password grant |
+| POST /v1/auth/password-reset/complete | challengeId, resetToken, password; one-use password grant, revokes sessions and outstanding challenges |
 | POST /v1/auth/register | email, password (12–128 chars), acceptTerms=true, legalVersion |
 | POST /v1/auth/resend-verification | email; always returns a challenge ID |
 | POST /v1/auth/verify-email | challengeId, 6-digit code |

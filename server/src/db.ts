@@ -1,12 +1,13 @@
 import mysql, {
   type Pool,
+  type PoolOptions,
   type PoolConnection,
   type RowDataPacket,
   type ResultSetHeader,
 } from "mysql2/promise";
 import type { Config } from "./config.js";
 export type DB = Pool | PoolConnection;
-export function createPool(c: Config) {
+export function createPool(c: Config, options: PoolOptions = {}) {
   const pool = mysql.createPool({
     host: c.MYSQL_HOST,
     port: c.MYSQL_PORT,
@@ -20,6 +21,7 @@ export function createPool(c: Config) {
     bigNumberStrings: false,
     multipleStatements: false,
     enableKeepAlive: true,
+    ...options,
   });
   // SQL NOW() and JavaScript dates must agree even on a non-UTC VPS.
   pool.on("connection", (connection) => {
@@ -40,10 +42,12 @@ export async function exec(db: DB, sql: string, values: any[] = []) {
 export async function transaction<T>(
   pool: Pool,
   work: (db: PoolConnection) => Promise<T>,
+  isolation?: "REPEATABLE READ",
 ): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     const db = await pool.getConnection();
     try {
+      if (isolation) await db.query("SET TRANSACTION ISOLATION LEVEL " + isolation);
       await db.beginTransaction();
       const result = await work(db);
       await db.commit();
