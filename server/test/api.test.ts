@@ -200,6 +200,63 @@ test("email registration requires verification; OTP is single use and secrets ar
     200,
   );
 });
+test("verification request reveals status only after password proof and issues a single-use OTP", async () => {
+  const email = "pending@example.com";
+  await request("POST", "/v1/auth/register", {
+    email, password: pw, legalVersion: c.LEGAL_VERSION, acceptTerms: true,
+  });
+  const wrong = await request("POST", "/v1/auth/verification/start", { email, password: "wrong" });
+  const unknown = await request("POST", "/v1/auth/verification/start", { email: "unknown@example.com", password: pw });
+  assert.deepEqual(wrong, unknown);
+  assert.equal(wrong.status, 401);
+  assert.equal(wrong.body.error, "invalid_credentials");
+  assert.equal((await rows(pool, "SELECT id FROM email_outbox")).length, 1);
+  const login = await request("POST", "/v1/auth/login", { email, password: pw });
+  assert.equal(login.status, 401);
+  assert.equal(login.body.error, "email_not_verified");
+  const loginWrong = await request("POST", "/v1/auth/login", { email, password: "wrong" });
+  assert.equal(loginWrong.body.error, "invalid_credentials");
+  const started = await request("POST", "/v1/auth/verification/start", { email, password: pw });
+  assert.equal(started.status, 200);
+  assert.equal(started.body.status, "verification_sent");
+  assert.equal((await rows(pool, "SELECT id FROM challenges WHERE purpose='verify'")).length, 1);
+  await deliverMail(system.auth);
+  const code = mails.at(-1)!.html.match(/<strong>(\d{6})/)![1];
+  const proof = { challengeId: started.body.challengeId, code, acceptTerms: true, legalVersion: c.LEGAL_VERSION };
+  assert.equal((await request("POST", "/v1/auth/verify-email", proof)).status, 200);
+  assert.equal((await request("POST", "/v1/auth/verify-email", proof)).status, 400);
+});
+
+test("verified registration status requires correct credentials and never sends another verification email", async () => {
+  await account();
+  const start = await request("POST", "/v1/auth/verification/start", { email: "a@example.com", password: pw });
+  assert.deepEqual(start.body, { status: "already_verified" });
+  const duplicate = await request("POST", "/v1/auth/register", {
+    email: "a@example.com", password: pw, legalVersion: c.LEGAL_VERSION, acceptTerms: true,
+  });
+  assert.equal(duplicate.body.status, "already_verified");
+  const wrong = await request("POST", "/v1/auth/register", {
+    email: "a@example.com", password: "another-long-password", legalVersion: c.LEGAL_VERSION, acceptTerms: true,
+  });
+  assert.equal(wrong.status, 200);
+  assert.equal(wrong.body.status, undefined);
+  assert.equal(typeof wrong.body.challengeId, "string");
+  await deliverMail(system.auth);
+  assert.equal(mails.length, 1);
+  assert.equal((await request("POST", "/v1/auth/login", { email: "a@example.com", password: pw })).status, 200);
+});
+
+test("verification requests share the per-email rate limit and cannot bypass suspension", async () => {
+  const user = await account();
+  await exec(pool, "INSERT INTO account_controls(user_id,suspended) VALUES(?,1)", [user.user.id]);
+  assert.equal((await request("POST", "/v1/auth/verification/start", { email: "a@example.com", password: pw })).status, 403);
+  for (let i = 0; i < 5; i++) {
+    const r = await request("POST", "/v1/auth/verification/start", { email: "absent@example.com", password: pw });
+    assert.equal(r.status, 401);
+  }
+  assert.equal((await request("POST", "/v1/auth/verification/start", { email: "absent@example.com", password: pw })).status, 429);
+});
+
 test("verification limits attempts even if attacker later knows correct code", async () => {
   const r = await request("POST", "/v1/auth/register", {
     email: "a@example.com",

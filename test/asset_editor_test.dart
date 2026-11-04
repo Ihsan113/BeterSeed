@@ -64,6 +64,26 @@ Future<void> launchEditorTest(
 }
 
 void main() {
+  for (final size in [const Size(320, 640), const Size(393, 852)]) {
+    testWidgets(
+        'Garden actions never overlap the message at $size with large text',
+        (tester) async {
+      await launchEditorTest(tester, size: size, textScale: 1.8);
+      final message = find.byKey(const ValueKey('garden-message'));
+      final edit = find.byKey(const ValueKey('garden-customize'));
+      final focus = find.byKey(const ValueKey('enter-focus-mode'));
+      expect(tester.getRect(message).overlaps(tester.getRect(edit)), false);
+      expect(tester.getRect(message).overlaps(tester.getRect(focus)), false);
+      expect(
+          find.descendant(of: edit, matching: find.byType(Text)), findsNothing);
+      expect(tester.getSize(edit).shortestSide, greaterThanOrEqualTo(48));
+      expect(edit.hitTestable(), findsOneWidget);
+      expect(focus.hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
   test('Sakura soil target is higher than v1.4.3 and scale is bounded', () {
     const area = Size(360, 550);
     final current = GardenSceneGeometry.groundBottom(area,

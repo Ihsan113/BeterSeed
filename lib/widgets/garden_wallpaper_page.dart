@@ -1,3 +1,4 @@
+import '../ui/app_feedback.dart';
 import '../l10n/app_localizations.dart';
 import '../data/pack_downloads.dart';
 import 'dart:math' as math;
@@ -152,7 +153,7 @@ class _GardenWallpaperPageState extends State<GardenWallpaperPage>
             spark: widget.livePalette.spark.toARGB32(),
             core: widget.livePalette.core.toARGB32());
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(AppToast(
             content: Text(context.tr(applied
                 ? 'Live garden wallpaper applied.'
                 : 'Live wallpaper was not changed.'))));
@@ -160,7 +161,7 @@ class _GardenWallpaperPageState extends State<GardenWallpaperPage>
       }
       await GardenWallpaper.setImage(png, target);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(AppToast(
         content: Text(switch (target) {
           WallpaperTarget.home =>
             context.tr("Garden set as your home screen wallpaper."),

@@ -1,3 +1,12 @@
+## v1.8.1+60 — Clearer accounts, verification and Garden controls
+
+- Redesign account identity, sync status, conflicts and security with compact panels and on-demand help.
+- Request verification before displaying the email-code field, add resend cooldown and actionable input/status messages in all seven languages.
+- Backend 1.3.1 reveals email verification status only after password proof; preserve OTP limits, mandatory enrolled 2FA and existing sync/billing rules. No new schema migration.
+- Share custom confirmation dialogs and floating notifications across the app, including destructive actions and scrollable identity forms.
+- Use accessible edit/focus icon buttons beside the motivational message without changing tree coordinates.
+- Preserve the supplied native VPS deployment guards and include them with the clean backend package. This release does not deploy production.
+
 ## v1.8.0+59 — Admin transfers, app languages & live wallpaper
 
 - Move customization to the Garden toolbar and the top of My Collection; keep editor coordinates unchanged.

@@ -1,3 +1,4 @@
+import '../ui/app_feedback.dart';
 import '../l10n/app_localizations.dart';
 import '../data/pack_downloads.dart';
 import '../account/pack_catalog.dart';
@@ -65,7 +66,9 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
     try {
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (dialog) => AlertDialog(
+        builder: (dialog) => AppDialog(
+          icon: Icons.download_for_offline_outlined,
+          tone: NoticeTone.warning,
           scrollable: true,
           title: Text(context.tr("Remove {p0} download?", {'p0': pack.name})),
           content: Text(context.tr(
@@ -85,7 +88,7 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
       if (confirmed != true || !mounted) return;
       final removed = await widget.downloads!.remove(pack.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(AppToast(
           content: Text(removed
               ? context.tr("{p0} download removed. You still own this pack.",
                   {'p0': pack.name})
@@ -105,7 +108,7 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
   void _preview(String id, String title) {
     final packId = id.replaceFirst('owned-', '');
     if (!GardenPackFiles.hasPack(packId)) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(AppToast(
           content: Text(context
               .tr("Download this pack first to preview all 6 stages."))));
       return;
@@ -330,7 +333,7 @@ class _BetterSeedShopPageState extends State<BetterSeedShopPage> {
             onDownload: () async {
               final ok = await widget.downloads?.download(pack.id) ?? false;
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(AppToast(
                   content: Text(ok
                       ? context.tr("{p0} is ready to use.", {'p0': pack.name})
                       : (widget.downloads?.configured == true

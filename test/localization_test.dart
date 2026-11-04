@@ -160,13 +160,13 @@ void main() {
       final account = CloudAccount(api: AccountApi(baseUrl: ''));
       await tester.pumpWidget(app(AccountPage(account: account)));
       await tester.pumpAndSettle();
-      expect(find.text(strings.text('Your garden, with you')), findsOneWidget);
+      expect(find.text(strings.text('Sign in to BetterSeed')), findsOneWidget);
       await tester
           .ensureVisible(find.text(strings.text('Create an email account')));
       await tester.pumpAndSettle();
       await tester.tap(find.text(strings.text('Create an email account')));
       await tester.pumpAndSettle();
-      expect(find.text(strings.text('Start growing together')), findsOneWidget);
+      expect(find.text(strings.text('Create your account')), findsWidgets);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       account.dispose();

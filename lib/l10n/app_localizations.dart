@@ -1,3 +1,4 @@
+import '../ui/app_feedback.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -138,7 +139,7 @@ Future<void> showLanguagePicker(BuildContext context) async {
                         if (sheet.mounted) Navigator.pop(sheet);
                       } catch (_) {
                         if (sheet.mounted)
-                          ScaffoldMessenger.of(sheet).showSnackBar(SnackBar(
+                          ScaffoldMessenger.of(sheet).showSnackBar(AppToast(
                               content: Text(sheet.tr(
                                   'Language could not be saved. Please try again.'))));
                       }

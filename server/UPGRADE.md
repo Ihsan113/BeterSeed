@@ -1,4 +1,32 @@
-# Upgrade admin transfers — server 1.3.0 / app 1.8.0+59
+# Account experience — server 1.3.1 / app 1.8.1+60
+
+> **PRODUCTION WARNING — native systemd VPS, NOT Compose.**
+> Read [`../AGENTS.md`](../AGENTS.md),
+> [`../ops/vps/KNOWN_STATE.md`](../ops/vps/KNOWN_STATE.md) and
+> [`../ops/vps/DEPLOY_GUARDS.md`](../ops/vps/DEPLOY_GUARDS.md) first.
+> On 2026-11-04 two attempted 1.2.0 → 1.3.0 deployments failed. The second
+> attempt applied **migration 004 successfully** using privileged MySQL access,
+> then failed systemd startup with **`MODULE_NOT_FOUND`** for both
+> `/opt/betterseed-api/dist/index.js` and `dist/worker.js`. A subsequent VPS
+> check confirmed backend **1.2.0**, API/worker active, `/ready=200`.
+> Restrictive root-owned directories are a plausible but unverified on-VPS
+> explanation for the startup failure. Verify entrypoint placement and
+> readability **as the service's configured User** before any code swap.
+> The runtime MySQL user `betterseed_api` does **not** have `CREATE`; never run
+> the generic `dist/migrate.js` as that account on production, because it
+> replays ALL migrations. Do not grant the app user permanent DDL privileges.
+> Check if 004 is present before planning any further migration.
+> **Do not deploy from these docs alone; obtain explicit user authorization.**
+
+## Pembaruan 1.3.1: verifikasi email dan tampilan akun
+
+Basis runtime: GitHub `a1aa3bd` dan ZIP `BetterSeed_Full_Source_Latest_Codex_VPS_Guards_20261104.zip`. Panduan VPS dari ZIP dipertahankan. Pasang dan verifikasi backend **1.3.1 sebelum app 1.8.1+60**, melalui proses staging dan persetujuan produksi di atas.
+
+Endpoint baru `POST /v1/auth/verification/start` menerima email dan sandi. Hanya sandi yang benar dapat menampilkan status `already_verified` atau membuat challenge `verification_sent`. Login dengan sandi benar untuk email yang belum terverifikasi memberi `email_not_verified`; sandi salah tetap memberi respons umum. Endpoint daftar menerima status tambahan hanya dengan bukti sandi yang benar, dan tetap menyediakan `challengeId` untuk kompatibilitas APK lama. OTP, batas percobaan, pembatasan permintaan dan aturan 2FA tetap berlaku.
+
+Tidak ada migrasi baru, kredensial atau variabel environment tambahan **dari 1.3.0 ke 1.3.1**. VPS yang masih 1.2.0 harus diperiksa berdasarkan panduan di atas; jangan menjalankan migrator sebagai akun runtime. Catatan ini bukan bukti deployment. Panduan `AGENTS.md` dan `ops/vps/` disertakan di akar ZIP, sejajar dengan folder `BetterSeed-server`, agar tautan relatif tetap berfungsi. Lihat juga `ACCOUNT_EXPERIENCE.md` dalam folder backend ZIP.
+
+## Riwayat pembaruan 1.3.0
 
 Base source: GitHub main `413d605`. This release adds bulk Garden Pack JSON editing, encrypted database backup/restore and a responsive admin interface. See `ADMIN_TRANSFER_AND_LOCALIZATION.md` in the ZIP (or `../docs/ADMIN_TRANSFER_AND_LOCALIZATION.md` in the repository) for browser steps, backup limits and migration requirements.
 
@@ -11,8 +39,8 @@ Respons awal lupa sandi tidak membocorkan keberadaan akun atau status 2FA. Setel
 ## Upgrade from server 1.2.0
 
 1. Keep a private database backup, `.env`, provider credentials and the existing MySQL volume/version. Preserve `TOKEN_PEPPER` and `DATA_ENCRYPTION_KEY`. Source ZIPs contain neither these secrets nor live data.
-2. Build the new backend with Node.js 24 (`npm ci` then `npm run build`) or build the existing Compose `api`, `worker` and `migrate` services. Copy `public/` with the runtime source. Do not change your production database tag or volume.
-3. Stop **all old API and worker replicas** during the update. Run the existing migration command (`node --env-file=.env dist/migrate.js`, or `docker compose run --rm migrate`). Migration `004_database_gate.sql` adds only a coordination table and singleton row; it does not replace user/catalog/financial data. Keep migrations 001–003 too. The migration runner is idempotent; MySQL DDL is not transactionally reversible.
+2. Build the new backend with Node.js 24 (`npm ci` then `npm run build`) **in staging**. Confirm `dist/index.js` and `dist/worker.js` exist, their directory layout is correct, and both are readable/traversable by the actual systemd user after installation. Copy `public/` with the runtime source. Docker Compose build applies to separate installs only; this VPS uses systemd.
+3. On the existing native VPS, **verify migration 004 state** using the read-only collector: the 2026-11-04 v2 attempt already successfully applied it. If an incremental migration is ever needed, use separately authorized administrative MySQL access after backup; **do not** run `dist/migrate.js` using the restricted runtime account. On *independent Compose installs only*, follow the appropriate container migrator workflow. Migration 004 adds a gate table and singleton row without replacing user, catalog or finance data. MySQL DDL is not transactionally reversible.
 4. Start API and worker from the same 1.3.0 build. On Compose, use `docker compose stop api worker` before migration and `docker compose up -d api worker` afterward. Never use `down -v`. No old API/worker may remain connected during a dashboard restore because older versions do not acquire the coordination lock.
 5. Check `/ready`, `/admin`, the catalog, sync and worker logs. Existing admin credentials remain valid. Test an export and isolated restore before using backups operationally. Each API/worker process now allows up to 16 additional gate connections; account for replica counts in the MySQL connection limit.
 6. Release app 1.8.0+59 after backend verification. There are no new provider credentials, billing product IDs or environment variables for these features.
@@ -48,7 +76,9 @@ Salin `src/`, `public/`, `migrations/`, `package.json`, `package-lock.json`, `ts
 npm ci
 npm run build
 # Migrasi menambahkan tabel; tidak mengosongkan atau membuat ulang data lama.
-node --env-file=.env dist/migrate.js
+# STOP: do not run the generic migration runner with the runtime DB user on this VPS.
+# Migration 004 was already applied on 2026-11-04; verify live DB state first.
+# Follow ../ops/vps/DEPLOY_GUARDS.md for an explicitly approved migration.
 ```
 
 Restart layanan API dan worker dengan service manager yang sudah dipakai. Entry point tetap `dist/index.js` dan `dist/worker.js`. Jangan menjalankan dua proses API pada port yang sama.

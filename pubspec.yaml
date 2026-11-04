@@ -1,7 +1,7 @@
 name: betterseed
 description: An offline-first habit garden with optional secure cloud accounts.
 publish_to: none
-version: 1.8.0+59
+version: 1.8.1+60
 
 environment:
   sdk: '>=3.4.0 <4.0.0'

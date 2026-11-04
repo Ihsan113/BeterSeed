@@ -1,3 +1,4 @@
+import 'ui/app_feedback.dart';
 import 'l10n/app_localizations.dart';
 import 'account/pack_catalog.dart';
 import 'data/garden_pack_registry.dart';
@@ -129,15 +130,7 @@ class _BetterSeedAppState extends State<BetterSeedApp> {
                 ],
                 title: 'BetterSeed',
                 debugShowCheckedModeBanner: false,
-                theme: ThemeData(
-                  brightness: Brightness.dark,
-                  useMaterial3: true,
-                  scaffoldBackgroundColor: _deepNavy,
-                  colorScheme: ColorScheme.fromSeed(
-                    seedColor: _mint,
-                    brightness: Brightness.dark,
-                  ),
-                ),
+                theme: betterSeedTheme(),
                 home: widget.showLaunchFlow
                     ? BetterSeedLaunchFlow(
                         gardenBuilder: (replay) =>
@@ -839,7 +832,8 @@ class _GrowthHomeState extends State<GrowthHome>
     _audio.effect(done ? 'complete' : 'tap');
     if (awarded && mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(AppToast(
+        tone: NoticeTone.success,
         content: Text(
             context.tr("+1 water earned! Visit Garden to water your tree. 💧")),
         duration: Duration(milliseconds: 1500),
@@ -873,72 +867,39 @@ class _GrowthHomeState extends State<GrowthHome>
   Future<void> _showStageCelebration(int stage) async {
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 22),
-        child: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(25),
-              gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF24464E),
-                    Color(0xFF10252D),
-                    Color(0xFF302949)
-                  ]),
-              border: Border.all(color: _gold.withValues(alpha: .75)),
-              boxShadow: const [
-                BoxShadow(color: Color(0x88000000), blurRadius: 30)
-              ],
-            ),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.auto_awesome_rounded, color: _gold, size: 29),
-              const SizedBox(height: 10),
-              Text(context.tr("Congratulations!"),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: _gold, fontSize: 23, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 7),
-              Text(
-                  context.tr("Your tree reached Stage {p0}", {'p0': stage + 1}),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 15)),
-              SizedBox(
-                  height: 175,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: .72, end: 1),
-                    duration: _showAnimation
-                        ? const Duration(milliseconds: 550)
-                        : Duration.zero,
-                    curve: Curves.easeOutBack,
-                    builder: (_, value, child) => Transform.scale(
-                        scale: value,
-                        alignment: Alignment.bottomCenter,
-                        child: child),
-                    child: GardenImage.asset(_activeTreeImages[stage],
-                        fit: BoxFit.contain),
-                  )),
-              Text(context.tr("Every small step helps your garden grow ✨"),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFFE2EEDC), fontSize: 12)),
-              const SizedBox(height: 15),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  key: const ValueKey('stage-congratulations-close'),
-                  style: FilledButton.styleFrom(
-                      backgroundColor: _mint, foregroundColor: _deepNavy),
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: Text(context.tr("Continue Growing")),
-                ),
-              ),
-            ]),
-          ),
-        ),
+      builder: (dialogContext) => AppDialog(
+        icon: Icons.auto_awesome_rounded,
+        tone: NoticeTone.success,
+        title: Text(context.tr('Congratulations!')),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(context.tr('Your tree reached Stage {p0}', {'p0': stage + 1}),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          SizedBox(
+              height: 175,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: .72, end: 1),
+                duration: _showAnimation
+                    ? const Duration(milliseconds: 550)
+                    : Duration.zero,
+                curve: Curves.easeOutBack,
+                builder: (_, value, child) => Transform.scale(
+                    scale: value,
+                    alignment: Alignment.bottomCenter,
+                    child: child),
+                child: GardenImage.asset(_activeTreeImages[stage],
+                    fit: BoxFit.contain),
+              )),
+          Text(context.tr('Every small step helps your garden grow ✨'),
+              textAlign: TextAlign.center),
+        ]),
+        actions: [
+          FilledButton(
+            key: const ValueKey('stage-congratulations-close'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(context.tr('Continue Growing')),
+          )
+        ],
       ),
     );
   }
@@ -989,7 +950,9 @@ class _GrowthHomeState extends State<GrowthHome>
   Future<void> _removeHabit(Habit habit) async {
     final remove = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppDialog(
+        icon: Icons.delete_outline_rounded,
+        tone: NoticeTone.error,
         title: Text(context.tr("Remove habit?")),
         content: Text(context
             .tr("Remove “{p0}” from your checklist?", {'p0': habit.title})),
@@ -1068,7 +1031,9 @@ class _GrowthHomeState extends State<GrowthHome>
       if (locked.isNotEmpty) {
         showDialog<void>(
             context: context,
-            builder: (dialog) => AlertDialog(
+            builder: (dialog) => AppDialog(
+                  icon: Icons.lock_outline_rounded,
+                  tone: NoticeTone.warning,
                   title: Text(context.tr("Unlock this look")),
                   content: Text(context.tr(
                       "Your preview includes {p0} assets. Unlock the pack in the Shop, or choose assets you own before saving. Your changes are still here.",
@@ -1090,7 +1055,9 @@ class _GrowthHomeState extends State<GrowthHome>
       if (missing.isNotEmpty) {
         showDialog<void>(
             context: context,
-            builder: (dialog) => AlertDialog(
+            builder: (dialog) => AppDialog(
+                  icon: Icons.download_rounded,
+                  tone: NoticeTone.info,
                   title: Text(context.tr("Download this look")),
                   content: Text(context.tr(
                       "Download {p0} from My Collection before saving this garden look.",
@@ -1143,7 +1110,7 @@ class _GrowthHomeState extends State<GrowthHome>
   void _showMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(context.tr(message))));
+        .showSnackBar(AppToast(content: Text(context.tr(message))));
   }
 
   Future<void> _openCoinStore() async {
@@ -1168,7 +1135,7 @@ class _GrowthHomeState extends State<GrowthHome>
     }
     final yes = await showDialog<bool>(
         context: context,
-        builder: (dialog) => AlertDialog(
+        builder: (dialog) => AppDialog(
                 title: Text(offer.price == 0
                     ? context.tr("Claim {p0}?", {'p0': offer.name})
                     : context.tr("Unlock {p0}?", {'p0': offer.name})),
@@ -1270,7 +1237,9 @@ class _GrowthHomeState extends State<GrowthHome>
     }
     final approved = await showDialog<bool>(
       context: context,
-      builder: (dialog) => AlertDialog(
+      builder: (dialog) => AppDialog(
+        icon: Icons.restart_alt_rounded,
+        tone: NoticeTone.error,
         title: Text(context.tr("Reset plant growth?")),
         content: Text(context.tr(
             "This resets only your plant to Stage 1 (0 XP). Your habits, completed checklists, streaks, water balance, earned water and spent water will stay unchanged. Previously spent water is not refunded. This cannot be undone unless you restore an earlier backup.")),
@@ -1338,7 +1307,7 @@ class _GrowthHomeState extends State<GrowthHome>
       _reminderEnabled = result;
     });
     if (enabled && !result) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(AppToast(
         content: Text(context.tr(
             "Allow notifications in Android Settings to enable reminders.")),
       ));
@@ -1354,7 +1323,7 @@ class _GrowthHomeState extends State<GrowthHome>
     final installed = await DeviceFeatures.widgetInstalled();
     if (!mounted) return;
     if (installed) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(AppToast(
         content: Text(
             context.tr("BetterSeed widget is already on your home screen.")),
       ));
@@ -1363,14 +1332,14 @@ class _GrowthHomeState extends State<GrowthHome>
     final accepted = await DeviceFeatures.requestPinWidget();
     if (!mounted) return;
     if (accepted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(AppToast(
         content: Text(context
             .tr("Confirm the widget placement in your Android launcher.")),
       ));
     } else {
       await showDialog<void>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
+        builder: (dialogContext) => AppDialog(
           title: Text(context.tr("Add BetterSeed widget")),
           content: Text(context.tr(
               "On your Android home screen, long-press an empty area, choose Widgets, find BetterSeed, then drag the widget onto your screen. Widget availability depends on your launcher.")),
@@ -1402,7 +1371,7 @@ class _GrowthHomeState extends State<GrowthHome>
   void _backupMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      AppToast(
           content: Text(context.tr(message)),
           duration: const Duration(seconds: 5)),
     );
@@ -1456,7 +1425,9 @@ class _GrowthHomeState extends State<GrowthHome>
       if (!mounted) return;
       final approved = await showDialog<bool>(
         context: context,
-        builder: (dialog) => AlertDialog(
+        builder: (dialog) => AppDialog(
+          icon: Icons.restore_rounded,
+          tone: NoticeTone.warning,
           title: Text(context.tr("Restore BetterSeed backup?")),
           content: Text(
             context.tr(
@@ -1550,7 +1521,9 @@ class _GrowthHomeState extends State<GrowthHome>
     }
     final ok = await showDialog<bool>(
       context: context,
-      builder: (dialog) => AlertDialog(
+      builder: (dialog) => AppDialog(
+        icon: Icons.restore_rounded,
+        tone: NoticeTone.warning,
         title: Text(context.tr("Undo last restore?")),
         content: Text(context.tr(
             "Restore {p0} habits and {p1} XP from the safety copy?",
@@ -2700,39 +2673,49 @@ class _GrowthHomeState extends State<GrowthHome>
                   left: 12,
                   right: 12,
                   top: 8,
-                  child: Row(children: [
-                    Flexible(
-                        child: Material(
-                      color: const Color(0xBC0A2B30),
-                      borderRadius: BorderRadius.circular(15),
-                      child: Tooltip(
-                        message: context.tr("Customize garden"),
-                        child: TextButton.icon(
-                          key: const ValueKey('garden-customize'),
-                          onPressed: _openAssetEditor,
-                          icon: const Icon(Icons.tune_rounded,
-                              color: _mint, size: 21),
-                          label: Text(context.tr("Customize garden"),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          style: TextButton.styleFrom(
-                              foregroundColor: _mint,
-                              minimumSize: const Size(48, 48)),
-                        ),
-                      ),
-                    )),
-                    const SizedBox(width: 8),
-                    Material(
-                      color: const Color(0xBC0A2B30),
-                      borderRadius: BorderRadius.circular(15),
-                      child: IconButton(
-                        key: const ValueKey('enter-focus-mode'),
-                        tooltip: context.tr("Focus mode"),
-                        onPressed: () => _setFocusMode(true),
-                        icon: const Icon(Icons.fullscreen_rounded,
-                            color: _mint, size: 25),
-                      ),
-                    ),
-                  ]),
+                  child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                            child: Text(context.tr(_gardenMessage),
+                                key: const ValueKey('garden-message'),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    height: 1.4,
+                                    color: Color(0xFFF0FBEA),
+                                    shadows: [
+                                      Shadow(
+                                          blurRadius: 10, color: Colors.black)
+                                    ]))),
+                        const SizedBox(width: 12),
+                        Material(
+                            color: const Color(0xC20A252D),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side:
+                                    const BorderSide(color: Color(0x405D8D82))),
+                            child:
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                              IconButton(
+                                  key: const ValueKey('garden-customize'),
+                                  tooltip: context.tr("Customize garden"),
+                                  onPressed: _openAssetEditor,
+                                  icon: const Icon(Icons.edit_outlined,
+                                      color: _mint, size: 20)),
+                              Container(
+                                  width: 1,
+                                  height: 20,
+                                  color: const Color(0x405D8D82)),
+                              IconButton(
+                                  key: const ValueKey('enter-focus-mode'),
+                                  tooltip: context.tr("Focus mode"),
+                                  onPressed: () => _setFocusMode(true),
+                                  icon: const Icon(Icons.fullscreen_rounded,
+                                      color: _mint, size: 23)),
+                            ])),
+                      ]),
                 ),
             ],
           ),
@@ -2982,14 +2965,14 @@ class _GrowthHomeState extends State<GrowthHome>
                     ),
                   ),
                 ),
-              if (!clean && !_assetEditMode && h > 260)
+              if (!clean && _focusMode && !_assetEditMode && h > 260)
                 Positioned(
                   top: 8,
                   left: 12,
                   right: 12,
                   child: Text(
                     context.tr(_gardenMessage),
-                    key: const ValueKey('garden-message'),
+                    key: const ValueKey('focus-garden-message'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,

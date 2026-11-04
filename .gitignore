@@ -43,3 +43,10 @@ server/dist/
 !**/.env.example
 secrets/
 *service-account*.json
+
+# VPS inventory: only reviewed, sanitized state/current.json can be committed.
+ops/vps/state/*.private.json
+ops/vps/state/*.raw.json
+ops/vps/state/*.secret.json
+ops/vps/state/*.sql
+ops/vps/state/*.sql.gz

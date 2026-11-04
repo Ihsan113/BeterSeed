@@ -173,6 +173,8 @@ export class Auth {
 }
 export function authRoutes(app: FastifyInstance, a: Auth) {
   const { pool, c, p } = a;
+  // Unknown/Google accounts incur the same credential verification work.
+  const dummyHash = passwordHash(token());
   async function emailLimit(address: string) {
     await rateLimit(pool, c, "email:" + address, 5, 900);
   }
@@ -188,13 +190,21 @@ export function authRoutes(app: FastifyInstance, a: Auth) {
       .parse(r.body);
     await emailLimit(b.email);
     const pw = await passwordHash(b.password);
-    const challengeId = await transaction(pool, async (db) => {
+    const outcome = await transaction(pool, async (db) => {
       const [existing] = await rows(
         db,
-        "SELECT id FROM users WHERE email=? FOR UPDATE",
+        "SELECT * FROM users WHERE email=? FOR UPDATE",
         [b.email],
       );
-      if (existing) return id(); // Same response for registered addresses.
+      const matches = await passwordMatches(existing?.password_hash ?? await dummyHash, b.password);
+      if (existing) {
+        if (existing.provider === "email" && matches) {
+          await a.ensureActive(db, existing.id);
+          if (existing.verified) return { challengeId: id(), status: "already_verified" };
+          return { challengeId: await a.emailChallenge(db, existing, "verify") };
+        }
+        return { challengeId: id() }; // Never expose account status without proof.
+      }
       const uid = id();
       await exec(
         db,
@@ -207,12 +217,26 @@ export function authRoutes(app: FastifyInstance, a: Auth) {
           b.legalVersion,
         ],
       );
-      return a.emailChallenge(db, { id: uid, email: b.email }, "verify");
+      return { challengeId: await a.emailChallenge(db, { id: uid, email: b.email }, "verify") };
     });
     return {
-      challengeId,
+      ...outcome,
       message: "If eligible, a verification code will arrive shortly.",
     };
+  });
+  // Explicit request step for returning users. Correct credentials permit clear
+  // status feedback without offering a public email/account lookup endpoint.
+  app.post("/v1/auth/verification/start", async r => {
+    const b = z.object({ email, password: z.string().min(1).max(128) }).strict().parse(r.body);
+    await emailLimit(b.email);
+    return transaction(pool, async db => {
+      const [u] = await rows(db, "SELECT * FROM users WHERE email=? FOR UPDATE", [b.email]);
+      const valid = await passwordMatches(u?.password_hash ?? await dummyHash, b.password);
+      if (!u || !valid || u.provider !== "email") return fail(401, "invalid_credentials");
+      await a.ensureActive(db, u.id);
+      if (u.verified) return { status: "already_verified" };
+      return { status: "verification_sent", challengeId: await a.emailChallenge(db, u, "verify") };
+    });
   });
   app.post("/v1/auth/resend-verification", async (r) => {
     const b = z.object({ email }).strict().parse(r.body);
@@ -260,7 +284,6 @@ export function authRoutes(app: FastifyInstance, a: Auth) {
     );
   });
   // Constant-cost password verification for unknown/email-vs-Google addresses.
-  const dummyHash = passwordHash(token());
   app.post("/v1/auth/login", async (r) => {
     const b = z
       .object({ email, password: z.string().max(128) })
@@ -274,7 +297,7 @@ export function authRoutes(app: FastifyInstance, a: Auth) {
       u?.password_hash ?? (await dummyHash),
       b.password,
     );
-    if (!valid || !u || !u.verified || u.provider !== "email")
+    if (!valid || !u || u.provider !== "email")
       return fail(401, "invalid_credentials");
     return transaction(pool, async (db) => {
       const [locked] = await rows(
@@ -284,6 +307,7 @@ export function authRoutes(app: FastifyInstance, a: Auth) {
       );
       if (!locked || locked.password_hash !== u.password_hash)
         return fail(401, "invalid_credentials");
+      if (!locked.verified) return fail(401, "email_not_verified");
       return a.completeLogin(db, locked);
     });
   });

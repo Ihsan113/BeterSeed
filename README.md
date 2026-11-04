@@ -1,4 +1,13 @@
+# BetterSeed — 1.8.1+60 · Account experience refresh
+
+Halaman akun dan sinkronisasi lebih ringkas, verifikasi email dimulai dengan meminta kode, dan status akun dijelaskan setelah bukti sandi yang benar. Dialog konfirmasi serta notifikasi memakai komponen bersama. Ikon edit/fokus di Garden memiliki ruang terpisah dari pesan motivasi.
+
+Backend **1.3.1** diperlukan untuk permintaan verifikasi baru. Lihat [panduan perubahan](docs/ACCOUNT_EXPERIENCE.md), [upgrade backend](server/UPGRADE.md), dan [ZIP backend bersih](distribution/BetterSeed-server.zip). Perubahan source ini tidak membuktikan VPS telah diperbarui.
+
 # BetterSeed — 1.8.0+59 · Admin tools, seven languages & live wallpaper
+
+**PERINGATAN UNTUK CODEX (VPS PRODUKSI):** baca [`AGENTS.md`](AGENTS.md), [catatan bukti VPS](ops/vps/KNOWN_STATE.md), dan [pengaman deploy](ops/vps/DEPLOY_GUARDS.md) sebelum menyentuh backend. GitHub memuat server 1.3.0, tetapi VPS terakhir terverifikasi masih 1.2.0 setelah dua percobaan upgrade gagal. Migrasi SQL `004` sudah berhasil; API/worker rollback sehat. VPS menggunakan systemd + MySQL native, **bukan Docker Compose**. Jangan deploy otomatis, jangan menimpa rahasia server.
+
 
 The admin dashboard now supports Garden Pack JSON export/import with a change preview, encrypted application database backups and restore/migration, and responsive navigation. The app defaults to US English and supports Indonesian, Japanese, German, French, Latin American Spanish and Brazilian Portuguese; Leaf Coins keeps its name.
 

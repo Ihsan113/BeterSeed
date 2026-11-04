@@ -18,7 +18,8 @@ class AccountException implements Exception {
 }
 
 String accountErrorMessage(String code) => switch (code) {
-      'catalog_changed' => 'This pack has changed. Refresh the Shop and review its new price before trying again.',
+      'catalog_changed' =>
+        'This pack has changed. Refresh the Shop and review its new price before trying again.',
       'pack_unavailable' => 'This pack is not available to unlock right now.',
       'app_update_required' => 'Update BetterSeed to unlock this pack safely.',
       'terms_required' =>
@@ -27,10 +28,11 @@ String accountErrorMessage(String code) => switch (code) {
         'This account is paused. Contact support for help.',
       'local_storage_failed' =>
         'Your phone could not save this change. Free up some storage and try again.',
-      'invalid_credentials' =>
-        'Email or password is incorrect, or the email is not verified yet.',
+      'invalid_credentials' => 'Email or password is incorrect.',
+      'email_not_verified' =>
+        'Your email is not verified yet. Request a verification code to continue.',
       'invalid_or_expired_code' =>
-        'The code is incorrect or expired. Request a new code. If enabled, include your authenticator or recovery code.',
+        'This code is incorrect, expired, or already used. Check the latest code or start again.',
       'invalid_factor' =>
         'Use a new authenticator code or an unused recovery code.',
       'rate_limited' => 'Too many attempts. Please wait before trying again.',

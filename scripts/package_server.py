@@ -18,7 +18,13 @@ DIRECTORIES = ['src', 'migrations', 'test', 'public']
 def build_bytes():
     import io
     paths = [SERVER / name for name in TOP_LEVEL]
-    paths.extend(ROOT / 'docs' / name for name in ['DYNAMIC_GARDEN_PACKS.md', 'DYNAMIC_PACK_QA.md', 'ADMIN_TRANSFER_AND_LOCALIZATION.md', 'LIVE_WALLPAPER.md'])
+    paths.extend(ROOT / 'docs' / name for name in ['DYNAMIC_GARDEN_PACKS.md', 'DYNAMIC_PACK_QA.md', 'ADMIN_TRANSFER_AND_LOCALIZATION.md', 'LIVE_WALLPAPER.md', 'ACCOUNT_EXPERIENCE.md'])
+    # Fixed allowlist: include deployment context, never live snapshots/config.
+    guard_paths = [ROOT / 'AGENTS.md'] + [ROOT / 'ops/vps' / name for name in [
+        'README.md', 'KNOWN_STATE.md', 'DEPLOY_GUARDS.md', 'collect_state.py',
+        'snapshot_from_termux.sh', 'state/README.md',
+    ]]
+    paths.extend(guard_paths)
     for name in DIRECTORIES:
         paths.extend(p for p in (SERVER / name).rglob('*') if p.is_file())
     stream = io.BytesIO()
@@ -32,7 +38,8 @@ def build_bytes():
             data = p.read_bytes()
             if re.search(rb'gr_live_[A-Za-z0-9]{16,}|-----BEGIN (?:RSA |EC )?PRIVATE KEY-----', data):
                 raise ValueError(f'Credential-like content in {relative}')
-            info = zipfile.ZipInfo('BetterSeed-server/' + relative.as_posix(), date_time=(2026, 10, 27, 0, 0, 0))
+            archive_path = p.relative_to(ROOT).as_posix() if p in guard_paths else 'BetterSeed-server/' + relative.as_posix()
+            info = zipfile.ZipInfo(archive_path, date_time=(2026, 10, 27, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
             z.writestr(info, data, compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
