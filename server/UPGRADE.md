@@ -1,3 +1,15 @@
+# Checklist 2.0 review candidate — snapshot v2
+
+Local source now supports checklist snapshot v2. Read `CHECKLIST_2.md` in the
+backend ZIP (or `../docs/CHECKLIST_2.md` in the repository). No SQL migration is
+added. The backend advertises v2 support and prevents v1 overwrites after an
+account upgrades. Deploy the reviewed compatible backend before enabling v2 cloud
+sync. Never roll back to a backend without the downgrade guard after v2 data is
+stored. Production authorization and all existing VPS guards still apply.
+
+This candidate retains previous release version numbers until release approval.
+The historical upgrade notes below are not proof of deployment.
+
 # Account experience — server 1.3.1 / app 1.8.1+60
 
 > **PRODUCTION WARNING — native systemd VPS, NOT Compose.**

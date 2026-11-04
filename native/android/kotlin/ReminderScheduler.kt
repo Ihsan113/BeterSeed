@@ -94,6 +94,21 @@ object ReminderScheduler {
         forEachHabit(list) { scheduleOne(context, it) }
     }
 
+    fun scheduledOn(item: JSONObject, date: Calendar): Boolean {
+        val data = item.optJSONObject("checklist") ?: return true
+        if (data.optBoolean("archived", false)) return false
+        val key = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(date.time)
+        if (key < data.optString("start", key)) return false
+        val record = data.optJSONObject("records")?.optJSONObject(key)
+        if (record != null) return record.optBoolean("scheduled", true) && !record.optBoolean("rest", false)
+        val effective = data.optString("effective", "")
+        val plan = if (effective.isNotEmpty() && key >= effective && data.optJSONObject("pending") != null)
+            data.optJSONObject("pending") else data.optJSONObject("plan")
+        val days = plan?.optJSONArray("weekdays") ?: return true
+        val isoDay = (date.get(Calendar.DAY_OF_WEEK) + 5) % 7 + 1
+        return (0 until days.length()).any { days.optInt(it) == isoDay }
+    }
+
     fun scheduleOne(context: Context, item: JSONObject) {
         if (!prefs(context).getBoolean("reminder_enabled", false)) return
         if (!item.optBoolean("reminderEnabled", false)) return
@@ -109,6 +124,12 @@ object ReminderScheduler {
             set(Calendar.MILLISECOND, 0)
             if (!after(now)) add(Calendar.DAY_OF_YEAR, 1)
         }
+        var attempts = 0
+        while (!scheduledOn(item, next) && attempts < 14) {
+            next.add(Calendar.DAY_OF_YEAR, 1)
+            attempts++
+        }
+        if (!scheduledOn(item, next)) return
         val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,

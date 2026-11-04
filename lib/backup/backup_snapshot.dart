@@ -35,7 +35,7 @@ class BackupSnapshot {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'format': 'betterseed.backup',
-        'version': version,
+        'version': habits.any((h) => h.checklist != null) ? 2 : version,
         'savedAtUtc': savedAtUtc.toUtc().toIso8601String(),
         'data': <String, dynamic>{
           'habits': habits.map((h) => h.toJson()).toList(),
@@ -67,7 +67,8 @@ class BackupSnapshot {
     if (decoded is! Map)
       throw const FormatException('Invalid backup structure');
     final json = Map<String, dynamic>.from(decoded);
-    if (json['format'] != 'betterseed.backup' || json['version'] != version) {
+    if (json['format'] != 'betterseed.backup' ||
+        ![1, 2].contains(json['version'])) {
       throw const FormatException('Unsupported BetterSeed backup version');
     }
     final savedAt = DateTime.tryParse(json['savedAtUtc'] as String? ?? '');

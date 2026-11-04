@@ -40,6 +40,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('tab-1')));
     await tester.pump();
     expect(find.text('Today’s Checklist'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('habit-drink')));
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('habit-drink')));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('tab-0')));

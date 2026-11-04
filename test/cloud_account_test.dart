@@ -66,8 +66,9 @@ class FakeCloudServer {
   final Map<String, Map<String, dynamic>> gardens = {};
   final Map<String, Map<String, dynamic>> mutations = {};
   final List<Map<String, dynamic>> writes = [];
-  Map<String,dynamic>? unlockBody;
+  Map<String, dynamic>? unlockBody;
   bool rejectQuote = false;
+  bool supportsChecklist = false;
   bool loseNextReply = false;
   Completer<void>? holdWrite;
   Completer<void>? writeStarted;
@@ -103,8 +104,14 @@ class FakeCloudServer {
       return response({'error': 'unauthorized'}, 401);
     }
     if (path == '/v1/shop/unlock') {
-      unlockBody=jsonDecode(r.body) as Map<String,dynamic>;
-      return rejectQuote ? response({'error':'catalog_changed'},409) : response({'balance':207,'revision':4,'packs':['sakura','moonlight']});
+      unlockBody = jsonDecode(r.body) as Map<String, dynamic>;
+      return rejectQuote
+          ? response({'error': 'catalog_changed'}, 409)
+          : response({
+              'balance': 207,
+              'revision': 4,
+              'packs': ['sakura', 'moonlight']
+            });
     }
     if (path == '/v1/wallet')
       return response({
@@ -116,7 +123,12 @@ class FakeCloudServer {
     if (path == '/v1/account') return response({'user': session(id)['user']});
     if (path == '/v1/garden') {
       if (r.method == 'GET')
-        return response(gardens[id] ?? {'revision': 0, 'snapshot': null});
+        return response({
+          ...?gardens[id],
+          if (gardens[id] == null) 'revision': 0,
+          if (gardens[id] == null) 'snapshot': null,
+          if (supportsChecklist) 'supportedSnapshotVersions': [1, 2]
+        });
       final b = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
       writes.add(b);
       writeStarted?.complete();
@@ -161,17 +173,56 @@ void main() {
     account.dispose();
   });
 
-  test('unlock sends exact reviewed quote and never grants on a price conflict', () async {
-    await account.initialize(garden(5),garden(0));
+  test(
+      'v2 stays local until backend advertises support and then uploads intact',
+      () async {
+    await account.initialize(garden(5), garden(0));
     await account.acceptSession(session('a'));
-    const offer=GardenOffer(id:'moonlight',name:'Moonlight',description:'',accessType:'premium',price:93,status:'active',minimumBuild:57,revision:4,order:1);
-    server.rejectQuote=true;
-    await expectLater(account.unlock('moonlight',offer:offer),throwsA(isA<AccountException>().having((e)=>e.code,'code','catalog_changed')));
-    expect(server.unlockBody,{'packId':'moonlight','expectedPrice':93,'catalogRevision':4,'appBuild':GardenPackRegistry.appBuild});
-    expect(account.wallet!['packs'],['sakura']);expect(account.wallet!['balance'],300);
-    server.rejectQuote=false;
-    await account.unlock('moonlight',offer:offer);
-    expect(account.wallet!['packs'],['sakura','moonlight']);expect(account.wallet!['balance'],207);
+    await account.sync();
+    final updated = {...garden(12), 'version': 2};
+    await account.capture(updated);
+    final before = server.writes.length;
+    await account.sync();
+    expect(server.writes.length, before);
+    expect(account.dirty, true);
+    expect(account.currentGarden!['version'], 2);
+    server.supportsChecklist = true;
+    await account.sync();
+    expect(server.gardens['a']!['snapshot']['version'], 2);
+    expect(account.dirty, false);
+  });
+
+  test('unlock sends exact reviewed quote and never grants on a price conflict',
+      () async {
+    await account.initialize(garden(5), garden(0));
+    await account.acceptSession(session('a'));
+    const offer = GardenOffer(
+        id: 'moonlight',
+        name: 'Moonlight',
+        description: '',
+        accessType: 'premium',
+        price: 93,
+        status: 'active',
+        minimumBuild: 57,
+        revision: 4,
+        order: 1);
+    server.rejectQuote = true;
+    await expectLater(
+        account.unlock('moonlight', offer: offer),
+        throwsA(isA<AccountException>()
+            .having((e) => e.code, 'code', 'catalog_changed')));
+    expect(server.unlockBody, {
+      'packId': 'moonlight',
+      'expectedPrice': 93,
+      'catalogRevision': 4,
+      'appBuild': GardenPackRegistry.appBuild
+    });
+    expect(account.wallet!['packs'], ['sakura']);
+    expect(account.wallet!['balance'], 300);
+    server.rejectQuote = false;
+    await account.unlock('moonlight', offer: offer);
+    expect(account.wallet!['packs'], ['sakura', 'moonlight']);
+    expect(account.wallet!['balance'], 207);
   });
 
   test('reopening offline restores identity and garden without another login',

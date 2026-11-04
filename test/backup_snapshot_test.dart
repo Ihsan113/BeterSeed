@@ -1,3 +1,4 @@
+import 'package:betterseed/checklist/checklist_data.dart';
 import 'dart:convert';
 
 import 'package:betterseed/backup/backup_snapshot.dart';
@@ -6,13 +7,43 @@ import 'package:betterseed/logic/water_progress.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('v2 backup preserves history, pending plan and archived identities', () {
+    final now = DateTime(2026, 11, 4);
+    var data = ChecklistData(
+        start: '2026-11-04',
+        plan: const HabitPlan(type: 'count', target: 8, unit: 'glasses'));
+    data = data
+        .record(now, data.today(now).change(value: 4))
+        .edit(const HabitPlan(), now)
+        .copy(archived: true);
+    final backup = BackupSnapshot(
+        habits: [Habit(id: 'stable', title: 'Water', checklist: data)],
+        progress: WaterProgress(),
+        day: '2026-11-04',
+        packId: 'default',
+        ownedMoonlight: false,
+        savedAtUtc: now.toUtc());
+    expect(backup.toJson()['version'], 2);
+    final restored = BackupSnapshot.decode(backup.encode());
+    expect(restored.habits.single.toJson(), backup.habits.single.toJson());
+    expect(restored.habits.single.checklist!.records['2026-11-04']!.value, 4);
+  });
+
   test('backup round trips habits, reminders, credits, and theme', () {
     final progress = WaterProgress();
     expect(progress.earnForHabit('2026-10-24', 'h1'), isTrue);
     expect(progress.waterTree(), isTrue);
     final original = BackupSnapshot(
-      habits: const [Habit(id: 'h1', title: 'Read', iconKey: 'book',
-          completed: true, reminderEnabled: true, reminderHour: 7, reminderMinute: 30)],
+      habits: const [
+        Habit(
+            id: 'h1',
+            title: 'Read',
+            iconKey: 'book',
+            completed: true,
+            reminderEnabled: true,
+            reminderHour: 7,
+            reminderMinute: 30)
+      ],
       progress: progress,
       day: '2026-10-24',
       packId: 'moonlight',
@@ -32,20 +63,29 @@ void main() {
   test('rejects invalid, unsupported, and duplicate backups', () {
     expect(() => BackupSnapshot.decode('{}'), throwsFormatException);
     final payload = <String, dynamic>{
-      'format': 'betterseed.backup', 'version': 3,
+      'format': 'betterseed.backup',
+      'version': 3,
       'savedAtUtc': '2026-10-25T00:00:00Z',
-      'data': <String, dynamic>{'habits': <dynamic>[], 'progress': <String, dynamic>{}, 'day': '2026-10-25'},
+      'data': <String, dynamic>{
+        'habits': <dynamic>[],
+        'progress': <String, dynamic>{},
+        'day': '2026-10-25'
+      },
     };
-    expect(() => BackupSnapshot.decode(jsonEncode(payload)), throwsFormatException);
+    expect(() => BackupSnapshot.decode(jsonEncode(payload)),
+        throwsFormatException);
     payload['version'] = 1;
     (payload['data'] as Map<String, dynamic>)['habits'] = <dynamic>[
       <String, dynamic>{'id': 'same', 'title': 'A'},
       <String, dynamic>{'id': 'same', 'title': 'B'},
     ];
-    expect(() => BackupSnapshot.decode(jsonEncode(payload)), throwsFormatException);
+    expect(() => BackupSnapshot.decode(jsonEncode(payload)),
+        throwsFormatException);
   });
 
-  test('Sakura selection and owned flag survive backup without changing v1 format', () {
+  test(
+      'Sakura selection and owned flag survive backup without changing v1 format',
+      () {
     final snapshot = BackupSnapshot(
       habits: const [],
       progress: WaterProgress(),
@@ -62,7 +102,9 @@ void main() {
     expect(restored.toJson()['version'], 1);
   });
 
-  test('Golden Autumn selection and owned flag survive backup without changing v1 format', () {
+  test(
+      'Golden Autumn selection and owned flag survive backup without changing v1 format',
+      () {
     final snapshot = BackupSnapshot(
       habits: const [],
       progress: WaterProgress(),
@@ -85,9 +127,13 @@ void main() {
       packId: 'sakura',
       ownedMoonlight: true,
       ownedSakura: true,
-      cosmetics: const {'treeSkinId': 'sakura_tree_skin',
-        'backgroundId': 'twilight_overlook'},
-      treePlacements: const {'sakura_garden': {'dx': 0.1, 'dy': -0.2, 'scale': 1.0}},
+      cosmetics: const {
+        'treeSkinId': 'sakura_tree_skin',
+        'backgroundId': 'twilight_overlook'
+      },
+      treePlacements: const {
+        'sakura_garden': {'dx': 0.1, 'dy': -0.2, 'scale': 1.0}
+      },
       savedAtUtc: DateTime.utc(2026, 10, 25),
     );
     final restored = BackupSnapshot.decode(snapshot.encode());
@@ -95,5 +141,4 @@ void main() {
     expect((restored.treePlacements['sakura_garden'] as Map)['dy'], -.2);
     expect(restored.toJson()['version'], 1);
   });
-
 }

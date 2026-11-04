@@ -97,6 +97,13 @@ void main() {
                 textScaler: TextScaler.linear(scale)),
             child: child!),
         home: AccountPage(account: account)));
+    for (var attempt = 0;
+        attempt < 100 && find.byType(AccountPage).evaluate().isEmpty;
+        attempt++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 5)));
+      await tester.pump();
+    }
     await tester.pumpAndSettle();
   }
 

@@ -366,6 +366,18 @@ class CloudAccount extends ChangeNotifier {
         }
       }
       if (dirty) {
+        final outgoing = _profile['pending']?['snapshot'] ?? _profile['local'];
+        if (outgoing is Map && outgoing['version'] == 2) {
+          final capabilities = await authorized('GET', '/v1/garden');
+          if (!(capabilities['supportedSnapshotVersions'] is List &&
+              (capabilities['supportedSnapshotVersions'] as List)
+                  .contains(2))) {
+            status = 'Checklist saved locally; server update required';
+            await _persist();
+            schedule(delay: const Duration(minutes: 1));
+            return;
+          }
+        }
         _profile['pending'] ??= <String, dynamic>{
           'baseRevision': _profile['revision'],
           'mutationId': const Uuid().v4(),

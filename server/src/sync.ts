@@ -13,6 +13,7 @@ export function syncRoutes(app: FastifyInstance, a: Auth) {
       [u.id],
     );
     return {
+      supportedSnapshotVersions: [1, 2],
       revision: g?.revision ?? 0,
       snapshot: g?.snapshot ? parseJson(g.snapshot) : null,
       updatedAt: g?.updated_at ?? null,
@@ -57,6 +58,8 @@ export function syncRoutes(app: FastifyInstance, a: Auth) {
         "SELECT * FROM gardens WHERE user_id=?",
         [u.id],
       );
+      if (current?.snapshot && parseJson(current.snapshot).version === 2 && b.snapshot.version === 1)
+        throw new ApiError(409, "app_update_required");
       const revision = current?.revision ?? 0;
       if (revision !== b.baseRevision)
         throw new ApiError(409, "sync_conflict", {

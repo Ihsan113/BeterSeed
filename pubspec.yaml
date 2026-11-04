@@ -42,6 +42,7 @@ flutter:
     - assets/images/backgrounds/enchanted_valley.webp
     - assets/images/effects/butterfly_realistic.png
     - assets/images/effects/watering_can_realistic.png
+    - assets/images/checklist/
     - assets/images/shop/
     - assets/pack_downloads.json
     - assets/icon_512.png

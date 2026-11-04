@@ -22,6 +22,7 @@ class ReminderReceiver : BroadcastReceiver() {
         if (!habit.optBoolean("reminderEnabled", false)) return
         // Rearm tomorrow before checking whether today's habit is complete.
         ReminderScheduler.scheduleOne(context, habit)
+        if (!ReminderScheduler.scheduledOn(habit, java.util.Calendar.getInstance())) return
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         if (pref.getString("habits_day", "") == today && habit.optBoolean("completed", false)) return
         if (Build.VERSION.SDK_INT >= 33 &&

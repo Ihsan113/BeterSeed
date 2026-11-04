@@ -159,6 +159,13 @@ void main() {
           home: child);
       final account = CloudAccount(api: AccountApi(baseUrl: ''));
       await tester.pumpWidget(app(AccountPage(account: account)));
+      for (var attempt = 0;
+          attempt < 100 && find.byType(AccountPage).evaluate().isEmpty;
+          attempt++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 5)));
+        await tester.pump();
+      }
       await tester.pumpAndSettle();
       expect(find.text(strings.text('Sign in to BetterSeed')), findsOneWidget);
       await tester

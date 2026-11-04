@@ -12,13 +12,32 @@ export const proof = z.object({
 const count = z.number().int().min(0).max(1_000_000_000);
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const asset = z.string().regex(/^[a-z][a-z0-9_]{0,79}$/);
+const habitPlan = z.object({
+  type: z.enum(["checkbox", "count", "duration"]),
+  target: z.number().int().min(1).max(100000),
+  unit: z.string().max(40),
+  weekdays: z.array(z.number().int().min(1).max(7)).min(1).max(7)
+    .refine(days => new Set(days).size === days.length),
+}).strict().refine(p => (p.type !== "checkbox" || p.target === 1) &&
+  (p.type !== "count" || p.unit.trim().length > 0));
+const checklist = z.object({
+  start: day, plan: habitPlan,
+  category: z.enum(["Morning", "Afternoon", "Evening", "Custom"]),
+  order: z.number().int().min(0).max(2000), archived: z.boolean(),
+  pending: habitPlan.nullable(), effective: day.nullable(),
+  records: z.record(day, z.object({plan:habitPlan, scheduled:z.boolean(),
+    value:z.number().int().min(0).max(100000),rest:z.boolean()}).strict())
+    .refine(records => Object.keys(records).length <= 366),
+  carriedStreak: count, bestStreak: count,
+}).strict();
 export const snapshotSchema = z
   .object({
-    version: z.literal(1),
+    version: z.union([z.literal(1), z.literal(2)]),
     habits: z
       .array(
         z
           .object({
+            checklist: checklist.optional(),
             id: z.string().min(1).max(128),
             title: z.string().trim().min(1).max(300),
             completed: z.boolean(),
@@ -70,6 +89,8 @@ export const snapshotSchema = z
   })
   .strict()
   .superRefine((v, ctx) => {
+    if (v.version === 1 && v.habits.some(h => h.checklist))
+      ctx.addIssue({code:"custom",message:"Checklist data requires snapshot v2"});
     if (Object.keys(v.treePlacements).length > 200)
       ctx.addIssue({ code: "custom", message: "Too many placements" });
     if (new Set(v.habits.map((h) => h.id)).size !== v.habits.length)

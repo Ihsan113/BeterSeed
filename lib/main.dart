@@ -1,3 +1,6 @@
+import 'checklist/checklist_reward.dart';
+import 'checklist/checklist_data.dart';
+import 'checklist/checklist_page.dart';
 import 'ui/app_feedback.dart';
 import 'l10n/app_localizations.dart';
 import 'account/pack_catalog.dart';
@@ -52,17 +55,6 @@ const _stageNames = <String>[
   'Young Tree',
   'Thriving Tree',
   'Legendary Tree',
-];
-
-const _habitIconChoices = <MapEntry<String, IconData>>[
-  MapEntry('leaf', Icons.spa_outlined),
-  MapEntry('water', Icons.local_drink_outlined),
-  MapEntry('book', Icons.menu_book_outlined),
-  MapEntry('money', Icons.savings_outlined),
-  MapEntry('move', Icons.directions_run_outlined),
-  MapEntry('heart', Icons.favorite_outline),
-  MapEntry('moon', Icons.nightlight_round),
-  MapEntry('meditate', Icons.self_improvement_outlined),
 ];
 
 enum _SettingsSection {
@@ -305,7 +297,8 @@ class _GrowthHomeState extends State<GrowthHome>
         systemReducedMotion: _systemReduceMotion,
         allowWhenSystemReduced: _motionOverride,
       );
-  int get _completed => _habits.where((h) => h.completed).length;
+  int get _completed =>
+      _habits.where((h) => h.checklist?.archived != true && h.completed).length;
 
   @override
   void initState() {
@@ -610,7 +603,7 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   GardenData _cloudSnapshot() => {
-        'version': 1,
+        'version': _habits.any((h) => h.checklist != null) ? 2 : 1,
         'habits': _habits.map((h) => h.toJson()).toList(),
         'progress': _progress.toJson(),
         'day': _today,
@@ -731,6 +724,11 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   Future<void> _save({bool syncCloud = true}) {
+    _habits = _habits.map((h) {
+      if (h.checklist == null) return h;
+      final d = h.checklist!.advance(DateTime.now());
+      return h.copyWith(checklist: d, completed: d.today(DateTime.now()).done);
+    }).toList();
     final cloudSnapshot =
         syncCloud && _cloud.initialized ? _cloudSnapshot() : null;
     // Capture synchronously before queued disk/native work so a network reply
@@ -745,7 +743,12 @@ class _GrowthHomeState extends State<GrowthHome>
     final water = _progress.waterBalance;
     final stage = _progress.treeStage + 1;
     final done = _completed;
-    final total = _habits.length;
+    final total = _habits.where((h) {
+      final d = h.checklist;
+      if (d == null) return true;
+      final r = d.today(DateTime.now());
+      return !d.archived && r.scheduled && !r.rest;
+    }).length;
     final packId = _shopLoadout.packId;
     final ownedMoonlight = _moonlightOwned;
     final ownedSakura = _sakuraOwned;
@@ -766,9 +769,12 @@ class _GrowthHomeState extends State<GrowthHome>
     // overwriting newer completion/water data.
     _saveQueue = _saveQueue.catchError((Object _) {}).then((_) async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_storageHabits, habits);
-      await prefs.setString(_storageProgress, progress);
-      await prefs.setString(_storageDate, day);
+      // Persist the authoritative ledger first: a retry must not mint water.
+      if (!await prefs.setString(_storageProgress, progress) ||
+          !await prefs.setString(_storageHabits, habits) ||
+          !await prefs.setString(_storageDate, day)) {
+        throw StateError('Checklist storage failed');
+      }
       await prefs.setString(_storageBundle, packId);
       await prefs.setString(_storageTreePlacements, savedPlacements);
       await prefs.setBool(_storageOwnedMoonlight, ownedMoonlight);
@@ -813,34 +819,20 @@ class _GrowthHomeState extends State<GrowthHome>
   void _changeTab(int index) {
     if (index == _selectedTab) return;
     _ensureToday();
+    if (index == 1) {
+      final now = DateTime.now();
+      _habits = _habits.map((h) {
+        if (h.checklist != null) return h;
+        final d = ChecklistData(start: checklistDay(now));
+        return h.copyWith(
+            checklist:
+                d.record(now, d.today(now).change(value: h.completed ? 1 : 0)));
+      }).toList();
+      _save();
+    }
     setState(() => _selectedTab = index);
     _applyAnimationPreference();
     // Navigation is silent so it cannot interrupt the ambient soundscape.
-  }
-
-  void _toggleHabit(Habit habit) {
-    if (!_loaded) return;
-    _ensureToday();
-    final index = _habits.indexWhere((item) => item.id == habit.id);
-    if (index < 0) return;
-    final done = !_habits[index].completed;
-    bool awarded = false;
-    setState(() {
-      _habits[index] = _habits[index].copyWith(completed: done);
-      if (done) awarded = _progress.earnForHabit(_today, habit.id);
-    });
-    _audio.effect(done ? 'complete' : 'tap');
-    if (awarded && mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(AppToast(
-        tone: NoticeTone.success,
-        content: Text(
-            context.tr("+1 water earned! Visit Garden to water your tree. 💧")),
-        duration: Duration(milliseconds: 1500),
-        behavior: SnackBarBehavior.floating,
-      ));
-    }
-    _save();
   }
 
   Future<void> _waterTree() async {
@@ -902,76 +894,6 @@ class _GrowthHomeState extends State<GrowthHome>
         ],
       ),
     );
-  }
-
-  Future<_HabitDraft?> _composeHabit({Habit? initial}) =>
-      showModalBottomSheet<_HabitDraft>(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        backgroundColor: const Color(0xFF102D31),
-        builder: (_) => _HabitComposer(
-          initial: initial,
-          masterEnabled: _reminderEnabled,
-          onEnableMaster: () => _configureReminder(true),
-        ),
-      );
-
-  Future<void> _addHabit() async {
-    final draft = await _composeHabit();
-    if (!mounted || draft == null || draft.title.isEmpty) return;
-    setState(() => _habits.add(Habit(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
-          title: draft.title,
-          iconKey: draft.iconKey,
-          reminderEnabled: draft.reminderEnabled,
-          reminderHour: draft.hour,
-          reminderMinute: draft.minute,
-        )));
-    _audio.effect('plant');
-    _save();
-  }
-
-  Future<void> _editHabit(Habit habit) async {
-    final draft = await _composeHabit(initial: habit);
-    if (!mounted || draft == null || draft.title.isEmpty) return;
-    final index = _habits.indexWhere((item) => item.id == habit.id);
-    if (index < 0) return;
-    setState(() => _habits[index] = _habits[index].copyWith(
-          title: draft.title,
-          iconKey: draft.iconKey,
-          reminderEnabled: draft.reminderEnabled,
-          reminderHour: draft.hour,
-          reminderMinute: draft.minute,
-        ));
-    _save();
-  }
-
-  Future<void> _removeHabit(Habit habit) async {
-    final remove = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AppDialog(
-        icon: Icons.delete_outline_rounded,
-        tone: NoticeTone.error,
-        title: Text(context.tr("Remove habit?")),
-        content: Text(context
-            .tr("Remove “{p0}” from your checklist?", {'p0': habit.title})),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(context.tr("Cancel")),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(context.tr("Remove")),
-          ),
-        ],
-      ),
-    );
-    if (remove != true || !mounted) return;
-    setState(() => _habits.removeWhere((item) => item.id == habit.id));
-    // Previous water awards/XP are deliberately not deleted or duplicated.
-    _save();
   }
 
   void _openAssetEditor() {
@@ -2431,7 +2353,13 @@ class _GrowthHomeState extends State<GrowthHome>
                               sizing: StackFit.expand,
                               children: [
                                 _buildGarden(stage),
-                                _buildChecklist(),
+                                ChecklistPage(
+                                    habits: _habits,
+                                    progress: _progress,
+                                    masterEnabled: _reminderEnabled,
+                                    onEnableMaster: () =>
+                                        _configureReminder(true),
+                                    onChanged: _changeChecklist),
                                 _buildStats(),
                                 BetterSeedShopPage(
                                   loadout: _shopLoadout,
@@ -3467,220 +3395,29 @@ class _GrowthHomeState extends State<GrowthHome>
     ];
   }
 
-  Widget _buildChecklist() {
-    final completed = _completed;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-          child: _glassPanel(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(context.tr("Today’s Checklist"),
-                    style:
-                        TextStyle(fontSize: 23, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 4),
-                Text(
-                    context
-                        .tr("Complete habits to earn water for your tree 💧"),
-                    style: TextStyle(color: Color(0xFFD1DFD9), fontSize: 12)),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: LinearProgressIndicator(
-                        value: _habits.isEmpty ? 0 : completed / _habits.length,
-                        minHeight: 7,
-                        borderRadius: BorderRadius.circular(10),
-                        color: _mint,
-                        backgroundColor: const Color(0xAA527368),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text('$completed/${_habits.length}',
-                        style: const TextStyle(
-                            color: _mint, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (!_reminderEnabled && _habits.any((h) => h.reminderEnabled))
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Material(
-              key: const ValueKey('reminder-master-warning'),
-              color: const Color(0xED4A3828),
-              borderRadius: BorderRadius.circular(14),
-              child: Padding(
-                padding: const EdgeInsets.all(11),
-                child: Row(children: [
-                  const Icon(Icons.notifications_off_outlined, color: _gold),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: Text(
-                    context.tr(
-                        "Habit reminders are paused because master notifications are off."),
-                    style: TextStyle(fontSize: 12),
-                  )),
-                  TextButton(
-                      onPressed: () => _configureReminder(true),
-                      child: Text(context.tr("Enable"))),
-                ]),
-              ),
-            ),
-          ),
-        Expanded(
-          child: _habits.isEmpty
-              ? Center(
-                  child: Text(context.tr("Plant your first daily habit 🌱")))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 3, 16, 8),
-                  itemCount: _habits.length,
-                  itemBuilder: (context, index) => Padding(
-                    padding: const EdgeInsets.only(bottom: 9),
-                    child: _habitTile(_habits[index]),
-                  ),
-                ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 3, 16, 12),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _addHabit,
-              icon: const Icon(Icons.add_circle_outline),
-              label: Text(context.tr("Add a daily habit")),
-              style: FilledButton.styleFrom(
-                foregroundColor: _deepNavy,
-                backgroundColor: _mint,
-                minimumSize: const Size(0, 52),
-                textStyle: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  IconData _iconDataForKey(String key) {
-    for (final choice in _habitIconChoices) {
-      if (choice.key == key) return choice.value;
+  Future<void> _changeChecklist(List<Habit> habits) async {
+    _ensureToday();
+    final now = DateTime.now();
+    final previous = {for (final h in _habits) h.id: h};
+    setState(() {
+      _habits = habits.map((h) {
+        final d = h.checklist;
+        if (d == null) return h;
+        final record = d.today(now);
+        if (crossesChecklistTarget(previous[h.id], h, now))
+          _progress.earnForHabit(_today, h.id);
+        return h.copyWith(
+            completed: record.done, checklist: d.record(now, record));
+      }).toList();
+    });
+    try {
+      await _save();
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(AppToast(
+            content: Text(
+                context.tr('Changes could not be saved. Please try again.'))));
     }
-    return Icons.spa_outlined;
-  }
-
-  IconData _iconFor(Habit habit) {
-    if (habit.iconKey.isNotEmpty) return _iconDataForKey(habit.iconKey);
-    final title = habit.title.toLowerCase();
-    if (title.contains('water') || title.contains('drink'))
-      return Icons.local_drink_outlined;
-    if (title.contains('read') ||
-        title.contains('book') ||
-        title.contains('study')) {
-      return Icons.menu_book_outlined;
-    }
-    if (title.contains('save') || title.contains('money'))
-      return Icons.savings_outlined;
-    if (title.contains('walk') ||
-        title.contains('move') ||
-        title.contains('run')) {
-      return Icons.directions_run_outlined;
-    }
-    return Icons.spa_outlined;
-  }
-
-  Widget _habitTile(Habit habit) {
-    final credited = _progress.wasCredited(_today, habit.id);
-    return Material(
-      color: _glass,
-      borderRadius: BorderRadius.circular(17),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(17),
-        onTap: () => _toggleHabit(habit),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-          child: Row(
-            children: [
-              SizedBox(
-                height: 44,
-                width: 44,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xAA1E4947),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(_iconFor(habit), color: _gold, size: 24),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(habit.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          decoration: habit.completed
-                              ? TextDecoration.lineThrough
-                              : null,
-                        )),
-                    Text(
-                        credited
-                            ? context.tr("Water earned today")
-                            : context.tr("Complete to earn +1 water"),
-                        style: const TextStyle(
-                            fontSize: 11, color: Color(0xFFBBD1CA))),
-                    if (habit.reminderEnabled)
-                      Text(
-                          context.tr("Reminder {p0}{p1}", {
-                            'p0': TimeOfDay(
-                                    hour: habit.reminderHour,
-                                    minute: habit.reminderMinute)
-                                .format(context),
-                            'p1':
-                                _reminderEnabled ? '' : context.tr(' · paused')
-                          }),
-                          style: const TextStyle(fontSize: 10, color: _gold)),
-                  ],
-                ),
-              ),
-              const Icon(Icons.water_drop_rounded, size: 16, color: _blue),
-              const SizedBox(width: 2),
-              Text(credited ? '✓' : '+1',
-                  style: const TextStyle(color: _blue, fontSize: 12)),
-              Checkbox(
-                key: ValueKey('habit-${habit.id}'),
-                value: habit.completed,
-                onChanged: (_) => _toggleHabit(habit),
-                activeColor: _mint,
-                checkColor: _deepNavy,
-              ),
-              PopupMenuButton<String>(
-                tooltip: context.tr("Habit options"),
-                icon: const Icon(Icons.more_vert, size: 20),
-                onSelected: (value) {
-                  if (value == 'remove') _removeHabit(habit);
-                  if (value == 'edit') _editHabit(habit);
-                },
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                      value: 'edit', child: Text(context.tr("Edit habit"))),
-                  PopupMenuItem(
-                      value: 'remove', child: Text(context.tr("Remove habit"))),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _statCard(IconData icon, String value, String title, Color accent) =>
@@ -3850,250 +3587,6 @@ class _GrowthHomeState extends State<GrowthHome>
           ),
         ),
       ],
-    );
-  }
-}
-
-class _HabitDraft {
-  const _HabitDraft(
-      {required this.title,
-      required this.iconKey,
-      required this.reminderEnabled,
-      required this.hour,
-      required this.minute});
-  final String title;
-  final String iconKey;
-  final bool reminderEnabled;
-  final int hour;
-  final int minute;
-}
-
-class _HabitComposer extends StatefulWidget {
-  const _HabitComposer(
-      {this.initial,
-      required this.masterEnabled,
-      required this.onEnableMaster});
-  final Habit? initial;
-  final bool masterEnabled;
-  final Future<bool> Function() onEnableMaster;
-
-  @override
-  State<_HabitComposer> createState() => _HabitComposerState();
-}
-
-class _HabitComposerState extends State<_HabitComposer> {
-  late final TextEditingController _controller;
-  late String _iconKey;
-  late bool _hasReminder;
-  late bool _masterActive;
-  bool _enablingMaster = false;
-  late TimeOfDay _reminderTime;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.initial?.title ?? '');
-    _iconKey = widget.initial?.iconKey ?? 'leaf';
-    _hasReminder = widget.initial?.reminderEnabled ?? false;
-    _masterActive = widget.masterEnabled;
-    _reminderTime = TimeOfDay(
-        hour: widget.initial?.reminderHour ?? 20,
-        minute: widget.initial?.reminderMinute ?? 0);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final title = _controller.text.trim();
-    if (title.isEmpty) return;
-    Navigator.pop(
-        context,
-        _HabitDraft(
-            title: title,
-            iconKey: _iconKey,
-            reminderEnabled: _hasReminder,
-            hour: _reminderTime.hour,
-            minute: _reminderTime.minute));
-  }
-
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _reminderTime,
-      helpText: 'Remind me about this habit',
-    );
-    if (picked != null && mounted) setState(() => _reminderTime = picked);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: keyboard),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-              maxHeight: math.max(
-                  190.0, MediaQuery.sizeOf(context).height * .86 - keyboard)),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 5, 20, 22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                    widget.initial == null
-                        ? context.tr("Plant a new habit")
-                        : context.tr("Edit habit"),
-                    style: const TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 5),
-                Text(
-                    context.tr("Small actions grow into something beautiful.")),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: _controller,
-                  autofocus: widget.initial == null,
-                  maxLength: 48,
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _submit(),
-                  decoration: InputDecoration(
-                    hintText: context.tr("e.g. Read 10 pages"),
-                    filled: true,
-                    fillColor: const Color(0xFF234640),
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide.none,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-                Text(context.tr("Pick an icon"),
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    for (final choice in _habitIconChoices)
-                      Semantics(
-                        button: true,
-                        selected: _iconKey == choice.key,
-                        label:
-                            context.tr("{p0} habit icon", {'p0': choice.key}),
-                        child: InkWell(
-                          onTap: () => setState(() => _iconKey = choice.key),
-                          borderRadius: BorderRadius.circular(14),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            width: 54,
-                            height: 54,
-                            decoration: BoxDecoration(
-                              color: _iconKey == choice.key
-                                  ? const Color(0xFF2A5F56)
-                                  : const Color(0xFF234640),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: _iconKey == choice.key
-                                    ? _mint
-                                    : const Color(0x556FC09D),
-                                width: _iconKey == choice.key ? 1.6 : 1,
-                              ),
-                            ),
-                            child: Icon(choice.value,
-                                color: _iconKey == choice.key ? _mint : _gold,
-                                size: 26),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                SwitchListTile.adaptive(
-                  key: const ValueKey('habit-reminder-toggle'),
-                  contentPadding: EdgeInsets.zero,
-                  secondary: const Icon(Icons.notifications_active_outlined,
-                      color: _mint),
-                  title: Text(context.tr("Remind me daily")),
-                  subtitle: Text(_masterActive
-                      ? context.tr("Set a time for this habit")
-                      : context.tr(
-                          "Master notifications are OFF — reminders will be paused")),
-                  value: _hasReminder,
-                  onChanged: (value) => setState(() => _hasReminder = value),
-                ),
-                if (_hasReminder && !_masterActive)
-                  Container(
-                    key: const ValueKey('composer-master-off-warning'),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4C3B26),
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                            context.tr(
-                                "Master notifications are disabled. This habit will NOT notify you until enabled."),
-                            style: TextStyle(
-                                color: Color(0xFFFFE5AC), fontSize: 12)),
-                        const SizedBox(height: 6),
-                        TextButton.icon(
-                          key: const ValueKey('composer-enable-master'),
-                          onPressed: _enablingMaster
-                              ? null
-                              : () async {
-                                  setState(() => _enablingMaster = true);
-                                  final success = await widget.onEnableMaster();
-                                  if (!mounted) return;
-                                  setState(() {
-                                    _enablingMaster = false;
-                                    _masterActive = success;
-                                  });
-                                },
-                          icon: const Icon(Icons.notifications_active_outlined),
-                          label: Text(_enablingMaster
-                              ? context.tr("Enabling...")
-                              : context.tr("Enable master notifications")),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (_hasReminder)
-                  ListTile(
-                    key: const ValueKey('habit-reminder-time'),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                    leading: const Icon(Icons.schedule_rounded, color: _gold),
-                    title: Text(context.tr("Reminder time")),
-                    subtitle: Text(_reminderTime.format(context)),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: _pickTime,
-                  ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _submit,
-                    style: FilledButton.styleFrom(
-                        backgroundColor: _mint,
-                        foregroundColor: _deepNavy,
-                        padding: const EdgeInsets.symmetric(vertical: 15)),
-                    child: Text(widget.initial == null
-                        ? context.tr("Create habit")
-                        : context.tr("Save changes")),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

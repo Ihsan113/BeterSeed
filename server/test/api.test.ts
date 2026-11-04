@@ -1679,3 +1679,19 @@ test("fresh authenticator code authorizes exactly one password reset", async () 
   })));
   assert.deepEqual(results.map(r => r.status).sort(), [200,400]);
 });
+
+test("checklist v2 advertises support and prevents legacy overwrite", async () => {
+  const s = await account();
+  const plan = {type:"count",target:8,unit:"glasses",weekdays:[1,2,3,4,5,6,7]};
+  const snapshot = {...garden, version:2, habits: [{...garden.habits[0], checklist:{
+    start:"2026-10-27",plan,category:"Morning",order:0,archived:false,
+    pending:null,effective:null,records:{"2026-10-27":{plan,scheduled:true,value:4,rest:false}},carriedStreak:0,bestStreak:0
+  }}]};
+  assert.deepEqual((await request("GET","/v1/garden",undefined,s.accessToken)).body.supportedSnapshotVersions,[1,2]);
+  assert.equal((await request("PUT","/v1/garden",mutation(1,snapshot),s.accessToken)).status,200);
+  assert.equal((await request("PUT","/v1/garden",mutation(2,garden,1),s.accessToken)).body.error,"app_update_required");
+  const remote = (await request("GET","/v1/garden",undefined,s.accessToken)).body;
+  assert.equal(remote.revision,1);
+  assert.equal(remote.snapshot.habits[0].checklist.records["2026-10-27"].value,4);
+  assert.equal((await request("PUT","/v1/garden",mutation(3,{...snapshot,version:1},1),s.accessToken)).status,400);
+});
