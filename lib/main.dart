@@ -2229,7 +2229,10 @@ class _GrowthHomeState extends State<GrowthHome>
               : Stack(
                   fit: StackFit.expand,
                   children: [
-                    _buildGardenBackdrop(),
+                    if (_selectedTab == 1 && !_focusMode)
+                      const ColoredBox(color: Color(0xFF101C19))
+                    else
+                      _buildGardenBackdrop(),
                     if (_focusMode)
                       Positioned.fill(
                         child: LayoutBuilder(
@@ -2342,7 +2345,8 @@ class _GrowthHomeState extends State<GrowthHome>
             constraints: const BoxConstraints(maxWidth: 600),
             child: Column(
               children: [
-                _previewChrome(_buildHeader(), preview: preview),
+                if (_selectedTab != 1 || preview)
+                  _previewChrome(_buildHeader(), preview: preview),
                 Expanded(
                   child: preview
                       ? _buildGarden(stage,
@@ -2354,6 +2358,7 @@ class _GrowthHomeState extends State<GrowthHome>
                               children: [
                                 _buildGarden(stage),
                                 ChecklistPage(
+                                    onOpenSettings: _openSettings,
                                     habits: _habits,
                                     progress: _progress,
                                     masterEnabled: _reminderEnabled,
@@ -2477,13 +2482,19 @@ class _GrowthHomeState extends State<GrowthHome>
     final contentHeight = 22.0 + 3.0 + scaledLabelHeight + 3.0 + 2.0;
     final navHeight = math.max(72.0, contentHeight + 16.0);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 3, 12, 8),
+      padding: _selectedTab == 1
+          ? EdgeInsets.zero
+          : const EdgeInsets.fromLTRB(12, 3, 12, 8),
       child: Container(
         height: navHeight,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: const Color(0xEE092529),
-          border: Border.all(color: const Color(0x9874AD96)),
+          borderRadius: BorderRadius.circular(_selectedTab == 1 ? 0 : 20),
+          color: _selectedTab == 1
+              ? const Color(0xFF101C19)
+              : const Color(0xEE092529),
+          border: _selectedTab == 1
+              ? const Border(top: BorderSide(color: Color(0xFF30453B)))
+              : Border.all(color: const Color(0x9874AD96)),
         ),
         child: Row(
           children: [

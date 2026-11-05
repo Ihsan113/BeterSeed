@@ -31,9 +31,12 @@ class PlayWorkflowTests(unittest.TestCase):
 
     def test_play_bundle_and_target_are_consistent(self):
         pubspec = (ROOT / 'pubspec.yaml').read_text()
-        self.assertRegex(pubspec, r'(?m)^version:\s*1\.8\.1\+60\s*$')
+        version = re.search(r'(?m)^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$', pubspec)
+        self.assertIsNotNone(version)
         readme = (ROOT / 'README.md').read_text()
-        self.assertIn('1.8.1+60', readme)
+        self.assertIn(f'{version[1]}+{version[2]}', readme)
+        registry = (ROOT / 'lib/data/garden_pack_registry.dart').read_text()
+        self.assertRegex(registry, rf'appBuild\s*=\s*{version[2]}\s*;')
         configure = (ROOT / 'scripts/configure_play_sdk.py').read_text()
         self.assertIn('PLAY_API_LEVEL = 36', configure)
         workflow = (ROOT / '.github/workflows/android-apk.yml').read_text()

@@ -669,5 +669,19 @@
   "Create": "Berkarya",
   "Checklist saved locally; server update required": "Checklist tersimpan lokal; server perlu diperbarui",
   "Changes could not be saved. Please try again.": "Perubahan gagal disimpan. Silakan coba lagi.",
-  "Remind on scheduled days": "Ingatkan pada hari terjadwal"
+  "Remind on scheduled days": "Ingatkan pada hari terjadwal",
+  "{p0} water": "{p0} air",
+  "Streak {p0}": "Streak {p0}",
+  "Your routine": "Rutinitasmu",
+  "Reorder habits": "Urutkan kebiasaan",
+  "Previous month": "Bulan sebelumnya",
+  "Next month": "Bulan berikutnya",
+  "Habit details": "Detail kebiasaan",
+  "Schedule": "Jadwal",
+  "History": "Riwayat",
+  "Undo": "Batalkan",
+  "Classic": "Klasik",
+  "Check-in": "Centang",
+  "Count": "Jumlah",
+  "Duration": "Durasi"
 }

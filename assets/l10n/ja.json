@@ -669,5 +669,19 @@
   "Create": "創作",
   "Checklist saved locally; server update required": "チェックリストは端末に保存済みです。サーバーの更新が必要です",
   "Changes could not be saved. Please try again.": "変更を保存できませんでした。もう一度お試しください。",
-  "Remind on scheduled days": "予定された日に通知"
+  "Remind on scheduled days": "予定された日に通知",
+  "{p0} water": "水 {p0}",
+  "Streak {p0}": "連続 {p0}",
+  "Your routine": "毎日の習慣",
+  "Reorder habits": "習慣を並べ替える",
+  "Previous month": "前の月",
+  "Next month": "次の月",
+  "Habit details": "習慣の詳細",
+  "Schedule": "スケジュール",
+  "History": "履歴",
+  "Undo": "元に戻す",
+  "Classic": "クラシック",
+  "Check-in": "チェック",
+  "Count": "回数・数量",
+  "Duration": "時間"
 }

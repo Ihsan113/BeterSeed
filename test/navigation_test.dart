@@ -1,11 +1,13 @@
 import 'garden_test_helpers.dart';
+import 'package:betterseed/checklist/checklist_page.dart';
 import 'package:betterseed/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('Four navigation tabs fit on compact 360x640 screens', (tester) async {
+  testWidgets('Four navigation tabs fit on compact 360x640 screens',
+      (tester) async {
     tester.view.physicalSize = const Size(360, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -27,7 +29,8 @@ void main() {
     }
   });
 
-  testWidgets('Checklist completion earns water and watering consumes it', (tester) async {
+  testWidgets('Checklist completion earns water and watering consumes it',
+      (tester) async {
     SharedPreferences.setMockInitialValues({
       'betterseed_music_v2': false,
       'betterseed_sfx_v2': false,
@@ -39,8 +42,14 @@ void main() {
     expect(find.text('Earn'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('tab-1')));
     await tester.pump();
-    expect(find.text('Today’s Checklist'), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const ValueKey('habit-drink')));
+    expect(find.byKey(const ValueKey('checklist-title')), findsOneWidget);
+    await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('habit-drink')), 150,
+        scrollable: find
+            .descendant(
+                of: find.byType(ChecklistPage),
+                matching: find.byType(Scrollable))
+            .first);
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('habit-drink')));
     await tester.pump();

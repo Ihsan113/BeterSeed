@@ -1,3 +1,11 @@
+# BetterSeed — 1.9.0+61 · Checklist visual redesign
+
+Checklist memakai header tunggal, strip tujuh tanggal, ring progres, kartu habit
+ringkas, checkbox yang terpisah dari pilihan tanggal, serta tombol tambah yang
+selalu terjangkau. Mode pengurutan menampilkan drag handle hanya saat diperlukan.
+Editor dan kalender memakai gaya visual yang sama. Nomor build aplikasi dan
+katalog dinaikkan bersama menjadi 61. Lihat [catatan redesign](docs/CHECKLIST_REDESIGN_1_9.md).
+
 # BetterSeed — 1.8.1+60 · Account experience refresh
 
 Halaman akun dan sinkronisasi lebih ringkas, verifikasi email dimulai dengan meminta kode, dan status akun dijelaskan setelah bukti sandi yang benar. Dialog konfirmasi serta notifikasi memakai komponen bersama. Ikon edit/fokus di Garden memiliki ruang terpisah dari pesan motivasi.

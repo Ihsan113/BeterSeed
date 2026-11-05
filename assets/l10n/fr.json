@@ -669,5 +669,19 @@
   "Create": "Créer",
   "Checklist saved locally; server update required": "Liste enregistrée localement ; mise à jour du serveur requise",
   "Changes could not be saved. Please try again.": "Impossible d’enregistrer les modifications. Réessayez.",
-  "Remind on scheduled days": "Rappel les jours prévus"
+  "Remind on scheduled days": "Rappel les jours prévus",
+  "{p0} water": "{p0} eau",
+  "Streak {p0}": "Série {p0}",
+  "Your routine": "Votre routine",
+  "Reorder habits": "Réordonner les habitudes",
+  "Previous month": "Mois précédent",
+  "Next month": "Mois suivant",
+  "Habit details": "Détails de l’habitude",
+  "Schedule": "Planning",
+  "History": "Historique",
+  "Undo": "Annuler",
+  "Classic": "Classique",
+  "Check-in": "Case à cocher",
+  "Count": "Quantité",
+  "Duration": "Durée"
 }

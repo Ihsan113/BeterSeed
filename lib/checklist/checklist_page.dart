@@ -1,3 +1,5 @@
+import 'checklist_detail.dart';
+import 'checklist_style.dart';
 import 'checklist_calendar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -15,7 +17,9 @@ class ChecklistPage extends StatefulWidget {
       required this.progress,
       required this.onChanged,
       required this.masterEnabled,
-      required this.onEnableMaster});
+      required this.onEnableMaster,
+      this.onOpenSettings});
+  final VoidCallback? onOpenSettings;
   final List<Habit> habits;
   final WaterProgress progress;
   final ValueChanged<List<Habit>> onChanged;
@@ -94,104 +98,22 @@ class _ChecklistPageState extends State<ChecklistPage> {
   }
 
   void detail(Habit initial) {
-    var habit = initial;
+    var latest = initial;
     Navigator.push(
         context,
         MaterialPageRoute(
-            builder: (route) => StatefulBuilder(builder: (route, update) {
-                  final d = data(habit);
-                  final r = d.today(DateTime.now());
-                  void increment(int amount) {
-                    if (!r.scheduled || r.rest || !isToday) return;
-                    final next =
-                        r.change(value: (r.value + amount).clamp(0, 100000));
-                    habit = habit.copyWith(
-                        completed: next.done,
-                        checklist: d.record(DateTime.now(), next));
+            builder: (route) => ChecklistDetail(
+                  habit: initial,
+                  date: selected,
+                  onChanged: (habit) {
+                    latest = habit;
                     replace(habit);
-                    update(() {});
-                  }
-
-                  return Scaffold(
-                      appBar: AppBar(title: Text(habit.title), actions: [
-                        if (isToday)
-                          IconButton(
-                              tooltip: route.tr('Edit habit'),
-                              icon: const Icon(Icons.edit_outlined),
-                              onPressed: () {
-                                Navigator.pop(route);
-                                compose(initial: habit);
-                              })
-                      ]),
-                      body: ListView(
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            Text(
-                                '${r.value} / ${r.plan.target} ${r.plan.type == 'duration' ? route.tr('minutes') : r.plan.unit}',
-                                style: Theme.of(route).textTheme.headlineSmall),
-                            Text(d
-                                .planOn(checklistDay(DateTime.now()))
-                                .weekdays
-                                .map((i) => DateFormat.E(
-                                        Localizations.localeOf(route)
-                                            .toLanguageTag())
-                                    .format(DateTime(2026, 11, 1 + i)))
-                                .join(' · ')),
-                            if (habit.reminderEnabled)
-                              Text(TimeOfDay(
-                                      hour: habit.reminderHour,
-                                      minute: habit.reminderMinute)
-                                  .format(route)),
-                            if (isToday && r.scheduled && !r.rest)
-                              Wrap(spacing: 8, children: [
-                                IconButton(
-                                    tooltip: route.tr('Decrease'),
-                                    onPressed: () => increment(-1),
-                                    icon: const Icon(Icons.remove)),
-                                FilledButton(
-                                    onPressed: () => increment(1),
-                                    child: const Text('+1')),
-                                if (r.plan.type == 'duration') ...[
-                                  FilledButton(
-                                      onPressed: () => increment(5),
-                                      child: const Text('+5')),
-                                  FilledButton(
-                                      onPressed: () => increment(10),
-                                      child: const Text('+10'))
-                                ],
-                                FilledButton(
-                                    onPressed: () =>
-                                        increment(r.plan.target - r.value),
-                                    child: Text(route.tr('Complete'))),
-                              ]),
-                            Text(route.tr('Scheduled habit streak: {p0}',
-                                {'p0': d.streak(DateTime.now())})),
-                            Wrap(spacing: 12, children: [
-                              for (final milestone in [7, 30, 100])
-                                Chip(
-                                    avatar: Icon(
-                                        d.streak(DateTime.now(), best: true) >=
-                                                milestone
-                                            ? Icons.emoji_events
-                                            : Icons.lock_outline,
-                                        color: d.streak(DateTime.now(),
-                                                    best: true) >=
-                                                milestone
-                                            ? Colors.amber
-                                            : Colors.grey),
-                                    label: Text(route.tr(
-                                        '{p0} completions', {'p0': milestone})))
-                            ]),
-                            for (final key
-                                in (d.records.keys.toList()..sort()).reversed)
-                              ListTile(
-                                  title: Text(key),
-                                  subtitle:
-                                      Text(route.tr(d.records[key]!.status)),
-                                  trailing: Text(
-                                      '${d.records[key]!.value}/${d.records[key]!.plan.target}')),
-                          ]));
-                })));
+                  },
+                  onEdit: () {
+                    Navigator.pop(route);
+                    compose(initial: latest);
+                  },
+                )));
   }
 
   Future<void> templates() async {
@@ -206,15 +128,18 @@ class _ChecklistPageState extends State<ChecklistPage> {
     final icons = ['hydration', 'study', 'gym', 'meditation', 'sleep', 'art'];
     final choice = await showModalBottomSheet<int>(
         context: context,
-        builder: (context) => SafeArea(
-                child: ListView(shrinkWrap: true, children: [
+        showDragHandle: true,
+        backgroundColor: checklistBackground,
+        builder: (context) => ChecklistSurface(
+                child: SafeArea(
+                    child: ListView(shrinkWrap: true, children: [
               for (var i = 0; i < names.length; i++)
                 ListTile(
                     leading: Icon(habitIcon(icons[i])),
                     title: Text(context.tr(names[i])),
                     subtitle: Text(context.tr('Preview and customize')),
                     onTap: () => Navigator.pop(context, i))
-            ])));
+            ]))));
     if (choice == null || !mounted) return;
     final titles = [
       ['Drink water', 'Stretch'],
@@ -250,43 +175,390 @@ class _ChecklistPageState extends State<ChecklistPage> {
         context,
         MaterialPageRoute(
             builder: (route) => StatefulBuilder(
-                builder: (route, update) => Scaffold(
-                    appBar: AppBar(title: Text(route.tr(names[choice]))),
-                    body:
-                        ListView(padding: const EdgeInsets.all(16), children: [
-                      Text(route.tr('Preview and customize')),
-                      for (var i = 0; i < drafts.length; i++)
-                        ListTile(
-                            title: Text(drafts[i].title),
-                            subtitle: Text(
-                                '${drafts[i].checklist!.plan.target} ${route.tr('minutes')}'),
-                            trailing: IconButton(
-                                tooltip: route.tr('Edit habit'),
-                                icon: const Icon(Icons.edit_outlined),
-                                onPressed: () async {
-                                  final edited = await Navigator.push<Habit>(
-                                      route,
-                                      MaterialPageRoute(
-                                          builder: (_) => HabitEditor(
-                                              initial: drafts[i],
-                                              creating: true,
-                                              masterEnabled:
-                                                  widget.masterEnabled,
-                                              onEnableMaster:
-                                                  widget.onEnableMaster)));
-                                  if (edited != null && route.mounted)
-                                    update(() => drafts[i] = edited);
-                                })),
-                      FilledButton(
-                          onPressed: () => Navigator.pop(route, true),
-                          child: Text(route.tr('Add routine'))),
-                    ])))));
+                builder: (route, update) => ChecklistSurface(
+                    child: Scaffold(
+                        appBar: AppBar(title: Text(route.tr(names[choice]))),
+                        body: ListView(
+                            padding: const EdgeInsets.all(16),
+                            children: [
+                              Text(route.tr('Preview and customize')),
+                              for (var i = 0; i < drafts.length; i++)
+                                ListTile(
+                                    title: Text(drafts[i].title),
+                                    subtitle: Text(drafts[i]
+                                                .checklist!
+                                                .plan
+                                                .type ==
+                                            'checkbox'
+                                        ? route.tr('Check-in')
+                                        : '${drafts[i].checklist!.plan.target} ${drafts[i].checklist!.plan.type == 'duration' ? route.tr('minutes') : drafts[i].checklist!.plan.unit}'),
+                                    trailing: IconButton(
+                                        tooltip: route.tr('Edit habit'),
+                                        icon: const Icon(Icons.edit_outlined),
+                                        onPressed: () async {
+                                          final edited = await Navigator.push<
+                                                  Habit>(
+                                              route,
+                                              MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      HabitEditor(
+                                                          initial: drafts[i],
+                                                          creating: true,
+                                                          masterEnabled: widget
+                                                              .masterEnabled,
+                                                          onEnableMaster: widget
+                                                              .onEnableMaster)));
+                                          if (edited != null && route.mounted)
+                                            update(() => drafts[i] = edited);
+                                        })),
+                              FilledButton(
+                                  onPressed: () => Navigator.pop(route, true),
+                                  child: Text(route.tr('Add routine'))),
+                            ]))))));
     if (accepted == true && mounted)
       widget.onChanged([...widget.habits, ...drafts]);
   }
 
+  bool arranging = false;
+
+  Widget _week(String locale) => LayoutBuilder(builder: (context, constraints) {
+        final scale = MediaQuery.textScalerOf(context).scale(1);
+        final minimum = scale > 1.4 ? 64.0 : 44.0;
+        final width = constraints.maxWidth < minimum * 7
+            ? minimum * 7
+            : constraints.maxWidth;
+        return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            reverse: true,
+            child: SizedBox(
+                width: width,
+                child: Row(children: [
+                  for (var i = 6; i >= 0; i--)
+                    Expanded(child: Builder(builder: (context) {
+                      final now = DateTime.now();
+                      final date = DateTime(now.year, now.month, now.day - i);
+                      final active = checklistDay(date) == day;
+                      final status =
+                          historyStatus(widget.habits, checklistDay(date));
+                      final ink = active ? checklistBackground : checklistText;
+                      return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Semantics(
+                            selected: active,
+                            button: true,
+                            label:
+                                '${DateFormat.yMMMd(locale).format(date)}, ${context.tr(status)}',
+                            child: Material(
+                                color: active
+                                    ? checklistPrimary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(14),
+                                child: InkWell(
+                                  key: ValueKey(
+                                      'checklist-date-${checklistDay(date)}'),
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () => setState(() => selected = date),
+                                  child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 10),
+                                      child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                                DateFormat.E(locale)
+                                                    .format(date),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: active
+                                                        ? ink
+                                                        : checklistMuted,
+                                                    fontWeight:
+                                                        FontWeight.w500)),
+                                            const SizedBox(height: 7),
+                                            Text('${date.day}',
+                                                style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: ink)),
+                                            const SizedBox(height: 7),
+                                            SizedBox(
+                                                height: 12,
+                                                child: status == 'Done'
+                                                    ? Icon(Icons.check_rounded,
+                                                        key: ValueKey(
+                                                            'day-done-${checklistDay(date)}'),
+                                                        size: 12,
+                                                        color: ink)
+                                                    : status == 'Rest'
+                                                        ? Icon(
+                                                            Icons
+                                                                .horizontal_rule,
+                                                            size: 12,
+                                                            color: ink)
+                                                        : Center(
+                                                            child: Container(
+                                                                width: 4,
+                                                                height: 4,
+                                                                decoration: BoxDecoration(
+                                                                    color: status == 'Partial'
+                                                                        ? const Color(0xFF8CC8DB)
+                                                                        : active
+                                                                            ? ink
+                                                                            : checklistBorder,
+                                                                    shape: BoxShape.circle)))),
+                                          ])),
+                                )),
+                          ));
+                    })),
+                ])));
+      });
+
+  Widget _summary(int done, int total) {
+    final ratio = total == 0 ? 0.0 : done / total;
+    return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: checklistSurface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: checklistBorder.withValues(alpha: .65))),
+        child: Row(children: [
+          SizedBox(
+              width: 64,
+              height: 64,
+              child: Stack(alignment: Alignment.center, children: [
+                SizedBox.expand(
+                    child: CircularProgressIndicator(
+                        value: ratio,
+                        strokeWidth: 4,
+                        strokeCap: StrokeCap.round,
+                        color: checklistPrimary,
+                        backgroundColor: checklistBorder,
+                        semanticsLabel: context.tr(
+                            '{p0}/{p1} habits', {'p0': done, 'p1': total}))),
+                Text('${(ratio * 100).round()}%',
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600)),
+              ])),
+          const SizedBox(width: 18),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(
+                    total == 0
+                        ? context.tr('No habits scheduled')
+                        : context
+                            .tr('{p0}/{p1} habits', {'p0': done, 'p1': total}),
+                    style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -.4)),
+                const SizedBox(height: 10),
+                Wrap(spacing: 14, runSpacing: 8, children: [
+                  _metric(
+                      Icons.water_drop_outlined,
+                      context.tr(
+                          '{p0} water', {'p0': widget.progress.earnedOn(day)}),
+                      const Color(0xFF8CC8DB)),
+                  _metric(
+                      Icons.local_fire_department_outlined,
+                      context.tr('Streak {p0}',
+                          {'p0': widget.progress.dayStreak(DateTime.now())}),
+                      const Color(0xFFD7B98B)),
+                ]),
+              ])),
+        ]));
+  }
+
+  Widget _metric(IconData icon, String text, Color color) =>
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 5),
+        Flexible(
+            child: Text(text,
+                style: const TextStyle(fontSize: 12, color: checklistMuted)))
+      ]);
+
+  Widget _menu(Habit h, HabitRecord? r) => PopupMenuButton<String>(
+      tooltip: context.tr('Edit habit'),
+      icon: const Icon(Icons.more_horiz, size: 20, color: checklistMuted),
+      onSelected: (action) async {
+        if (action == 'Edit habit') {
+          compose(initial: h);
+        } else if (action == 'Rest today') {
+          change(h, rest: true);
+        } else if (action == 'Cancel rest') {
+          change(h, rest: false);
+        } else if (action == 'Remove') {
+          final confirm = await showDialog<bool>(
+              context: context,
+              builder: (c) =>
+                  AlertDialog(title: Text(c.tr('Remove habit?')), actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(c, false),
+                        child: Text(c.tr('Cancel'))),
+                    TextButton(
+                        onPressed: () => Navigator.pop(c, true),
+                        child: Text(c.tr('Remove')))
+                  ]));
+          if (confirm == true && mounted)
+            replace(h.copyWith(checklist: data(h).copy(archived: true)));
+        }
+      },
+      itemBuilder: (context) => [
+            for (final action in [
+              'Edit habit',
+              if (r?.rest == true)
+                'Cancel rest'
+              else if (r?.scheduled == true &&
+                  !widget.progress.wasCredited(day, h.id))
+                'Rest today',
+              'Remove'
+            ])
+              PopupMenuItem(value: action, child: Text(context.tr(action)))
+          ]);
+
+  Widget _habit(Habit h, int index) {
+    final r = record(h);
+    final measured = r != null && r.plan.type != 'checkbox';
+    final editable = isToday && r?.scheduled == true && r?.rest != true;
+    final status = r == null
+        ? (widget.progress.wasCredited(day, h.id)
+            ? 'Water credited; target unknown'
+            : 'Unknown')
+        : r.status == 'Missed' && isToday
+            ? 'Not completed'
+            : r.status;
+    return Container(
+        decoration: BoxDecoration(
+            color: checklistSurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: r?.done == true
+                    ? checklistPrimary.withValues(alpha: .25)
+                    : checklistBorder.withValues(alpha: .45))),
+        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                    color: checklistBorder.withValues(alpha: .5),
+                    borderRadius: BorderRadius.circular(11)),
+                child: Icon(habitIcon(h.iconKey),
+                    size: 20, color: checklistPrimary)),
+            const SizedBox(width: 12),
+            Expanded(
+                child: InkWell(
+                    onTap: () => detail(h),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(h.title,
+                                  style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.35,
+                                      color: r?.done == true
+                                          ? checklistMuted
+                                          : checklistText)),
+                              const SizedBox(height: 3),
+                              Text(
+                                  measured && r.scheduled && !r.rest
+                                      ? '${r.value} / ${r.plan.target} ${r.plan.type == 'duration' ? context.tr('minutes') : r.plan.unit}'
+                                      : context.tr(status),
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: checklistMuted,
+                                      height: 1.4)),
+                            ])))),
+            if (arranging && isToday)
+              ReorderableDragStartListener(
+                  index: index,
+                  child: const SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Icon(Icons.drag_handle, color: checklistMuted)))
+            else if (!measured && editable)
+              Semantics(
+                  label: context.tr(r!.done ? 'Done' : 'Complete'),
+                  child: Checkbox(
+                      key: ValueKey('habit-${h.id}'),
+                      value: r.done,
+                      onChanged: (_) => change(h, amount: r.done ? 0 : 1),
+                      activeColor: checklistPrimary,
+                      checkColor: checklistBackground,
+                      side: const BorderSide(color: checklistMuted, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
+                      materialTapTargetSize: MaterialTapTargetSize.padded))
+            else if (isToday)
+              _menu(h, r),
+            if (!measured && editable && !arranging) _menu(h, r),
+          ]),
+          if (measured && r.scheduled && !r.rest)
+            Padding(
+                padding: const EdgeInsets.only(
+                    left: 50, right: 6, top: 4, bottom: 2),
+                child: Column(children: [
+                  ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                          value: (r.value / r.plan.target).clamp(0, 1),
+                          minHeight: 3,
+                          color: checklistPrimary,
+                          backgroundColor: checklistBorder)),
+                  if (editable && !arranging)
+                    Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: SizedBox(
+                            width: double.infinity,
+                            child: Wrap(
+                                alignment: WrapAlignment.spaceBetween,
+                                spacing: 8,
+                                runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  IconButton(
+                                      tooltip: context.tr('Decrease'),
+                                      onPressed: r.value == 0
+                                          ? null
+                                          : () =>
+                                              change(h, amount: r.value - 1),
+                                      icon: const Icon(Icons.remove, size: 18),
+                                      constraints: const BoxConstraints(
+                                          minWidth: 48, minHeight: 48)),
+                                  if (r.plan.type == 'duration')
+                                    TextButton(
+                                        onPressed: () =>
+                                            change(h, amount: r.value + 5),
+                                        child: const Text('+5')),
+                                  OutlinedButton(
+                                      onPressed: () =>
+                                          change(h, amount: r.value + 1),
+                                      style: OutlinedButton.styleFrom(
+                                          minimumSize: const Size(56, 40),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 14),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10))),
+                                      child: const Text('+1')),
+                                ]))),
+                ])),
+        ]));
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      ChecklistSurface(child: Builder(builder: _dashboard));
+  Widget _dashboard(BuildContext context) {
     final visible = widget.habits
         .where((h) =>
             (!data(h).archived ||
@@ -295,12 +567,10 @@ class _ChecklistPageState extends State<ChecklistPage> {
         .toList()
       ..sort((a, b) {
         const categories = ['Morning', 'Afternoon', 'Evening', 'Custom'];
-        final category = categories
+        final c = categories
             .indexOf(data(a).category)
             .compareTo(categories.indexOf(data(b).category));
-        return category != 0
-            ? category
-            : data(a).order.compareTo(data(b).order);
+        return c != 0 ? c : data(a).order.compareTo(data(b).order);
       });
     final scheduled = widget.habits
         .where((h) =>
@@ -311,336 +581,194 @@ class _ChecklistPageState extends State<ChecklistPage> {
     final done = scheduled.where((h) => record(h)!.done).length;
     final locale = Localizations.localeOf(context).toLanguageTag();
     return ColoredBox(
-        color: const Color(0xFF081B1E),
-        child: CustomScrollView(slivers: [
-          SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList.list(children: [
-                Row(children: [
-                  Expanded(
+        color: checklistBackground,
+        child: Column(children: [
+          Expanded(
+              child: CustomScrollView(slivers: [
+            SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                sliver: SliverList.list(children: [
+                  Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Text(context.tr('Checklist'),
+                              key: const ValueKey('checklist-title'),
+                              style: const TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -.8,
+                                  height: 1.2)),
+                          const SizedBox(height: 6),
+                          Text(DateFormat.MMMMEEEEd(locale).format(selected),
+                              style: const TextStyle(
+                                  fontSize: 13, color: checklistMuted))
+                        ])),
+                    const SizedBox(width: 8),
+                    IconButton.outlined(
+                        tooltip: context.tr('Calendar'),
+                        onPressed: calendar,
+                        style: IconButton.styleFrom(
+                            side: const BorderSide(color: checklistBorder),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                            minimumSize: const Size(48, 48)),
+                        icon: const Icon(Icons.calendar_today_outlined,
+                            size: 20)),
+                    if (widget.onOpenSettings != null)
+                      IconButton(
+                          tooltip: context.tr('Settings'),
+                          onPressed: widget.onOpenSettings,
+                          icon: const Icon(Icons.tune_rounded, size: 21))
+                  ]),
+                  const SizedBox(height: 22),
+                  _week(locale),
+                  const SizedBox(height: 18),
+                  _summary(done, scheduled.length),
+                  const SizedBox(height: 18),
+                  if (!isToday)
+                    Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                            context.tr(
+                                'History is read-only. Missing records are unknown.'),
+                            style: const TextStyle(
+                                fontSize: 12, color: checklistMuted))),
+                  if (!widget.masterEnabled &&
+                      widget.habits.any((h) => h.reminderEnabled))
+                    TextButton.icon(
+                        key: const ValueKey('reminder-master-warning'),
+                        onPressed: widget.onEnableMaster,
+                        icon: const Icon(Icons.notifications_off_outlined,
+                            size: 18),
+                        label: Text(context.tr(
+                            'Habit reminders are paused because master notifications are off.'))),
+                  SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(children: [
+                        for (final category in [
+                          'All',
+                          'Morning',
+                          'Afternoon',
+                          'Evening',
+                          'Custom'
+                        ])
+                          Semantics(
+                              selected: filter == category,
+                              child: TextButton(
+                                  onPressed: () =>
+                                      setState(() => filter = category),
+                                  style: TextButton.styleFrom(
+                                      foregroundColor: filter == category
+                                          ? checklistText
+                                          : checklistMuted,
+                                      minimumSize: const Size(48, 48),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14),
+                                      shape: const RoundedRectangleBorder()),
+                                  child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(context.tr(category),
+                                            style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: filter == category
+                                                    ? FontWeight.w700
+                                                    : FontWeight.w400)),
+                                        const SizedBox(height: 9),
+                                        Container(
+                                            height: 2,
+                                            width: 18,
+                                            color: filter == category
+                                                ? checklistPrimary
+                                                : Colors.transparent)
+                                      ])))
+                      ])),
+                  Row(children: [
+                    Expanded(
+                        child: Text(context.tr('Your routine'),
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600))),
+                    IconButton(
+                        tooltip:
+                            context.tr(arranging ? 'Done' : 'Reorder habits'),
+                        onPressed: isToday
+                            ? () => setState(() => arranging = !arranging)
+                            : null,
+                        icon: Icon(
+                            arranging ? Icons.check_rounded : Icons.swap_vert,
+                            size: 20,
+                            color: checklistMuted)),
+                    IconButton(
+                        tooltip: context.tr('Templates'),
+                        onPressed: templates,
+                        icon: const Icon(Icons.library_add_outlined,
+                            size: 20, color: checklistMuted))
+                  ]),
+                  if (visible.isEmpty)
+                    Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 36),
+                        child: Column(children: [
+                          const Icon(Icons.spa_outlined,
+                              size: 36, color: checklistPrimary),
+                          const SizedBox(height: 14),
+                          Text(context.tr('Plant your first daily habit 🌱'),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: checklistMuted))
+                        ])),
+                ])),
+            SliverReorderableList(
+                itemCount: visible.length,
+                // ignore: deprecated_member_use
+                onReorder: (oldIndex, newIndex) {
+                  if (!isToday || !arranging) return;
+                  if (newIndex > oldIndex) newIndex--;
+                  if (data(visible[oldIndex]).category !=
+                      data(visible[newIndex]).category) return;
+                  final moved = visible.removeAt(oldIndex);
+                  visible.insert(newIndex, moved);
+                  final updates = {
+                    for (var i = 0; i < visible.length; i++)
+                      visible[i].id: visible[i]
+                          .copyWith(checklist: data(visible[i]).copy(order: i))
+                  };
+                  widget.onChanged(
+                      [for (final h in widget.habits) updates[h.id] ?? h]);
+                },
+                itemBuilder: (context, index) {
+                  final h = visible[index];
+                  final group = index == 0 ||
+                      data(visible[index - 1]).category != data(h).category;
+                  return Padding(
+                      key: ValueKey(h.id),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                        Text(context.tr('Today’s Checklist'),
-                            style: Theme.of(context).textTheme.headlineSmall),
-                        Text(DateFormat.yMMMd(locale).format(selected))
-                      ])),
-                  IconButton(
-                      tooltip: context.tr('Calendar'),
-                      onPressed: calendar,
-                      icon: const Icon(Icons.calendar_month))
-                ]),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    reverse: true,
-                    child: Row(children: [
-                      for (var i = 6; i >= 0; i--)
-                        Builder(builder: (context) {
-                          final now = DateTime.now();
-                          final date =
-                              DateTime(now.year, now.month, now.day - i);
-                          return Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: ChoiceChip(
-                                  avatar: Icon(
-                                      historyStatus(widget.habits,
-                                                  checklistDay(date)) ==
-                                              'Done'
-                                          ? Icons.check_circle
-                                          : historyStatus(widget.habits,
-                                                      checklistDay(date)) ==
-                                                  'Rest'
-                                              ? Icons.pause_circle
-                                              : Icons.circle_outlined,
-                                      size: 16),
-                                  label: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(DateFormat.E(locale).format(date)),
-                                        Text('${date.day}')
-                                      ]),
-                                  selected: checklistDay(date) == day,
-                                  onSelected: (_) =>
-                                      setState(() => selected = date)));
-                        })
-                    ])),
-                const SizedBox(height: 12),
-                Card(
-                    color: const Color(0xFF123631),
-                    child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(children: [
-                          SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: CircularProgressIndicator(
-                                  value: scheduled.isEmpty
-                                      ? 0
-                                      : done / scheduled.length,
-                                  semanticsLabel: context.tr('{p0}/{p1} habits',
-                                      {'p0': done, 'p1': scheduled.length}))),
-                          const SizedBox(width: 12),
-                          Expanded(
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                Text(
-                                    scheduled.isEmpty
-                                        ? context.tr('No habits scheduled')
-                                        : context.tr('{p0}/{p1} habits', {
-                                            'p0': done,
-                                            'p1': scheduled.length
-                                          }),
-                                    style:
-                                        Theme.of(context).textTheme.titleLarge),
-                                const SizedBox(height: 12),
-                                LinearProgressIndicator(
-                                    value: scheduled.isEmpty
-                                        ? 0
-                                        : done / scheduled.length),
-                                const SizedBox(height: 12),
-                                Text(context
-                                    .tr('{p0} water · Global streak {p1}', {
-                                  'p0': widget.progress.earnedOn(day),
-                                  'p1':
-                                      widget.progress.dayStreak(DateTime.now())
-                                })),
-                              ])),
-                          if (MediaQuery.sizeOf(context).width >= 360 &&
-                              MediaQuery.textScalerOf(context).scale(1) <= 1.3)
-                            const Padding(
-                                padding: EdgeInsets.only(left: 12),
-                                child: ExcludeSemantics(
-                                    child: IgnorePointer(
-                                        child: Image(
-                                            image: AssetImage(
-                                                'assets/images/checklist/sprout_reward.png'),
-                                            width: 64,
-                                            height: 64,
-                                            fit: BoxFit.contain)))),
-                        ]))),
-                if (!isToday)
-                  Text(context.tr(
-                      'History is read-only. Missing records are unknown.')),
-                if (!widget.masterEnabled &&
-                    widget.habits.any((h) => h.reminderEnabled))
-                  TextButton.icon(
-                      key: const ValueKey('reminder-master-warning'),
-                      onPressed: widget.onEnableMaster,
-                      icon: const Icon(Icons.notifications_off_outlined),
-                      label: Text(context.tr(
-                          'Habit reminders are paused because master notifications are off.'))),
-                SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(children: [
-                      for (final category in [
-                        'All',
-                        'Morning',
-                        'Afternoon',
-                        'Evening',
-                        'Custom'
-                      ])
-                        Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: FilterChip(
-                                label: Text(context.tr(category)),
-                                selected: filter == category,
-                                onSelected: (_) =>
-                                    setState(() => filter = category)))
-                    ])),
-                if (visible.isEmpty)
-                  Padding(
-                      padding: const EdgeInsets.all(24),
-                      child:
-                          Text(context.tr('Plant your first daily habit 🌱'))),
-              ])),
-          SliverReorderableList(
-              itemCount: visible.length,
-              // ignore: deprecated_member_use
-              onReorder: (oldIndex, newIndex) {
-                if (!isToday) return;
-                if (newIndex > oldIndex) newIndex--;
-                if (data(visible[oldIndex]).category !=
-                    data(visible[newIndex]).category) return;
-                final moved = visible.removeAt(oldIndex);
-                visible.insert(newIndex, moved);
-                final updates = {
-                  for (var i = 0; i < visible.length; i++)
-                    visible[i].id: visible[i]
-                        .copyWith(checklist: data(visible[i]).copy(order: i))
-                };
-                widget.onChanged(
-                    [for (final h in widget.habits) updates[h.id] ?? h]);
-              },
-              itemBuilder: (context, index) {
-                final h = visible[index];
-                final r = record(h);
-                return Padding(
-                    key: ValueKey(h.id),
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                    child: Card(
-                        color: const Color(0xFF123631),
-                        child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(children: [
-                                    Icon(habitIcon(h.iconKey),
-                                        color: const Color(0xFF96E4B2)),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                        child: InkWell(
-                                            onTap: () => detail(h),
-                                            child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(h.title,
-                                                      style: const TextStyle(
-                                                          fontSize: 16,
-                                                          fontWeight:
-                                                              FontWeight.w600)),
-                                                  Text(context
-                                                      .tr(data(h).category))
-                                                ]))),
-                                    if (isToday)
-                                      PopupMenuButton<String>(
-                                          onSelected: (action) async {
-                                            if (action == 'Edit habit') {
-                                              compose(initial: h);
-                                            } else if (action == 'Rest today') {
-                                              change(h, rest: true);
-                                            } else if (action ==
-                                                'Cancel rest') {
-                                              change(h, rest: false);
-                                            } else if (action == 'Remove') {
-                                              final confirm = await showDialog<
-                                                      bool>(
-                                                  context: context,
-                                                  builder: (c) => AlertDialog(
-                                                          title: Text(c.tr(
-                                                              'Remove habit?')),
-                                                          actions: [
-                                                            TextButton(
-                                                                onPressed: () =>
-                                                                    Navigator.pop(
-                                                                        c,
-                                                                        false),
-                                                                child: Text(c.tr(
-                                                                    'Cancel'))),
-                                                            TextButton(
-                                                                onPressed: () =>
-                                                                    Navigator.pop(
-                                                                        c,
-                                                                        true),
-                                                                child: Text(c.tr(
-                                                                    'Remove')))
-                                                          ]));
-                                              if (confirm == true && mounted)
-                                                replace(h.copyWith(
-                                                    checklist: data(h)
-                                                        .copy(archived: true)));
-                                            }
-                                          },
-                                          itemBuilder: (context) => [
-                                                for (final action in [
-                                                  'Edit habit',
-                                                  if (r?.rest == true)
-                                                    'Cancel rest'
-                                                  else if (r?.scheduled ==
-                                                          true &&
-                                                      !widget.progress
-                                                          .wasCredited(
-                                                              day, h.id))
-                                                    'Rest today',
-                                                  'Remove'
-                                                ])
-                                                  PopupMenuItem(
-                                                      value: action,
-                                                      child: Text(
-                                                          context.tr(action)))
-                                              ]),
-                                    if (isToday)
-                                      ReorderableDragStartListener(
-                                          index: index,
-                                          child: const SizedBox(
-                                              width: 48,
-                                              height: 48,
-                                              child: Icon(Icons.drag_handle))),
-                                  ]),
-                                  if (r == null)
-                                    Text(context.tr(
-                                        widget.progress.wasCredited(day, h.id)
-                                            ? 'Water credited; target unknown'
-                                            : 'Unknown'))
-                                  else ...[
-                                    Text(context.tr(
-                                        r.status == 'Missed' && isToday
-                                            ? 'Not completed'
-                                            : r.status)),
-                                    if (r.scheduled && !r.rest) ...[
-                                      if (r.plan.type != 'checkbox') ...[
-                                        Text(
-                                            '${r.value} / ${r.plan.target} ${r.plan.type == 'duration' ? context.tr('minutes') : r.plan.unit}'),
-                                        LinearProgressIndicator(
-                                            value: (r.value / r.plan.target)
-                                                .clamp(0, 1))
-                                      ],
-                                      if (isToday)
-                                        Wrap(
-                                          spacing: 8,
-                                          children: [
-                                            if (r.plan.type == 'checkbox')
-                                              FilledButton.tonalIcon(
-                                                  key:
-                                                      ValueKey('habit-${h.id}'),
-                                                  onPressed: () => change(h,
-                                                      amount: r.done ? 0 : 1),
-                                                  icon: Icon(r.done
-                                                      ? Icons.check_circle
-                                                      : Icons.circle_outlined),
-                                                  label: Text(context.tr(r.done
-                                                      ? 'Done'
-                                                      : 'Complete')))
-                                            else ...[
-                                              IconButton(
-                                                  tooltip:
-                                                      context.tr('Decrease'),
-                                                  onPressed: () => change(h,
-                                                      amount: r.value - 1),
-                                                  icon:
-                                                      const Icon(Icons.remove)),
-                                              FilledButton.tonal(
-                                                  onPressed: () => change(h,
-                                                      amount: r.value + 1),
-                                                  child: const Text('+1')),
-                                              if (r.plan.type == 'duration')
-                                                FilledButton.tonal(
-                                                    onPressed: () => change(h,
-                                                        amount: r.value + 5),
-                                                    child: const Text('+5'))
-                                            ]
-                                          ],
-                                        ),
-                                    ],
-                                  ],
-                                ]))));
-              }),
-          SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              sliver: SliverToBoxAdapter(
-                  child: Wrap(spacing: 12, runSpacing: 8, children: [
-                FilledButton.icon(
-                    onPressed: () => compose(),
-                    icon: const Icon(Icons.add),
-                    label: Text(context.tr('Add a daily habit'))),
-                OutlinedButton.icon(
-                    onPressed: templates,
-                    icon: const Icon(Icons.auto_awesome),
-                    label: Text(context.tr('Templates')))
-              ]))),
+                            if (group)
+                              Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: 8, bottom: 10, left: 2),
+                                  child: Text(context.tr(data(h).category),
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: checklistMuted,
+                                          letterSpacing: .4))),
+                            _habit(h, index)
+                          ]));
+                }),
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          ])),
+          Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+              child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                      onPressed: () => compose(),
+                      icon: const Icon(Icons.add, size: 20),
+                      label: Text(context.tr('Add a daily habit'))))),
         ]));
   }
 }
@@ -668,6 +796,7 @@ class _HabitEditorState extends State<HabitEditor> {
   int step = 0;
   String query = '';
   String iconCategory = 'All';
+  final iconScroll = ScrollController();
   final form = GlobalKey<FormState>();
   late bool masterActive;
   @override
@@ -694,6 +823,7 @@ class _HabitEditorState extends State<HabitEditor> {
     title.dispose();
     target.dispose();
     unit.dispose();
+    iconScroll.dispose();
     super.dispose();
   }
 
@@ -725,7 +855,9 @@ class _HabitEditorState extends State<HabitEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) =>
+      ChecklistSurface(child: Builder(builder: _editor));
+  Widget _editor(BuildContext context) => Scaffold(
       appBar: AppBar(
           title: Text(context
               .tr(widget.creating ? 'Plant a new habit' : 'Edit habit'))),
@@ -736,7 +868,35 @@ class _HabitEditorState extends State<HabitEditor> {
                 Expanded(
                     child:
                         ListView(padding: const EdgeInsets.all(16), children: [
-                  Text('${step + 1}/2'),
+                  Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: Row(children: [
+                        for (var i = 0; i < 2; i++)
+                          Expanded(
+                              child: Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                            height: 3,
+                                            decoration: BoxDecoration(
+                                                color: i <= step
+                                                    ? checklistPrimary
+                                                    : checklistBorder,
+                                                borderRadius:
+                                                    BorderRadius.circular(2))),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                            '${i + 1}  ${context.tr(i == 0 ? 'Habit name' : 'Goal type')}',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: i == step
+                                                    ? checklistText
+                                                    : checklistMuted))
+                                      ])))
+                      ])),
                   if (step == 0) ...[
                     TextFormField(
                         controller: title,
@@ -746,6 +906,7 @@ class _HabitEditorState extends State<HabitEditor> {
                         validator: (v) => v == null || v.trim().isEmpty
                             ? context.tr('Required')
                             : null),
+                    const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                         isExpanded: true,
                         initialValue: category,
@@ -762,7 +923,11 @@ class _HabitEditorState extends State<HabitEditor> {
                                 value: c, child: Text(context.tr(c)))
                         ],
                         onChanged: (v) => setState(() => category = v!)),
-                    Text(context.tr('Pick an icon')),
+                    const SizedBox(height: 24),
+                    Text(context.tr('Pick an icon'),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 12),
                     TextField(
                         decoration: InputDecoration(
                             labelText: context.tr('Search icons')),
@@ -774,31 +939,45 @@ class _HabitEditorState extends State<HabitEditor> {
                         ...habitIcons.map((e) => e.category).toSet()
                       ])
                         ChoiceChip(
-                            label: Text(context.tr(c)),
+                            showCheckmark: false,
+                            label:
+                                Text(context.tr(c == 'Legacy' ? 'Classic' : c)),
                             selected: iconCategory == c,
                             onSelected: (_) => setState(() => iconCategory = c))
                     ]),
-                    Wrap(spacing: 8, runSpacing: 8, children: [
-                      for (final i in habitIcons.where((i) =>
-                          (iconCategory == 'All' ||
-                              i.category == iconCategory) &&
-                          (context.tr(i.label).toLowerCase().contains(query) ||
-                              i.key.contains(query))))
-                        Semantics(
-                            selected: icon == i.key,
-                            child: IconButton.filledTonal(
-                                tooltip: context.tr(i.label),
-                                isSelected: icon == i.key,
-                                onPressed: () => setState(() => icon = i.key),
-                                icon: Icon(i.icon),
-                                style: IconButton.styleFrom(
-                                    minimumSize: const Size(48, 48),
-                                    side: icon == i.key
-                                        ? const BorderSide(
-                                            color: Colors.lightGreen, width: 2)
-                                        : null)))
-                    ])
+                    ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 240),
+                        child: Scrollbar(
+                            controller: iconScroll,
+                            thumbVisibility: true,
+                            child: SingleChildScrollView(
+                                controller: iconScroll,
+                                child:
+                                    Wrap(spacing: 8, runSpacing: 8, children: [
+                                  for (final i in habitIcons.where((i) =>
+                                      (iconCategory == 'All' || i.category == iconCategory) &&
+                                      (context.tr(i.label).toLowerCase().contains(query) ||
+                                          i.key.contains(query))))
+                                    Semantics(
+                                        selected: icon == i.key,
+                                        child: IconButton.filledTonal(
+                                            tooltip: context.tr(i.label),
+                                            isSelected: icon == i.key,
+                                            onPressed: () =>
+                                                setState(() => icon = i.key),
+                                            icon: Icon(i.icon),
+                                            style: IconButton.styleFrom(
+                                                minimumSize: const Size(48, 48),
+                                                shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            12)),
+                                                side: icon == i.key
+                                                    ? const BorderSide(color: checklistPrimary, width: 2)
+                                                    : null)))
+                                ]))))
                   ] else ...[
+                    const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                         isExpanded: true,
                         initialValue: type,
@@ -807,9 +986,15 @@ class _HabitEditorState extends State<HabitEditor> {
                         items: [
                           for (final t in ['checkbox', 'count', 'duration'])
                             DropdownMenuItem(
-                                value: t, child: Text(context.tr(t)))
+                                value: t,
+                                child: Text(context.tr(t == 'checkbox'
+                                    ? 'Check-in'
+                                    : t == 'count'
+                                        ? 'Count'
+                                        : 'Duration')))
                         ],
                         onChanged: (v) => setState(() => type = v!)),
+                    if (type != 'checkbox') const SizedBox(height: 16),
                     if (type != 'checkbox')
                       TextFormField(
                           controller: target,
@@ -823,6 +1008,7 @@ class _HabitEditorState extends State<HabitEditor> {
                                 ? context.tr('Enter 1–100000')
                                 : null;
                           }),
+                    if (type == 'count') const SizedBox(height: 16),
                     if (type == 'count')
                       TextFormField(
                           controller: unit,
@@ -832,6 +1018,11 @@ class _HabitEditorState extends State<HabitEditor> {
                           validator: (v) => v == null || v.trim().isEmpty
                               ? context.tr('Required')
                               : null),
+                    const SizedBox(height: 24),
+                    Text(context.tr('Schedule'),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
                     Wrap(spacing: 8, children: [
                       for (final preset in [
                         'Every day',
@@ -847,21 +1038,67 @@ class _HabitEditorState extends State<HabitEditor> {
                                         ? {1, 2, 3, 4, 5}
                                         : {6, 7}))
                     ]),
-                    Wrap(spacing: 6, children: [
-                      for (var i = 1; i <= 7; i++)
-                        FilterChip(
-                            label: Text(DateFormat.E(
-                                    Localizations.localeOf(context)
-                                        .toLanguageTag())
-                                .format(DateTime(2026, 11, 2 + i - 1))),
-                            selected: days.contains(i),
-                            onSelected: (v) => setState(() {
-                                  if (v)
-                                    days.add(i);
-                                  else if (days.length > 1) days.remove(i);
-                                }))
-                    ]),
+                    const SizedBox(height: 8),
+                    LayoutBuilder(builder: (context, constraints) {
+                      final minimum =
+                          MediaQuery.textScalerOf(context).scale(1) > 1.4
+                              ? 476.0
+                              : 336.0;
+                      return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                              width: constraints.maxWidth < minimum
+                                  ? minimum
+                                  : constraints.maxWidth,
+                              child: Row(children: [
+                                for (var i = 1; i <= 7; i++)
+                                  Expanded(
+                                      child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 2),
+                                          child: Semantics(
+                                              selected: days.contains(i),
+                                              child: TextButton(
+                                                style: TextButton.styleFrom(
+                                                    minimumSize:
+                                                        const Size(44, 48),
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        vertical: 10),
+                                                    backgroundColor:
+                                                        days.contains(i)
+                                                            ? checklistPrimary
+                                                            : checklistSurface,
+                                                    foregroundColor: days
+                                                            .contains(i)
+                                                        ? checklistBackground
+                                                        : checklistMuted,
+                                                    shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(10))),
+                                                onPressed: () => setState(() {
+                                                  if (!days.contains(i)) {
+                                                    days.add(i);
+                                                  } else if (days.length > 1) {
+                                                    days.remove(i);
+                                                  }
+                                                }),
+                                                child: Text(
+                                                    DateFormat.E(Localizations
+                                                                .localeOf(
+                                                                    context)
+                                                            .toLanguageTag())
+                                                        .format(DateTime(
+                                                            2026, 11, 1 + i)),
+                                                    style: const TextStyle(
+                                                        fontSize: 12)),
+                                              )))),
+                              ])));
+                    }),
+                    const SizedBox(height: 24),
                     SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
                         title: Text(context.tr('Remind on scheduled days')),
                         value: reminder,
                         onChanged: (v) => setState(() => reminder = v)),

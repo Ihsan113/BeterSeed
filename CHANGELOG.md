@@ -1,3 +1,12 @@
+## v1.9.0+61 — Clean Checklist, calendar and habit editor
+
+- Replace the duplicated Checklist header and scenic background with a focused layout, seven date cells, compact progress summary and a persistent add button.
+- Separate date selection from completion status; use a single rounded checkbox for check-in habits and responsive controls for count/duration goals.
+- Introduce an explicit reorder mode, quieter category tabs, a flat navigation bar, and direct settings access.
+- Restyle the calendar, two-step editor, icon picker, templates and habit detail with shared typography, surfaces and spacing.
+- Display the selected historical record in habit detail without allowing edits to past days.
+- Improve small-screen and large-font layouts, add regression tests, and synchronize app versionCode and catalog build at 61.
+
 ## v1.8.1+60 — Clearer accounts, verification and Garden controls
 
 - Redesign account identity, sync status, conflicts and security with compact panels and on-demand help.

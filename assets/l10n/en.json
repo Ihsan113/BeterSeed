@@ -669,5 +669,19 @@
   "Create": "Create",
   "Checklist saved locally; server update required": "Checklist saved locally; server update required",
   "Changes could not be saved. Please try again.": "Changes could not be saved. Please try again.",
-  "Remind on scheduled days": "Remind on scheduled days"
+  "Remind on scheduled days": "Remind on scheduled days",
+  "{p0} water": "{p0} water",
+  "Streak {p0}": "Streak {p0}",
+  "Your routine": "Your routine",
+  "Reorder habits": "Reorder habits",
+  "Previous month": "Previous month",
+  "Next month": "Next month",
+  "Habit details": "Habit details",
+  "Schedule": "Schedule",
+  "History": "History",
+  "Undo": "Undo",
+  "Classic": "Classic",
+  "Check-in": "Check-in",
+  "Count": "Count",
+  "Duration": "Duration"
 }
