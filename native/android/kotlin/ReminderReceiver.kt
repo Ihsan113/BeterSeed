@@ -22,11 +22,24 @@ class ReminderReceiver : BroadcastReceiver() {
         if (!habit.optBoolean("reminderEnabled", false)) return
         // Rearm tomorrow before checking whether today's habit is complete.
         ReminderScheduler.scheduleOne(context, habit)
-        if (!ReminderScheduler.scheduledOn(habit, java.util.Calendar.getInstance())) return
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        if (pref.getString("habits_day", "") == today && habit.optBoolean("completed", false)) return
+        val activityDay = intent.getStringExtra("activity_day") ?: today
+        // A delayed alarm from an earlier activity date is stale; do not deliver
+        // it after a reboot/time change. Future-day lead reminders remain valid.
+        if (activityDay < today) return
+        val activity = java.util.Calendar.getInstance()
+        try {
+            val format = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
+            activity.time = format.parse(activityDay) ?: return
+        } catch (_: Exception) { return }
+        if (!ReminderScheduler.scheduledOn(habit, activity)) return
+        val record = habit.optJSONObject("checklist")?.optJSONObject("records")?.optJSONObject(activityDay)
+        if (record != null && record.optInt("value",0) >= (record.optJSONObject("plan")?.optInt("target",1) ?: 1)) return
+        if (activityDay == today && pref.getString("habits_day", "") == today && habit.optBoolean("completed", false)) return
+        if (pref.getString("reminder_delivered_$id", "") == activityDay) return
         if (Build.VERSION.SDK_INT >= 33 &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        pref.edit().putString("reminder_delivered_$id", activityDay).apply()
         ReminderScheduler.createChannel(context)
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val pending = launch?.let {

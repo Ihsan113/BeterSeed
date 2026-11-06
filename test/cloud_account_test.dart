@@ -69,6 +69,7 @@ class FakeCloudServer {
   Map<String, dynamic>? unlockBody;
   bool rejectQuote = false;
   bool supportsChecklist = false;
+  bool supportsPlanner = false;
   bool loseNextReply = false;
   Completer<void>? holdWrite;
   Completer<void>? writeStarted;
@@ -127,7 +128,8 @@ class FakeCloudServer {
           ...?gardens[id],
           if (gardens[id] == null) 'revision': 0,
           if (gardens[id] == null) 'snapshot': null,
-          if (supportsChecklist) 'supportedSnapshotVersions': [1, 2]
+          if (supportsChecklist)
+            'supportedSnapshotVersions': [1, 2, if (supportsPlanner) 3]
         });
       final b = Map<String, dynamic>.from(jsonDecode(r.body) as Map);
       writes.add(b);
@@ -189,6 +191,50 @@ void main() {
     server.supportsChecklist = true;
     await account.sync();
     expect(server.gardens['a']!['snapshot']['version'], 2);
+    expect(account.dirty, false);
+  });
+
+  test(
+      'v3 keeps activity and seconds local on v2 servers, including pending retries',
+      () async {
+    await account.initialize(garden(5), garden(0));
+    await account.acceptSession(session('a'));
+    await account.sync();
+    server.supportsChecklist = true;
+    final payload = {
+      ...garden(12),
+      'version': 3,
+      'habits': [
+        {
+          'id': 'h',
+          'checklist': {
+            'plan': {'activityMinute': 420},
+            'records': {
+              '2026-11-06': {'focusSeconds': 359}
+            }
+          },
+          'reminderLeadMinutes': 15
+        }
+      ]
+    };
+    await account.capture(payload);
+    final before = server.writes.length;
+    await account.sync();
+    expect(server.writes.length, before);
+    expect(account.dirty, true);
+    server.supportsPlanner = true;
+    server.loseNextReply = true;
+    await account.sync();
+    expect(server.writes.length, before + 1);
+    expect(account.dirty, true);
+    server.supportsPlanner = false;
+    await account.sync();
+    expect(server.writes.length, before + 1);
+    server.supportsPlanner = true;
+    await account.sync();
+    expect(
+        server.writes.last['mutationId'], server.writes[before]['mutationId']);
+    expect(server.gardens['a']!['snapshot'], payload);
     expect(account.dirty, false);
   });
 

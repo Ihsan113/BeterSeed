@@ -16,6 +16,7 @@ const habitPlan = z.object({
   type: z.enum(["checkbox", "count", "duration"]),
   target: z.number().int().min(1).max(100000),
   unit: z.string().max(40),
+  activityMinute: z.number().int().min(0).max(1439).nullable().optional(),
   weekdays: z.array(z.number().int().min(1).max(7)).min(1).max(7)
     .refine(days => new Set(days).size === days.length),
 }).strict().refine(p => (p.type !== "checkbox" || p.target === 1) &&
@@ -26,13 +27,14 @@ const checklist = z.object({
   order: z.number().int().min(0).max(2000), archived: z.boolean(),
   pending: habitPlan.nullable(), effective: day.nullable(),
   records: z.record(day, z.object({plan:habitPlan, scheduled:z.boolean(),
-    value:z.number().int().min(0).max(100000),rest:z.boolean()}).strict())
+    value:z.number().int().min(0).max(100000),rest:z.boolean(),
+    focusSeconds:z.number().int().min(0).max(6000000).optional()}).strict().refine(r => r.focusSeconds === undefined || (r.plan.type === "duration" && r.value === Math.floor(r.focusSeconds / 60))))
     .refine(records => Object.keys(records).length <= 366),
   carriedStreak: count, bestStreak: count,
 }).strict();
 export const snapshotSchema = z
   .object({
-    version: z.union([z.literal(1), z.literal(2)]),
+    version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     habits: z
       .array(
         z
@@ -43,6 +45,7 @@ export const snapshotSchema = z
             completed: z.boolean(),
             iconKey: z.string().max(32),
             reminderEnabled: z.boolean(),
+            reminderLeadMinutes: z.union([z.literal(0), z.literal(5), z.literal(15), z.literal(30), z.literal(60)]).optional(),
             reminderHour: z.number().int().min(0).max(23),
             reminderMinute: z.number().int().min(0).max(59),
           })
@@ -91,6 +94,10 @@ export const snapshotSchema = z
   .superRefine((v, ctx) => {
     if (v.version === 1 && v.habits.some(h => h.checklist))
       ctx.addIssue({code:"custom",message:"Checklist data requires snapshot v2"});
+    if (v.version < 3 && v.habits.some(h => h.reminderLeadMinutes !== undefined ||
+      h.checklist?.plan.activityMinute !== undefined || h.checklist?.pending?.activityMinute !== undefined ||
+      Object.values(h.checklist?.records ?? {}).some(r => r.focusSeconds !== undefined || r.plan.activityMinute !== undefined)))
+      ctx.addIssue({code:"custom", message:"Planner fields require snapshot v3"});
     if (Object.keys(v.treePlacements).length > 200)
       ctx.addIssue({ code: "custom", message: "Too many placements" });
     if (new Set(v.habits.map((h) => h.id)).size !== v.habits.length)

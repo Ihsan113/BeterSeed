@@ -1687,11 +1687,43 @@ test("checklist v2 advertises support and prevents legacy overwrite", async () =
     start:"2026-10-27",plan,category:"Morning",order:0,archived:false,
     pending:null,effective:null,records:{"2026-10-27":{plan,scheduled:true,value:4,rest:false}},carriedStreak:0,bestStreak:0
   }}]};
-  assert.deepEqual((await request("GET","/v1/garden",undefined,s.accessToken)).body.supportedSnapshotVersions,[1,2]);
+  assert.deepEqual((await request("GET","/v1/garden",undefined,s.accessToken)).body.supportedSnapshotVersions,[1,2,3]);
   assert.equal((await request("PUT","/v1/garden",mutation(1,snapshot),s.accessToken)).status,200);
   assert.equal((await request("PUT","/v1/garden",mutation(2,garden,1),s.accessToken)).body.error,"app_update_required");
   const remote = (await request("GET","/v1/garden",undefined,s.accessToken)).body;
   assert.equal(remote.revision,1);
   assert.equal(remote.snapshot.habits[0].checklist.records["2026-10-27"].value,4);
   assert.equal((await request("PUT","/v1/garden",mutation(3,{...snapshot,version:1},1),s.accessToken)).status,400);
+});
+
+
+test("planner v3 validates activity and seconds and refuses v2 downgrade", async () => {
+  const s = await account();
+  const plan = {type:"duration",target:15,unit:"",weekdays:[1,2,3,4,5,6,7],activityMinute:15};
+  const snapshot = {...garden, version:3, habits:[{...garden.habits[0],reminderLeadMinutes:30,checklist:{
+    start:"2026-10-27",plan,category:"Evening",order:0,archived:false,pending:null,effective:null,
+    records:{"2026-10-27":{plan,scheduled:true,value:5,focusSeconds:359,rest:false}},carriedStreak:0,bestStreak:0
+  }}]};
+  assert.equal((await request("PUT","/v1/garden",mutation(1,snapshot),s.accessToken)).status,200);
+  const legacy={...garden,version:2};
+  assert.equal((await request("PUT","/v1/garden",mutation(2,legacy,1),s.accessToken)).body.error,"app_update_required");
+  const remote=(await request("GET","/v1/garden",undefined,s.accessToken)).body;
+  assert.equal(remote.revision,1); assert.deepEqual(remote.snapshot,snapshot);
+  assert.equal((await request("PUT","/v1/garden",mutation(3,{...snapshot,version:2},1),s.accessToken)).status,400);
+  for (const minute of [-1,1440,1.5]) {
+    const invalid=structuredClone(snapshot);invalid.habits[0]!.checklist.plan.activityMinute=minute;
+    assert.equal((await request("PUT","/v1/garden",mutation(10,invalid,1),s.accessToken)).status,400);
+  }
+  for (const lead of [-1, 1, 75]) {
+    const invalid=structuredClone(snapshot); invalid.habits[0]!.reminderLeadMinutes=lead;
+    assert.equal((await request("PUT","/v1/garden",mutation(20,invalid,1),s.accessToken)).status,400);
+  }
+  for (const seconds of [-1, 6000001, 1.5, 600]) {
+    const invalid=structuredClone(snapshot); invalid.habits[0]!.checklist.records["2026-10-27"]!.focusSeconds=seconds;
+    assert.equal((await request("PUT","/v1/garden",mutation(21,invalid,1),s.accessToken)).status,400);
+  }
+  const wrongType=structuredClone(snapshot);
+  wrongType.habits[0]!.checklist.records["2026-10-27"]!.plan.type="count";
+  wrongType.habits[0]!.checklist.records["2026-10-27"]!.plan.unit="count";
+  assert.equal((await request("PUT","/v1/garden",mutation(22,wrongType,1),s.accessToken)).status,400);
 });

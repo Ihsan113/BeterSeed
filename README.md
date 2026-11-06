@@ -1,3 +1,8 @@
+# BetterSeed — 1.10.0+62 · Checklist & Statistics 2.1
+
+Daily planner, Living Garden Focus Timer, and record-based insights.
+See [audit and contract](docs/CHECKLIST_2_1_AUDIT.md). Snapshot v3 requires a compatible backend; production is not deployed by this source update.
+
 # BetterSeed — 1.9.0+61 · Checklist visual redesign
 
 Checklist memakai header tunggal, strip tujuh tanggal, ring progres, kartu habit
@@ -218,3 +223,15 @@ and progress.
 
 No new storage permissions, logins, or server-side services are required.
 See `CHANGELOG.md` for technical release notes and verification steps.
+## Checklist & Statistics 2.1 review
+
+App candidate **1.10.0+62**, backend source **1.4.0** (not deployed).
+See the [audit](docs/CHECKLIST_2_1_AUDIT.md),
+[Snapshot v3 and timer contract](docs/CHECKLIST_2_1_CONTRACT.md), and
+[executed QA / device limits](docs/CHECKLIST_2_1_VALIDATION.md).
+
+Reproduce Flutter previews with `flutter test tool/planner_preview_test.dart
+--dart-define=FLUTTER_SDK=/path/to/flutter
+--dart-define=PREVIEW_OUTPUT=build/planner_preview` (one shell command). The
+fixture uses sample data and real Flutter widgets/Garden assets; it is not a
+physical-device screenshot. Focus pauses when the app leaves the foreground.

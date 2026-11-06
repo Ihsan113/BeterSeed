@@ -8,12 +8,19 @@ class HabitPlan {
       {this.type = 'checkbox',
       this.target = 1,
       this.unit = '',
+      this.activityMinute,
       this.weekdays = const [1, 2, 3, 4, 5, 6, 7]});
   final String type, unit;
   final int target;
+  final int? activityMinute;
   final List<int> weekdays;
-  Map<String, dynamic> toJson() =>
-      {'type': type, 'target': target, 'unit': unit, 'weekdays': weekdays};
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'target': target,
+        'unit': unit,
+        'weekdays': weekdays,
+        if (activityMinute != null) 'activityMinute': activityMinute
+      };
   factory HabitPlan.fromJson(Map<String, dynamic> j) {
     final type = j['type'];
     final target = j['target'];
@@ -22,6 +29,10 @@ class HabitPlan {
         target is! int ||
         target < 1 ||
         target > 100000 ||
+        (j['activityMinute'] != null &&
+            (j['activityMinute'] is! int ||
+                j['activityMinute'] < 0 ||
+                j['activityMinute'] > 1439)) ||
         (type == 'checkbox' && target != 1) ||
         j['unit'] is! String ||
         (j['unit'] as String).length > 40 ||
@@ -32,7 +43,11 @@ class HabitPlan {
         days.any((d) => d < 1 || d > 7))
       throw const FormatException('Invalid habit plan');
     return HabitPlan(
-        type: type, target: target, unit: j['unit'] as String, weekdays: days);
+        type: type,
+        target: target,
+        unit: j['unit'] as String,
+        weekdays: days,
+        activityMinute: j['activityMinute'] as int?);
   }
 }
 
@@ -41,10 +56,14 @@ class HabitRecord {
       {required this.plan,
       required this.scheduled,
       this.value = 0,
+      this.focusSeconds,
       this.rest = false});
   final HabitPlan plan;
   final bool scheduled, rest;
   final int value;
+  final int? focusSeconds;
+  int get durationSeconds =>
+      plan.type == 'duration' ? (focusSeconds ?? value * 60) : 0;
   bool get done => scheduled && !rest && value >= plan.target;
   String get status => !scheduled
       ? 'Not scheduled'
@@ -52,25 +71,48 @@ class HabitRecord {
           ? 'Rest'
           : done
               ? 'Done'
-              : value > 0
+              : value > 0 || durationSeconds > 0
                   ? 'Partial'
                   : 'Missed';
-  HabitRecord change({int? value, bool? rest}) => HabitRecord(
-      plan: plan,
-      scheduled: scheduled,
-      value: value ?? this.value,
-      rest: rest ?? this.rest);
+  HabitRecord change({int? value, bool? rest, int? focusSeconds}) =>
+      HabitRecord(
+          plan: plan,
+          scheduled: scheduled,
+          value: value ?? this.value,
+          focusSeconds: focusSeconds ??
+              (value != null && this.focusSeconds != null
+                  ? value * 60
+                  : this.focusSeconds),
+          rest: rest ?? this.rest);
   Map<String, dynamic> toJson() => {
         'plan': plan.toJson(),
         'scheduled': scheduled,
         'value': value,
-        'rest': rest
+        'rest': rest,
+        if (focusSeconds != null) 'focusSeconds': focusSeconds,
       };
-  factory HabitRecord.fromJson(Map<String, dynamic> j) => HabitRecord(
-      plan: HabitPlan.fromJson(Map<String, dynamic>.from(j['plan'])),
-      scheduled: j['scheduled'] == true,
-      value: j['value'] as int,
-      rest: j['rest'] == true);
+  factory HabitRecord.fromJson(Map<String, dynamic> j) {
+    final plan = HabitPlan.fromJson(Map<String, dynamic>.from(j['plan']));
+    final value = j['value'];
+    final seconds = j['focusSeconds'];
+    if (value is! int ||
+        value < 0 ||
+        value > 100000 ||
+        (seconds != null &&
+            (seconds is! int ||
+                seconds < 0 ||
+                seconds > 6000000 ||
+                plan.type != 'duration' ||
+                value != seconds ~/ 60))) {
+      throw const FormatException('Invalid habit progress');
+    }
+    return HabitRecord(
+        plan: plan,
+        scheduled: j['scheduled'] == true,
+        value: value,
+        focusSeconds: seconds as int?,
+        rest: j['rest'] == true);
+  }
 }
 
 class ChecklistData {

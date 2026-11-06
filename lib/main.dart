@@ -1,3 +1,7 @@
+import 'statistics/statistics_page.dart';
+import 'focus/focus_session.dart';
+import 'focus/focus_hud.dart';
+import 'checklist/checklist_pickers.dart';
 import 'checklist/checklist_reward.dart';
 import 'checklist/checklist_data.dart';
 import 'checklist/checklist_page.dart';
@@ -13,7 +17,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -251,6 +254,177 @@ class _GrowthHomeState extends State<GrowthHome>
   int _leafCoins = 0;
   Set<String> _deliveredLeafPurchases = <String>{};
   bool _focusMode = false;
+  FocusSession? _habitFocus;
+  FocusSessionStore? _focusStore;
+  String? _focusOwner;
+  String _focusTitle = '';
+  bool _foreground = true;
+  bool _openingHabitFocus = false, _leavingHabitFocus = false;
+
+  Future<void> _startHabitFocus(Habit habit) async {
+    if (_openingHabitFocus || _habitFocus != null || habit.checklist == null) return;
+    _openingHabitFocus = true;
+    try {
+      await _openHabitFocus(habit);
+    } catch (_) {
+      _showFocusStorageFailure();
+    } finally {
+      _openingHabitFocus = false;
+    }
+  }
+
+  void _showFocusStorageFailure() {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(AppToast(
+          content: Text(context.tr('Progress could not be saved. Please retry.'))));
+    }
+  }
+
+  Future<void> _openHabitFocus(Habit habit) async {
+    final now = DateTime.now();
+    final record = habit.checklist!.today(now);
+    if (record.plan.type != 'duration' || !record.scheduled || record.rest)
+      return;
+    final owner = _cloud.userId ?? 'guest';
+    final store = FocusSessionStore(owner);
+    var session = await store.read(habit.id);
+    if (!mounted || owner != (_cloud.userId ?? 'guest')) {
+      session?.dispose();
+      return;
+    }
+    if (session != null &&
+        !habit.checklist!.records.containsKey(session.day) &&
+        session.day != checklistDay(now)) {
+      session.dispose();
+      session = null;
+      await store.clear(habit.id);
+    }
+    session ??= FocusSession(
+        habitId: habit.id,
+        day: checklistDay(now),
+        targetMinutes: record.plan.target,
+        baseSeconds: record.durationSeconds);
+    setState(() {
+      _habitFocus = session;
+      _focusStore = store;
+      _focusOwner = owner;
+      _focusTitle = habit.title;
+    });
+    _cloud.pause();
+    _applyAnimationPreference();
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+        overlays: []);
+  }
+
+  Future<void> _saveHabitFocus() async {
+    final session = _habitFocus;
+    if (session == null) return;
+    session.pause();
+    await _focusStore!.save(session);
+    if (_focusOwner != (_cloud.userId ?? 'guest'))
+      throw StateError('Focus account changed');
+    final index = _habits.indexWhere((h) => h.id == session.habitId);
+    if (index < 0) throw StateError('Habit no longer available');
+    final habit = _habits[index];
+    final data = habit.checklist!;
+    final date = DateTime.parse(session.day);
+    final record = data.records[session.day] ?? data.today(date);
+    if (record.plan.type != 'duration' || !record.scheduled || record.rest)
+      throw StateError('Habit occurrence changed');
+    // Absolute checkpoint merge is idempotent if the process dies after the data
+    // save and before clearing its local session. Never add the same session twice.
+    final seconds = math.max(record.durationSeconds, session.totalSeconds);
+    final next = record.change(value: seconds ~/ 60, focusSeconds: seconds);
+    final updated = habit.copyWith(
+        checklist: data.record(date, next),
+        completed: session.day == _today ? next.done : habit.completed);
+    setState(() {
+      if (crossesChecklistTarget(habit, updated, date))
+        _progress.earnForHabit(session.day, habit.id);
+      _habits[index] = updated;
+    });
+    await _save();
+    await _focusStore!.clear(session.habitId);
+    await _closeHabitFocus();
+  }
+
+  Future<void> _closeHabitFocus() async {
+    final session = _habitFocus;
+    session?.pause();
+    if (!mounted) return;
+    setState(() {
+      _habitFocus = null;
+      _focusStore = null;
+      _focusOwner = null;
+    });
+    // HUD listener is removed when the old subtree unmounts.
+    WidgetsBinding.instance.addPostFrameCallback((_) => session?.dispose());
+    _applyAnimationPreference();
+    _cloud.schedule();
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
+
+  Future<void> _leaveHabitFocus() async {
+    if (_leavingHabitFocus) return;
+    _leavingHabitFocus = true;
+    try {
+      await _confirmLeaveHabitFocus();
+    } catch (_) {
+      _showFocusStorageFailure();
+    } finally {
+      _leavingHabitFocus = false;
+    }
+  }
+
+  Future<void> _confirmLeaveHabitFocus() async {
+    final session = _habitFocus;
+    if (session == null) return;
+    session.pause();
+    await _focusStore!.save(session);
+    if (!mounted) return;
+    if (session.elapsedSeconds == 0) {
+      await _focusStore!.clear(session.habitId);
+      await _closeHabitFocus();
+      return;
+    }
+    final action = await plannerSheet<String>(
+        context,
+        'Leave focus?',
+        (context) =>
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text(context
+                  .tr('Save your focus progress or keep the session paused.')),
+              const SizedBox(height: 20),
+              FilledButton(
+                  onPressed: () => Navigator.pop(context, 'save'),
+                  child: Text(context.tr('Save & leave'))),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                  onPressed: () => Navigator.pop(context, 'pause'),
+                  child: Text(context.tr('Keep paused'))),
+              TextButton(
+                  onPressed: () => Navigator.pop(context, 'discard'),
+                  child: Text(context.tr('Discard session'))),
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(context.tr('Cancel'))),
+            ]));
+    if (!mounted || action == null) return;
+    try {
+      if (action == 'save') {
+        await _saveHabitFocus();
+      } else {
+        if (action == 'discard') await _focusStore!.clear(session.habitId);
+        await _closeHabitFocus();
+      }
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(AppToast(
+            content: Text(
+                context.tr('Progress could not be saved. Please retry.'))));
+    }
+  }
+
   bool _assetEditMode = false;
   ShopLoadout? _editLoadout;
   Map<String, GardenTreePlacement> _treePlacements = {};
@@ -295,7 +469,7 @@ class _GrowthHomeState extends State<GrowthHome>
   bool get _showAnimation => shouldAnimateGarden(
         livingGardenEnabled: _motionEnabled,
         systemReducedMotion: _systemReduceMotion,
-        allowWhenSystemReduced: _motionOverride,
+        allowWhenSystemReduced: _habitFocus == null && _motionOverride,
       );
   int get _completed =>
       _habits.where((h) => h.checklist?.archived != true && h.completed).length;
@@ -335,7 +509,9 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   void _applyAnimationPreference() {
-    if (_showAnimation && _selectedTab == 0) {
+    if (_showAnimation &&
+        _foreground &&
+        (_selectedTab == 0 || _habitFocus != null)) {
       if (!_windController.isAnimating) _windController.repeat();
     } else {
       _windController.stop();
@@ -345,6 +521,13 @@ class _GrowthHomeState extends State<GrowthHome>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _applyAnimationPreference();
+    if (state != AppLifecycleState.resumed) {
+      _habitFocus?.pause();
+      if (_habitFocus != null)
+        unawaited(_focusStore!.save(_habitFocus!).catchError((Object _) {}));
+    }
     if (state == AppLifecycleState.resumed) {
       _audio.setForeground(true);
       _ensureToday();
@@ -363,10 +546,11 @@ class _GrowthHomeState extends State<GrowthHome>
 
   @override
   void dispose() {
-    if (_focusMode) {
+    if (_focusMode || _habitFocus != null) {
       // Restore Android system bars if the page is closed while immersed.
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
+    _habitFocus?.dispose();
     _dayTimer?.cancel();
     _cloud.onGarden = null;
     _cloud.onWallet = null;
@@ -603,7 +787,12 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   GardenData _cloudSnapshot() => {
-        'version': _habits.any((h) => h.checklist != null) ? 2 : 1,
+        'version': _habits.any((h) => h.requiresPlannerV3) ||
+                (_cloud.currentGarden?['version'] ?? 1) >= 3
+            ? 3
+            : _habits.any((h) => h.checklist != null)
+                ? 2
+                : 1,
         'habits': _habits.map((h) => h.toJson()).toList(),
         'progress': _progress.toJson(),
         'day': _today,
@@ -636,6 +825,12 @@ class _GrowthHomeState extends State<GrowthHome>
 
   void _receiveCloudGarden(GardenData data) {
     if (!mounted) return;
+    if (_habitFocus != null) {
+      _habitFocus!.pause();
+      unawaited(_focusStore!.save(_habitFocus!).catchError((Object _) {}));
+      if (_focusOwner != (_cloud.userId ?? 'guest'))
+        unawaited(_closeHabitFocus());
+    }
     final prefs = Map<String, dynamic>.from(data['preferences'] as Map);
     final ownership = _cloud.wallet?['packs'] as List?;
     setState(() {
@@ -810,8 +1005,12 @@ class _GrowthHomeState extends State<GrowthHome>
     if (_today == now) return;
     setState(() {
       _today = now;
-      _habits =
-          _habits.map((habit) => habit.copyWith(completed: false)).toList();
+      final date = DateTime.now();
+      _habits = _habits.map((habit) {
+        final data = habit.checklist?.advance(date);
+        return habit.copyWith(
+            checklist: data, completed: data?.today(date).done ?? false);
+      }).toList();
     });
     _save();
   }
@@ -2212,10 +2411,12 @@ class _GrowthHomeState extends State<GrowthHome>
   Widget build(BuildContext context) {
     final stage = _progress.treeStage;
     return PopScope(
-      canPop: !_focusMode && !_assetEditMode,
+      canPop: !_focusMode && !_assetEditMode && _habitFocus == null,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        if (_assetEditMode) {
+        if (_habitFocus != null) {
+          _leaveHabitFocus();
+        } else if (_assetEditMode) {
           _closeAssetEditor(save: false);
         } else if (_focusMode) {
           _setFocusMode(false);
@@ -2229,11 +2430,34 @@ class _GrowthHomeState extends State<GrowthHome>
               : Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (_selectedTab == 1 && !_focusMode)
-                      const ColoredBox(color: Color(0xFF101C19))
-                    else
-                      _buildGardenBackdrop(),
-                    if (_focusMode)
+                    _buildGardenBackdrop(),
+                    if ((_selectedTab == 1 || _selectedTab == 2) &&
+                        !_focusMode &&
+                        _habitFocus == null)
+                      const ColoredBox(color: Color(0xFF101C19)),
+                    if (_habitFocus != null)
+                      Positioned.fill(
+                          child: LayoutBuilder(
+                              builder: (context, box) => Stack(children: [
+                                    Positioned.fill(
+                                        top: box.maxHeight * .16,
+                                        bottom: box.maxHeight * .18,
+                                        child: RepaintBoundary(
+                                            child: _buildTreeScene(stage,
+                                                clean: true))),
+                                    FocusHud(
+                                        key: ValueKey(_habitFocus),
+                                        session: _habitFocus!,
+                                        title: _focusTitle,
+                                        onCheckpoint: () =>
+                                            _focusStore!.save(_habitFocus!),
+                                        onFinish: _saveHabitFocus,
+                                        onExit: _leaveHabitFocus,
+                                        onTarget: () =>
+                                            _audio.effect('complete'),
+                                        motion: _showAnimation),
+                                  ])))
+                    else if (_focusMode)
                       Positioned.fill(
                         child: LayoutBuilder(
                           builder: (context, constraints) => Stack(
@@ -2284,7 +2508,8 @@ class _GrowthHomeState extends State<GrowthHome>
           if (!still && _appearance.video != null)
             LocalPackVideoBackground(
                 key: ValueKey(_appearance.video),
-                animate: _showAnimation && (_selectedTab == 0 || _focusMode),
+                animate: _showAnimation &&
+                    (_selectedTab == 0 || _focusMode || _habitFocus != null),
                 video: _appearance.video!,
                 poster: _activeBackgroundAsset)
           else
@@ -2345,7 +2570,7 @@ class _GrowthHomeState extends State<GrowthHome>
             constraints: const BoxConstraints(maxWidth: 600),
             child: Column(
               children: [
-                if (_selectedTab != 1 || preview)
+                if ((_selectedTab != 1 && _selectedTab != 2) || preview)
                   _previewChrome(_buildHeader(), preview: preview),
                 Expanded(
                   child: preview
@@ -2359,13 +2584,19 @@ class _GrowthHomeState extends State<GrowthHome>
                                 _buildGarden(stage),
                                 ChecklistPage(
                                     onOpenSettings: _openSettings,
+                                    onStartFocus: _startHabitFocus,
                                     habits: _habits,
                                     progress: _progress,
                                     masterEnabled: _reminderEnabled,
                                     onEnableMaster: () =>
                                         _configureReminder(true),
                                     onChanged: _changeChecklist),
-                                _buildStats(),
+                                StatisticsPage(
+                                    habits: _habits,
+                                    progress: _progress,
+                                    tree: GardenImage.asset(
+                                        _activeTreeImages[stage],
+                                        fit: BoxFit.contain)),
                                 BetterSeedShopPage(
                                   loadout: _shopLoadout,
                                   onApplyLoadout: _applyShopLoadout,
@@ -2482,17 +2713,18 @@ class _GrowthHomeState extends State<GrowthHome>
     final contentHeight = 22.0 + 3.0 + scaledLabelHeight + 3.0 + 2.0;
     final navHeight = math.max(72.0, contentHeight + 16.0);
     return Padding(
-      padding: _selectedTab == 1
+      padding: (_selectedTab == 1 || _selectedTab == 2)
           ? EdgeInsets.zero
           : const EdgeInsets.fromLTRB(12, 3, 12, 8),
       child: Container(
         height: navHeight,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(_selectedTab == 1 ? 0 : 20),
-          color: _selectedTab == 1
+          borderRadius: BorderRadius.circular(
+              (_selectedTab == 1 || _selectedTab == 2) ? 0 : 20),
+          color: (_selectedTab == 1 || _selectedTab == 2)
               ? const Color(0xFF101C19)
               : const Color(0xEE092529),
-          border: _selectedTab == 1
+          border: (_selectedTab == 1 || _selectedTab == 2)
               ? const Border(top: BorderSide(color: Color(0xFF30453B)))
               : Border.all(color: const Color(0x9874AD96)),
         ),
@@ -3429,176 +3661,6 @@ class _GrowthHomeState extends State<GrowthHome>
             content: Text(
                 context.tr('Changes could not be saved. Please try again.'))));
     }
-  }
-
-  Widget _statCard(IconData icon, String value, String title, Color accent) =>
-      _glassPanel(
-        padding: const EdgeInsets.all(13),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: accent, size: 25),
-            const SizedBox(height: 8),
-            Text(value,
-                style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            Text(title,
-                style: const TextStyle(fontSize: 11, color: Color(0xFFCFDFD8))),
-          ],
-        ),
-      );
-
-  Widget _buildStats() {
-    final now = DateTime.now();
-    final days = List<DateTime>.generate(
-        7, (i) => DateTime(now.year, now.month, now.day - (6 - i)));
-    final values =
-        days.map((day) => _progress.earnedOn(todayLocalKey(day))).toList();
-    final maxValue = math.max(1, values.fold<int>(0, (a, b) => math.max(a, b)));
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-      children: [
-        Text(context.tr("Your Progress"),
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-        Text(context.tr("Every small win adds up."),
-            style: TextStyle(color: Color(0xFFD7E9DD), fontSize: 12)),
-        const SizedBox(height: 14),
-        Row(children: [
-          Expanded(
-              child: _statCard(
-                  Icons.local_fire_department_rounded,
-                  '${_progress.dayStreak(now)}',
-                  context.tr("Day streak"),
-                  _gold)),
-          const SizedBox(width: 10),
-          Expanded(
-              child: _statCard(
-                  Icons.water_drop_rounded,
-                  '${_progress.totalEarned}',
-                  context.tr("Water earned"),
-                  _blue)),
-        ]),
-        const SizedBox(height: 10),
-        Row(children: [
-          Expanded(
-              child: _statCard(
-                  Icons.task_alt_rounded,
-                  '${_progress.totalEarned}',
-                  context.tr("Habits completed"),
-                  _mint)),
-          const SizedBox(width: 10),
-          Expanded(
-              child: _statCard(
-                  Icons.spa_rounded,
-                  '${_progress.treeStage + 1} / 6',
-                  context.tr("Tree stage"),
-                  _mint)),
-        ]),
-        const SizedBox(height: 16),
-        _glassPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(context.tr("This week"),
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 4),
-              Text(context.tr("Water earned from daily checklists"),
-                  style: TextStyle(fontSize: 11, color: Color(0xFFD1DFD9))),
-              const SizedBox(height: 17),
-              SizedBox(
-                height: 132,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    for (var i = 0; i < days.length; i++)
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text('${values[i]}',
-                                style: const TextStyle(
-                                    color: _blue, fontSize: 10)),
-                            const SizedBox(height: 5),
-                            Container(
-                              width: 22,
-                              height: 8 + 75 * values[i] / maxValue,
-                              decoration: BoxDecoration(
-                                color: i == 6 ? _mint : const Color(0xFF5DC8A3),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                                DateFormat.E(Localizations.localeOf(context)
-                                        .toString())
-                                    .format(days[i]),
-                                style: const TextStyle(
-                                    fontSize: 9, color: Color(0xFFDBE7E3))),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        _glassPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(context.tr("Tree growth • {p0} XP", {'p0': _progress.xp}),
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 90,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _activeTreeImages.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 6),
-                  itemBuilder: (_, i) => Column(
-                    children: [
-                      SizedBox(
-                        width: 62,
-                        height: 62,
-                        child: Opacity(
-                          opacity: i <= _progress.treeStage ? 1 : .40,
-                          child: GardenImage.asset(_activeTreeImages[i],
-                              fit: BoxFit.contain),
-                        ),
-                      ),
-                      Text('${i + 1}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: i <= _progress.treeStage
-                                ? _mint
-                                : Colors.white60,
-                          )),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 9),
-              LinearProgressIndicator(
-                value: progressToNextStage(_progress.xp),
-                backgroundColor: const Color(0xFF527368),
-                color: _mint,
-                minHeight: 6,
-                borderRadius: BorderRadius.circular(5),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                  context.tr("{p0} water drops used to grow your tree",
-                      {'p0': _progress.totalSpent}),
-                  style:
-                      const TextStyle(fontSize: 11, color: Color(0xFFD1DFD9))),
-            ],
-          ),
-        ),
-      ],
-    );
   }
 }
 

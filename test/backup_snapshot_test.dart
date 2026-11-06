@@ -64,7 +64,7 @@ void main() {
     expect(() => BackupSnapshot.decode('{}'), throwsFormatException);
     final payload = <String, dynamic>{
       'format': 'betterseed.backup',
-      'version': 3,
+      'version': 4,
       'savedAtUtc': '2026-10-25T00:00:00Z',
       'data': <String, dynamic>{
         'habits': <dynamic>[],

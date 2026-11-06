@@ -1,3 +1,15 @@
+# Checklist & Statistics 2.1 candidate — backend 1.4.0 / Snapshot v3
+
+Snapshot v3 and local backend tests were approved on 2026-11-06. Read
+`CHECKLIST_2_1_CONTRACT.md` in the backend ZIP (or
+`../docs/CHECKLIST_2_1_CONTRACT.md`). v1/v2 remain accepted for legacy accounts;
+a stored newer snapshot prevents older-version overwrites. The client requires
+exact v3 capability before syncing planner time or actual focus seconds.
+No SQL migration, provider configuration, CDN or billing change is added.
+Production deployment requires separate explicit approval and the guards below.
+Do not roll back to a backend without v3 support once accounts store v3 data.
+Production current state unverified. Source version is not deployment evidence.
+
 # Checklist 2.0 review candidate — snapshot v2
 
 Local source now supports checklist snapshot v2. Read `CHECKLIST_2.md` in the
@@ -7,7 +19,6 @@ account upgrades. Deploy the reviewed compatible backend before enabling v2 clou
 sync. Never roll back to a backend without the downgrade guard after v2 data is
 stored. Production authorization and all existing VPS guards still apply.
 
-This candidate retains previous release version numbers until release approval.
 The historical upgrade notes below are not proof of deployment.
 
 # Account experience — server 1.3.1 / app 1.8.1+60

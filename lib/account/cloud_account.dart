@@ -367,11 +367,12 @@ class CloudAccount extends ChangeNotifier {
       }
       if (dirty) {
         final outgoing = _profile['pending']?['snapshot'] ?? _profile['local'];
-        if (outgoing is Map && outgoing['version'] == 2) {
+        if (outgoing is Map &&
+            (outgoing['version'] == 2 || outgoing['version'] == 3)) {
           final capabilities = await authorized('GET', '/v1/garden');
           if (!(capabilities['supportedSnapshotVersions'] is List &&
               (capabilities['supportedSnapshotVersions'] as List)
-                  .contains(2))) {
+                  .contains(outgoing['version']))) {
             status = 'Checklist saved locally; server update required';
             await _persist();
             schedule(delay: const Duration(minutes: 1));

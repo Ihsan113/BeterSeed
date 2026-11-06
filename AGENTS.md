@@ -84,4 +84,4 @@ Read `ops/vps/DEPLOY_GUARDS.md` for detailed checks and failure recovery.
 User instruction (2026-11-05): increase the application version for every app
 update. Update `pubspec.yaml` version/build and `GardenPackRegistry.appBuild`
 together; never reuse an Android versionCode for a new release. Current UI
-redesign candidate: 1.9.0+61.
+planner candidate: 1.10.0+62.

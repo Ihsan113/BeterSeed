@@ -1,3 +1,11 @@
+## v1.10.0+62 — Daily planner, Living Garden Focus and Statistics
+
+- Correct first-day count/duration records; add independent activity time and reminder lead settings.
+- Add custom goal and schedule pickers, compact habit actions and time-aware status.
+- Reuse the real Garden renderer for a foreground focus timer with paused recovery.
+- Add record-based overview, habit insights and Garden growth statistics.
+- Add approved snapshot v3 compatibility and downgrade protection; no production deployment.
+
 ## v1.9.0+61 — Clean Checklist, calendar and habit editor
 
 - Replace the duplicated Checklist header and scenic background with a focused layout, seven date cells, compact progress summary and a persistent add button.

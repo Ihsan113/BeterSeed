@@ -1,12 +1,13 @@
-# BetterSeed backend — Checklist 2.0 review candidate
+# BetterSeed backend — Checklist & Statistics 2.1 candidate
 
-Source ZIP: [BetterSeed-server.zip](BetterSeed-server.zip), with its
-[SHA-256 checksum](BetterSeed-server.zip.sha256).
+Backend source **1.4.0**. ZIP: [BetterSeed-server.zip](BetterSeed-server.zip),
+with its [SHA-256 checksum](BetterSeed-server.zip.sha256).
 
-Includes v1/v2 snapshot compatibility, validation, the legacy overwrite guard,
-source tests and upgrade instructions. Read `CHECKLIST_2.md` and `UPGRADE.md`
-inside the archive. This candidate retains the previous package version until
-release approval. A repository ZIP is not evidence of production deployment.
+Includes v1/v2/v3 snapshot compatibility, strict planner validation, downgrade
+protection, source tests and production guards. Read `CHECKLIST_2_1_CONTRACT.md`,
+`CHECKLIST_2_1_VALIDATION.md` and `UPGRADE.md` inside the archive. Snapshot v3 and
+local backend tests were approved; production deployment was not. Production
+current state unverified. A repository ZIP is not deployment evidence.
 
 No new SQL migration. No production configuration, secrets, database or
 node_modules is included. Production changes require separate authorization

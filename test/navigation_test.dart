@@ -61,7 +61,7 @@ void main() {
     expect(find.text('0 water available'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('tab-2')));
     await tester.pump();
-    expect(find.text('Your Progress'), findsOneWidget);
+    expect(find.byKey(const ValueKey('statistics-title')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('tab-3')));
     await tester.pump();
     expect(find.byKey(const ValueKey('shop-pack-default')), findsOneWidget);

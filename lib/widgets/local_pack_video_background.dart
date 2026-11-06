@@ -43,6 +43,8 @@ class _LocalPackVideoBackgroundState extends State<LocalPackVideoBackground>
             videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true));
     _controller = controller;
     try {
+      // Set the initial controller value before initialization applies volume.
+      await controller.setVolume(0.0);
       await controller.initialize();
       if (!mounted || !identical(_controller, controller)) return;
       await controller.setLooping(true);

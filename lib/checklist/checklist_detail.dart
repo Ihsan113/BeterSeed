@@ -1,3 +1,4 @@
+import 'checklist_pickers.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/habit.dart';
@@ -13,11 +14,14 @@ class ChecklistDetail extends StatefulWidget {
       required this.habit,
       required this.date,
       required this.onChanged,
-      required this.onEdit});
+      required this.onEdit,
+      this.onStartFocus,
+      this.onActions});
   final Habit habit;
   final DateTime date;
   final ValueChanged<Habit> onChanged;
   final VoidCallback onEdit;
+  final VoidCallback? onStartFocus, onActions;
 
   @override
   State<ChecklistDetail> createState() => _ChecklistDetailState();
@@ -58,6 +62,11 @@ class _ChecklistDetailState extends State<ChecklistDetail> {
 
         return Scaffold(
           appBar: AppBar(title: Text(context.tr('Habit details')), actions: [
+            if (today && widget.onActions != null)
+              IconButton(
+                  tooltip: context.tr('Habit actions'),
+                  onPressed: widget.onActions,
+                  icon: const Icon(Icons.more_horiz)),
             if (today)
               IconButton(
                   tooltip: context.tr('Edit habit'),
@@ -114,7 +123,9 @@ class _ChecklistDetailState extends State<ChecklistDetail> {
                         Text(
                             plan.type == 'duration'
                                 ? context.tr('minutes')
-                                : plan.unit,
+                                : plan.unit == 'count'
+                                    ? context.tr('Count')
+                                    : plan.unit,
                             style: const TextStyle(color: checklistMuted)),
                         const SizedBox(height: 16),
                         LinearProgressIndicator(
@@ -134,6 +145,11 @@ class _ChecklistDetailState extends State<ChecklistDetail> {
                                   : Icons.check_rounded),
                               label: Text(
                                   context.tr(r.done ? 'Undo' : 'Complete')))
+                        else if (plan.type == 'duration')
+                          FilledButton.icon(
+                              onPressed: widget.onStartFocus,
+                              icon: const Icon(Icons.play_arrow_rounded),
+                              label: Text(context.tr('Start focus')))
                         else
                           Wrap(spacing: 8, runSpacing: 8, children: [
                             OutlinedButton(
@@ -145,14 +161,14 @@ class _ChecklistDetailState extends State<ChecklistDetail> {
                             OutlinedButton(
                                 onPressed: () => setValue(r.value + 1),
                                 child: const Text('+1')),
-                            if (plan.type == 'duration') ...[
-                              OutlinedButton(
-                                  onPressed: () => setValue(r.value + 5),
-                                  child: const Text('+5')),
-                              OutlinedButton(
-                                  onPressed: () => setValue(r.value + 10),
-                                  child: const Text('+10')),
-                            ],
+                            OutlinedButton(
+                                onPressed: () async {
+                                  final value = await NumericGoalSheet.show(
+                                      context, r.value,
+                                      minimum: 0, title: 'Set progress');
+                                  if (value != null && mounted) setValue(value);
+                                },
+                                child: Text(context.tr('Set progress'))),
                             if (!r.done)
                               FilledButton(
                                   onPressed: () => setValue(plan.target),
@@ -179,6 +195,12 @@ class _ChecklistDetailState extends State<ChecklistDetail> {
                         DateFormat.E(locale).format(DateTime(2026, 11, 1 + i)))
                     .join(' · '),
                 style: const TextStyle(color: checklistMuted, height: 1.6)),
+            const SizedBox(height: 8),
+            Text(
+                plan.activityMinute == null
+                    ? context.tr('Anytime')
+                    : clockLabel(context, plan.activityMinute!),
+                style: const TextStyle(color: checklistPrimary)),
             if (habit.reminderEnabled)
               Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -186,10 +208,15 @@ class _ChecklistDetailState extends State<ChecklistDetail> {
                     const Icon(Icons.notifications_none_rounded,
                         size: 18, color: checklistMuted),
                     const SizedBox(width: 8),
-                    Text(TimeOfDay(
-                            hour: habit.reminderHour,
-                            minute: habit.reminderMinute)
-                        .format(context)),
+                    Flexible(
+                        child: Text(plan.activityMinute == null
+                            ? clockLabel(context,
+                                habit.reminderHour * 60 + habit.reminderMinute)
+                            : context.tr(
+                                habit.reminderLeadMinutes == 0
+                                    ? 'At activity time'
+                                    : '{p0} min before',
+                                {'p0': habit.reminderLeadMinutes}))),
                   ])),
             const SizedBox(height: 28),
             Text(context.tr('Scheduled habit streak: {p0}', {'p0': streak}),

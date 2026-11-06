@@ -12,6 +12,7 @@ class Habit {
     this.reminderEnabled = false,
     this.reminderHour = 20,
     this.reminderMinute = 0,
+    this.reminderLeadMinutes = 0,
   });
 
   final ChecklistData? checklist;
@@ -22,6 +23,14 @@ class Habit {
   final bool reminderEnabled;
   final int reminderHour;
   final int reminderMinute;
+  final int reminderLeadMinutes;
+  bool get requiresPlannerV3 =>
+      reminderLeadMinutes != 0 ||
+      checklist?.plan.activityMinute != null ||
+      checklist?.pending?.activityMinute != null ||
+      (checklist?.records.values.any(
+              (r) => r.plan.activityMinute != null || r.focusSeconds != null) ??
+          false);
 
   Habit copyWith({
     ChecklistData? checklist,
@@ -31,6 +40,7 @@ class Habit {
     bool? reminderEnabled,
     int? reminderHour,
     int? reminderMinute,
+    int? reminderLeadMinutes,
   }) =>
       Habit(
         id: id,
@@ -41,6 +51,7 @@ class Habit {
         reminderEnabled: reminderEnabled ?? this.reminderEnabled,
         reminderHour: reminderHour ?? this.reminderHour,
         reminderMinute: reminderMinute ?? this.reminderMinute,
+        reminderLeadMinutes: reminderLeadMinutes ?? this.reminderLeadMinutes,
       );
 
   Map<String, dynamic> toJson() => {
@@ -52,6 +63,8 @@ class Habit {
         'reminderEnabled': reminderEnabled,
         'reminderHour': reminderHour,
         'reminderMinute': reminderMinute,
+        if (reminderLeadMinutes != 0)
+          'reminderLeadMinutes': reminderLeadMinutes,
       };
 
   factory Habit.fromJson(Map<String, dynamic> json) => Habit(
@@ -64,6 +77,10 @@ class Habit {
         completed: json['completed'] as bool? ?? false,
         iconKey: json['iconKey'] as String? ?? 'leaf',
         reminderEnabled: json['reminderEnabled'] == true,
+        reminderLeadMinutes:
+            [0, 5, 15, 30, 60].contains(json['reminderLeadMinutes'])
+                ? json['reminderLeadMinutes'] as int
+                : 0,
         reminderHour: ((json['reminderHour'] as num?)?.toInt() ?? 20)
             .clamp(0, 23)
             .toInt(),

@@ -1,3 +1,8 @@
+import 'dart:async';
+import 'planner_status.dart';
+export 'habit_editor.dart';
+import 'habit_editor.dart';
+import 'checklist_pickers.dart';
 import 'checklist_detail.dart';
 import 'checklist_style.dart';
 import 'checklist_calendar.dart';
@@ -18,8 +23,10 @@ class ChecklistPage extends StatefulWidget {
       required this.onChanged,
       required this.masterEnabled,
       required this.onEnableMaster,
-      this.onOpenSettings});
+      this.onOpenSettings,
+      this.onStartFocus});
   final VoidCallback? onOpenSettings;
+  final ValueChanged<Habit>? onStartFocus;
   final List<Habit> habits;
   final WaterProgress progress;
   final ValueChanged<List<Habit>> onChanged;
@@ -31,6 +38,21 @@ class ChecklistPage extends StatefulWidget {
 
 class _ChecklistPageState extends State<ChecklistPage> {
   DateTime selected = DateTime.now();
+  Timer? clock;
+  @override
+  void initState() {
+    super.initState();
+    clock = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    clock?.cancel();
+    super.dispose();
+  }
+
   String filter = 'All';
   String observedDay = checklistDay(DateTime.now());
   @override
@@ -105,6 +127,16 @@ class _ChecklistPageState extends State<ChecklistPage> {
             builder: (route) => ChecklistDetail(
                   habit: initial,
                   date: selected,
+                  onStartFocus: widget.onStartFocus == null
+                      ? null
+                      : () {
+                          Navigator.pop(route);
+                          widget.onStartFocus!(latest);
+                        },
+                  onActions: () {
+                    Navigator.pop(route);
+                    _actions(latest, record(latest));
+                  },
                   onChanged: (habit) {
                     latest = habit;
                     replace(habit);
@@ -381,178 +413,152 @@ class _ChecklistPageState extends State<ChecklistPage> {
                 style: const TextStyle(fontSize: 12, color: checklistMuted)))
       ]);
 
-  Widget _menu(Habit h, HabitRecord? r) => PopupMenuButton<String>(
-      tooltip: context.tr('Edit habit'),
-      icon: const Icon(Icons.more_horiz, size: 20, color: checklistMuted),
-      onSelected: (action) async {
-        if (action == 'Edit habit') {
-          compose(initial: h);
-        } else if (action == 'Rest today') {
-          change(h, rest: true);
-        } else if (action == 'Cancel rest') {
-          change(h, rest: false);
-        } else if (action == 'Remove') {
-          final confirm = await showDialog<bool>(
-              context: context,
-              builder: (c) =>
-                  AlertDialog(title: Text(c.tr('Remove habit?')), actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(c, false),
-                        child: Text(c.tr('Cancel'))),
-                    TextButton(
-                        onPressed: () => Navigator.pop(c, true),
-                        child: Text(c.tr('Remove')))
-                  ]));
-          if (confirm == true && mounted)
-            replace(h.copyWith(checklist: data(h).copy(archived: true)));
-        }
-      },
-      itemBuilder: (context) => [
-            for (final action in [
-              'Edit habit',
-              if (r?.rest == true)
-                'Cancel rest'
-              else if (r?.scheduled == true &&
-                  !widget.progress.wasCredited(day, h.id))
-                'Rest today',
-              'Remove'
-            ])
-              PopupMenuItem(value: action, child: Text(context.tr(action)))
-          ]);
+  Future<void> _actions(Habit h, HabitRecord? r) async {
+    if (!isToday) return;
+    final action = await HabitActionSheet.show(context, [
+      'Edit habit',
+      if (r?.plan.type == 'count' && r?.scheduled == true && r?.rest != true)
+        'Set progress',
+      if (r?.rest == true)
+        'Cancel rest'
+      else if (r?.scheduled == true && !widget.progress.wasCredited(day, h.id))
+        'Rest today',
+      'Remove',
+    ]);
+    if (!mounted) return;
+    if (action == 'Edit habit') {
+      compose(initial: h);
+    } else if (action == 'Set progress') {
+      final value = await NumericGoalSheet.show(context, r!.value,
+          minimum: 0, title: 'Set progress');
+      if (value != null && mounted) change(h, amount: value);
+    } else if (action == 'Rest today') {
+      change(h, rest: true);
+    } else if (action == 'Cancel rest') {
+      change(h, rest: false);
+    } else if (action == 'Remove') {
+      final confirm = await showDialog<bool>(
+          context: context,
+          builder: (c) =>
+              AlertDialog(title: Text(c.tr('Remove habit?')), actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(c, false),
+                    child: Text(c.tr('Cancel'))),
+                TextButton(
+                    onPressed: () => Navigator.pop(c, true),
+                    child: Text(c.tr('Remove'))),
+              ]));
+      if (confirm == true && mounted)
+        replace(h.copyWith(checklist: data(h).copy(archived: true)));
+    }
+  }
 
   Widget _habit(Habit h, int index) {
     final r = record(h);
-    final measured = r != null && r.plan.type != 'checkbox';
     final editable = isToday && r?.scheduled == true && r?.rest != true;
-    final status = r == null
-        ? (widget.progress.wasCredited(day, h.id)
-            ? 'Water credited; target unknown'
-            : 'Unknown')
-        : r.status == 'Missed' && isToday
-            ? 'Not completed'
-            : r.status;
-    return Container(
-        decoration: BoxDecoration(
-            color: checklistSurface,
+    final status = plannerStatus(r, selected, DateTime.now());
+    final label = context.tr(
+        status.label,
+        status.label == 'Scheduled at {p0}'
+            ? {'p0': clockLabel(context, r!.plan.activityMinute!)}
+            : status.arguments);
+    final measured = r != null && r.plan.type != 'checkbox';
+    return Material(
+        color: checklistSurface,
+        shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
+            side: BorderSide(
                 color: r?.done == true
-                    ? checklistPrimary.withValues(alpha: .25)
-                    : checklistBorder.withValues(alpha: .45))),
-        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                    color: checklistBorder.withValues(alpha: .5),
-                    borderRadius: BorderRadius.circular(11)),
-                child: Icon(habitIcon(h.iconKey),
-                    size: 20, color: checklistPrimary)),
-            const SizedBox(width: 12),
-            Expanded(
-                child: InkWell(
-                    onTap: () => detail(h),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(h.title,
-                                  style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.35,
-                                      color: r?.done == true
-                                          ? checklistMuted
-                                          : checklistText)),
-                              const SizedBox(height: 3),
-                              Text(
-                                  measured && r.scheduled && !r.rest
-                                      ? '${r.value} / ${r.plan.target} ${r.plan.type == 'duration' ? context.tr('minutes') : r.plan.unit}'
-                                      : context.tr(status),
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: checklistMuted,
-                                      height: 1.4)),
-                            ])))),
-            if (arranging && isToday)
-              ReorderableDragStartListener(
-                  index: index,
-                  child: const SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: Icon(Icons.drag_handle, color: checklistMuted)))
-            else if (!measured && editable)
-              Semantics(
-                  label: context.tr(r!.done ? 'Done' : 'Complete'),
-                  child: Checkbox(
-                      key: ValueKey('habit-${h.id}'),
-                      value: r.done,
-                      onChanged: (_) => change(h, amount: r.done ? 0 : 1),
-                      activeColor: checklistPrimary,
-                      checkColor: checklistBackground,
-                      side: const BorderSide(color: checklistMuted, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6)),
-                      materialTapTargetSize: MaterialTapTargetSize.padded))
-            else if (isToday)
-              _menu(h, r),
-            if (!measured && editable && !arranging) _menu(h, r),
-          ]),
-          if (measured && r.scheduled && !r.rest)
-            Padding(
-                padding: const EdgeInsets.only(
-                    left: 50, right: 6, top: 4, bottom: 2),
-                child: Column(children: [
-                  ClipRRect(
-                      borderRadius: BorderRadius.circular(3),
-                      child: LinearProgressIndicator(
-                          value: (r.value / r.plan.target).clamp(0, 1),
-                          minHeight: 3,
-                          color: checklistPrimary,
-                          backgroundColor: checklistBorder)),
-                  if (editable && !arranging)
-                    Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: SizedBox(
-                            width: double.infinity,
-                            child: Wrap(
-                                alignment: WrapAlignment.spaceBetween,
-                                spacing: 8,
-                                runSpacing: 8,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  IconButton(
-                                      tooltip: context.tr('Decrease'),
-                                      onPressed: r.value == 0
-                                          ? null
-                                          : () =>
-                                              change(h, amount: r.value - 1),
-                                      icon: const Icon(Icons.remove, size: 18),
-                                      constraints: const BoxConstraints(
-                                          minWidth: 48, minHeight: 48)),
-                                  if (r.plan.type == 'duration')
-                                    TextButton(
-                                        onPressed: () =>
-                                            change(h, amount: r.value + 5),
-                                        child: const Text('+5')),
-                                  OutlinedButton(
-                                      onPressed: () =>
-                                          change(h, amount: r.value + 1),
-                                      style: OutlinedButton.styleFrom(
-                                          minimumSize: const Size(56, 40),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 14),
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10))),
-                                      child: const Text('+1')),
-                                ]))),
-                ])),
-        ]));
+                    ? checklistPrimary.withValues(alpha: .3)
+                    : checklistBorder)),
+        child: InkWell(
+            onTap: () => detail(h),
+            onLongPress: isToday ? () => _actions(h, r) : null,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(children: [
+                  Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                          color: checklistBorder.withValues(alpha: .6),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Icon(habitIcon(h.iconKey),
+                          size: 20, color: checklistPrimary)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                        Text(h.title,
+                            style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                height: 1.3)),
+                        if (measured) ...[
+                          const SizedBox(height: 5),
+                          Text(
+                              '${r.value} / ${r.plan.target}${r.plan.type == 'duration' ? ' ${context.tr('min')}' : r.plan.unit == 'count' ? '' : ' ${r.plan.unit}'}',
+                              style: const TextStyle(
+                                  fontSize: 12, color: checklistMuted)),
+                          const SizedBox(height: 7),
+                          LinearProgressIndicator(
+                              value: (r.value / r.plan.target).clamp(0, 1),
+                              minHeight: 3,
+                              borderRadius: BorderRadius.circular(2),
+                              color: checklistPrimary,
+                              backgroundColor: checklistBorder),
+                        ],
+                        if (r?.plan.activityMinute != null &&
+                            status.label != 'Scheduled at {p0}') ...[
+                          const SizedBox(height: 6),
+                          Text(clockLabel(context, r!.plan.activityMinute!),
+                              style: const TextStyle(
+                                  fontSize: 12, color: checklistMuted)),
+                        ],
+                        const SizedBox(height: 6),
+                        Text(label,
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: r?.done == true
+                                    ? checklistPrimary
+                                    : checklistMuted)),
+                      ])),
+                  const SizedBox(width: 8),
+                  if (arranging && isToday)
+                    ReorderableDragStartListener(
+                        index: index,
+                        child: const SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Icon(Icons.drag_handle)))
+                  else if (editable && r!.plan.type == 'checkbox')
+                    Checkbox(
+                        key: ValueKey('habit-${h.id}'),
+                        value: r.done,
+                        onChanged: (_) => change(h, amount: r.done ? 0 : 1),
+                        activeColor: checklistPrimary,
+                        checkColor: checklistBackground,
+                        side:
+                            const BorderSide(color: checklistMuted, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6)))
+                  else if (editable && r!.plan.type == 'count')
+                    IconButton.filledTonal(
+                        tooltip: context.tr('Increase'),
+                        key: ValueKey('increment-${h.id}'),
+                        onPressed: () => change(h, amount: r.value + 1),
+                        icon: const Icon(Icons.add))
+                  else if (editable && r!.plan.type == 'duration')
+                    IconButton.filledTonal(
+                        tooltip: context.tr('Start focus'),
+                        key: ValueKey('focus-${h.id}'),
+                        onPressed: widget.onStartFocus == null
+                            ? () => detail(h)
+                            : () => widget.onStartFocus!(h),
+                        icon: const Icon(Icons.play_arrow_rounded)),
+                ]))));
   }
 
   @override
@@ -771,383 +777,4 @@ class _ChecklistPageState extends State<ChecklistPage> {
                       label: Text(context.tr('Add a daily habit'))))),
         ]));
   }
-}
-
-class HabitEditor extends StatefulWidget {
-  const HabitEditor(
-      {super.key,
-      this.initial,
-      required this.creating,
-      required this.masterEnabled,
-      required this.onEnableMaster});
-  final Habit? initial;
-  final bool creating, masterEnabled;
-  final Future<bool> Function() onEnableMaster;
-  @override
-  State<HabitEditor> createState() => _HabitEditorState();
-}
-
-class _HabitEditorState extends State<HabitEditor> {
-  late final TextEditingController title, target, unit;
-  late String icon, category, type;
-  late Set<int> days;
-  late bool reminder;
-  late TimeOfDay time;
-  int step = 0;
-  String query = '';
-  String iconCategory = 'All';
-  final iconScroll = ScrollController();
-  final form = GlobalKey<FormState>();
-  late bool masterActive;
-  @override
-  void initState() {
-    super.initState();
-    masterActive = widget.masterEnabled;
-    final h = widget.initial;
-    final d = h?.checklist;
-    final p = d?.pending ?? d?.plan ?? const HabitPlan();
-    title = TextEditingController(text: h?.title ?? '');
-    target = TextEditingController(text: '${p.target}');
-    unit = TextEditingController(text: p.unit);
-    icon = h?.iconKey ?? 'leaf';
-    category = d?.category ?? 'Morning';
-    type = p.type;
-    days = p.weekdays.toSet();
-    reminder = h?.reminderEnabled ?? false;
-    time =
-        TimeOfDay(hour: h?.reminderHour ?? 20, minute: h?.reminderMinute ?? 0);
-  }
-
-  @override
-  void dispose() {
-    title.dispose();
-    target.dispose();
-    unit.dispose();
-    iconScroll.dispose();
-    super.dispose();
-  }
-
-  void save() {
-    if (!form.currentState!.validate() || days.isEmpty) return;
-    final now = DateTime.now();
-    final p = HabitPlan(
-        type: type,
-        target: type == 'checkbox' ? 1 : int.parse(target.text),
-        unit: type == 'count' ? unit.text.trim() : '',
-        weekdays: days.toList()..sort());
-    final old = widget.initial;
-    final d = (old?.checklist ?? ChecklistData(start: checklistDay(now)))
-        .advance(now);
-    final updated = widget.creating
-        ? d.copy(plan: p, category: category)
-        : d.edit(p, now).copy(category: category);
-    Navigator.pop(
-        context,
-        Habit(
-            id: widget.creating ? const Uuid().v4() : old!.id,
-            title: title.text.trim(),
-            iconKey: icon,
-            completed: old?.completed ?? false,
-            reminderEnabled: reminder,
-            reminderHour: time.hour,
-            reminderMinute: time.minute,
-            checklist: updated));
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      ChecklistSurface(child: Builder(builder: _editor));
-  Widget _editor(BuildContext context) => Scaffold(
-      appBar: AppBar(
-          title: Text(context
-              .tr(widget.creating ? 'Plant a new habit' : 'Edit habit'))),
-      body: SafeArea(
-          child: Form(
-              key: form,
-              child: Column(children: [
-                Expanded(
-                    child:
-                        ListView(padding: const EdgeInsets.all(16), children: [
-                  Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Row(children: [
-                        for (var i = 0; i < 2; i++)
-                          Expanded(
-                              child: Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Container(
-                                            height: 3,
-                                            decoration: BoxDecoration(
-                                                color: i <= step
-                                                    ? checklistPrimary
-                                                    : checklistBorder,
-                                                borderRadius:
-                                                    BorderRadius.circular(2))),
-                                        const SizedBox(height: 10),
-                                        Text(
-                                            '${i + 1}  ${context.tr(i == 0 ? 'Habit name' : 'Goal type')}',
-                                            style: TextStyle(
-                                                fontSize: 12,
-                                                color: i == step
-                                                    ? checklistText
-                                                    : checklistMuted))
-                                      ])))
-                      ])),
-                  if (step == 0) ...[
-                    TextFormField(
-                        controller: title,
-                        maxLength: 300,
-                        decoration: InputDecoration(
-                            labelText: context.tr('Habit name')),
-                        validator: (v) => v == null || v.trim().isEmpty
-                            ? context.tr('Required')
-                            : null),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: category,
-                        decoration:
-                            InputDecoration(labelText: context.tr('Category')),
-                        items: [
-                          for (final c in [
-                            'Morning',
-                            'Afternoon',
-                            'Evening',
-                            'Custom'
-                          ])
-                            DropdownMenuItem(
-                                value: c, child: Text(context.tr(c)))
-                        ],
-                        onChanged: (v) => setState(() => category = v!)),
-                    const SizedBox(height: 24),
-                    Text(context.tr('Pick an icon'),
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 12),
-                    TextField(
-                        decoration: InputDecoration(
-                            labelText: context.tr('Search icons')),
-                        onChanged: (v) =>
-                            setState(() => query = v.toLowerCase())),
-                    Wrap(spacing: 8, children: [
-                      for (final c in [
-                        'All',
-                        ...habitIcons.map((e) => e.category).toSet()
-                      ])
-                        ChoiceChip(
-                            showCheckmark: false,
-                            label:
-                                Text(context.tr(c == 'Legacy' ? 'Classic' : c)),
-                            selected: iconCategory == c,
-                            onSelected: (_) => setState(() => iconCategory = c))
-                    ]),
-                    ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 240),
-                        child: Scrollbar(
-                            controller: iconScroll,
-                            thumbVisibility: true,
-                            child: SingleChildScrollView(
-                                controller: iconScroll,
-                                child:
-                                    Wrap(spacing: 8, runSpacing: 8, children: [
-                                  for (final i in habitIcons.where((i) =>
-                                      (iconCategory == 'All' || i.category == iconCategory) &&
-                                      (context.tr(i.label).toLowerCase().contains(query) ||
-                                          i.key.contains(query))))
-                                    Semantics(
-                                        selected: icon == i.key,
-                                        child: IconButton.filledTonal(
-                                            tooltip: context.tr(i.label),
-                                            isSelected: icon == i.key,
-                                            onPressed: () =>
-                                                setState(() => icon = i.key),
-                                            icon: Icon(i.icon),
-                                            style: IconButton.styleFrom(
-                                                minimumSize: const Size(48, 48),
-                                                shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            12)),
-                                                side: icon == i.key
-                                                    ? const BorderSide(color: checklistPrimary, width: 2)
-                                                    : null)))
-                                ]))))
-                  ] else ...[
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: type,
-                        decoration:
-                            InputDecoration(labelText: context.tr('Goal type')),
-                        items: [
-                          for (final t in ['checkbox', 'count', 'duration'])
-                            DropdownMenuItem(
-                                value: t,
-                                child: Text(context.tr(t == 'checkbox'
-                                    ? 'Check-in'
-                                    : t == 'count'
-                                        ? 'Count'
-                                        : 'Duration')))
-                        ],
-                        onChanged: (v) => setState(() => type = v!)),
-                    if (type != 'checkbox') const SizedBox(height: 16),
-                    if (type != 'checkbox')
-                      TextFormField(
-                          controller: target,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                              labelText: context.tr(
-                                  type == 'duration' ? 'minutes' : 'Target')),
-                          validator: (v) {
-                            final n = int.tryParse(v ?? '');
-                            return n == null || n < 1 || n > 100000
-                                ? context.tr('Enter 1–100000')
-                                : null;
-                          }),
-                    if (type == 'count') const SizedBox(height: 16),
-                    if (type == 'count')
-                      TextFormField(
-                          controller: unit,
-                          maxLength: 40,
-                          decoration:
-                              InputDecoration(labelText: context.tr('Unit')),
-                          validator: (v) => v == null || v.trim().isEmpty
-                              ? context.tr('Required')
-                              : null),
-                    const SizedBox(height: 24),
-                    Text(context.tr('Schedule'),
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 8),
-                    Wrap(spacing: 8, children: [
-                      for (final preset in [
-                        'Every day',
-                        'Weekdays',
-                        'Weekends'
-                      ])
-                        ActionChip(
-                            label: Text(context.tr(preset)),
-                            onPressed: () =>
-                                setState(() => days = preset == 'Every day'
-                                    ? {1, 2, 3, 4, 5, 6, 7}
-                                    : preset == 'Weekdays'
-                                        ? {1, 2, 3, 4, 5}
-                                        : {6, 7}))
-                    ]),
-                    const SizedBox(height: 8),
-                    LayoutBuilder(builder: (context, constraints) {
-                      final minimum =
-                          MediaQuery.textScalerOf(context).scale(1) > 1.4
-                              ? 476.0
-                              : 336.0;
-                      return SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: SizedBox(
-                              width: constraints.maxWidth < minimum
-                                  ? minimum
-                                  : constraints.maxWidth,
-                              child: Row(children: [
-                                for (var i = 1; i <= 7; i++)
-                                  Expanded(
-                                      child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 2),
-                                          child: Semantics(
-                                              selected: days.contains(i),
-                                              child: TextButton(
-                                                style: TextButton.styleFrom(
-                                                    minimumSize:
-                                                        const Size(44, 48),
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        vertical: 10),
-                                                    backgroundColor:
-                                                        days.contains(i)
-                                                            ? checklistPrimary
-                                                            : checklistSurface,
-                                                    foregroundColor: days
-                                                            .contains(i)
-                                                        ? checklistBackground
-                                                        : checklistMuted,
-                                                    shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(10))),
-                                                onPressed: () => setState(() {
-                                                  if (!days.contains(i)) {
-                                                    days.add(i);
-                                                  } else if (days.length > 1) {
-                                                    days.remove(i);
-                                                  }
-                                                }),
-                                                child: Text(
-                                                    DateFormat.E(Localizations
-                                                                .localeOf(
-                                                                    context)
-                                                            .toLanguageTag())
-                                                        .format(DateTime(
-                                                            2026, 11, 1 + i)),
-                                                    style: const TextStyle(
-                                                        fontSize: 12)),
-                                              )))),
-                              ])));
-                    }),
-                    const SizedBox(height: 24),
-                    SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(context.tr('Remind on scheduled days')),
-                        value: reminder,
-                        onChanged: (v) => setState(() => reminder = v)),
-                    if (reminder)
-                      ListTile(
-                          title: Text(context.tr('Reminder time')),
-                          subtitle: Text(time.format(context)),
-                          onTap: () async {
-                            final next = await showTimePicker(
-                                context: context, initialTime: time);
-                            if (next != null && mounted)
-                              setState(() => time = next);
-                          }),
-                    if (reminder && !masterActive)
-                      Text(context.tr(
-                          'Master notifications are OFF — reminders will be paused')),
-                    if (reminder && !masterActive)
-                      TextButton.icon(
-                          onPressed: () async {
-                            final enabled = await widget.onEnableMaster();
-                            if (mounted) setState(() => masterActive = enabled);
-                          },
-                          icon: const Icon(Icons.notifications_active_outlined),
-                          label:
-                              Text(context.tr('Enable master notifications'))),
-                    if (!widget.creating)
-                      Text(context
-                          .tr('Target and schedule changes start tomorrow.')),
-                  ]
-                ])),
-                Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(children: [
-                      if (step == 1)
-                        TextButton(
-                            onPressed: () => setState(() => step = 0),
-                            child: Text(context.tr('Back'))),
-                      Expanded(
-                          child: FilledButton(
-                              onPressed: () {
-                                if (step == 0) {
-                                  if (form.currentState!.validate())
-                                    setState(() => step = 1);
-                                } else {
-                                  save();
-                                }
-                              },
-                              child: Text(context
-                                  .tr(step == 0 ? 'Continue' : 'Save habit'))))
-                    ]))
-              ]))));
 }
