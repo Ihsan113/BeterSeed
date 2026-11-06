@@ -767,5 +767,9 @@
   "Habit contributions": "習慣の貢献",
   "Water is credited once per habit and day. It becomes XP when you water your tree.": "水は習慣ごとに1日1回獲得でき、木に水をあげるとXPになります。",
   "Based on recorded history. Older or missing details are not estimated.": "記録済みの履歴に基づきます。古い記録や欠損データは推定しません。",
-  "Milestones": "マイルストーン"
+  "Milestones": "マイルストーン",
+  "Changes apply today. Earlier history stays unchanged.": "変更は今日から適用されます。過去の履歴は保持されます。",
+  "Changing goal type resets today’s progress. Earlier history and earned water stay.": "目標の種類を変更すると今日の進捗はゼロになります。過去の履歴と獲得した水は保持されます。",
+  "Current stage": "現在の段階",
+  "Manage habits": "習慣を管理"
 }

@@ -9,11 +9,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:betterseed/main.dart';
 import 'package:betterseed/checklist/checklist_data.dart';
 import 'package:betterseed/data/habit.dart';
+import 'package:betterseed/data/garden_pack_registry.dart';
 import 'package:betterseed/logic/water_progress.dart';
 import '../test/garden_test_helpers.dart';
 import 'package:betterseed/focus/focus_session.dart';
 import 'package:betterseed/focus/focus_hud.dart';
 import 'package:betterseed/checklist/checklist_page.dart';
+import 'package:betterseed/statistics/statistics_page.dart';
+import 'package:betterseed/statistics/garden_milestones.dart';
 
 void main() {
   testWidgets('render redesigned checklist screens', (tester) async {
@@ -124,6 +127,11 @@ void main() {
     await tester.pumpWidget(RepaintBoundary(
         key: key, child: const BetterSeedApp(showLaunchFlow: false)));
     await waitForGardenReady(tester);
+    await tester.runAsync(() async {
+      for (final path in GardenPackRegistry.packs.first.trees) {
+        await precacheImage(AssetImage(path), key.currentContext!);
+      }
+    });
     Future<void> capture(String name) async {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
@@ -172,6 +180,18 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('stats-section-1')));
     await tester.pumpAndSettle();
     await capture('BetterSeed_2_1_Insights');
+    await tester.ensureVisible(find.byKey(const ValueKey('stats-section-2')));
+    await tester.tap(find.byKey(const ValueKey('stats-section-2')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.byType(GardenMilestones), 100,
+        scrollable: find
+            .descendant(
+                of: find.byType(StatisticsPage),
+                matching: find.byType(Scrollable))
+            .first);
+    await tester.ensureVisible(find.byType(GardenMilestones));
+    await tester.pumpAndSettle();
+    await capture('BetterSeed_1_10_1_Garden_Milestones');
     await tester.tap(find.byKey(const ValueKey('tab-1')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add a daily habit'));

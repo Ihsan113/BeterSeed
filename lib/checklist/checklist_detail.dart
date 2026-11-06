@@ -54,7 +54,9 @@ class _ChecklistDetailState extends State<ChecklistDetail> {
                 : r.status;
         void setValue(int value) {
           if (!editable) return;
-          final next = r.change(value: value.clamp(0, 100000));
+          final next = r.change(
+              value: value.clamp(
+                  0, r.plan.type == 'count' ? r.plan.target : 100000));
           setState(() => habit = habit.copyWith(
               completed: next.done, checklist: data.record(now, next)));
           widget.onChanged(habit);
@@ -159,13 +161,16 @@ class _ChecklistDetailState extends State<ChecklistDetail> {
                                 child: Icon(Icons.remove,
                                     semanticLabel: context.tr('Decrease'))),
                             OutlinedButton(
-                                onPressed: () => setValue(r.value + 1),
+                                onPressed:
+                                    r.done ? null : () => setValue(r.value + 1),
                                 child: const Text('+1')),
                             OutlinedButton(
                                 onPressed: () async {
                                   final value = await NumericGoalSheet.show(
                                       context, r.value,
-                                      minimum: 0, title: 'Set progress');
+                                      minimum: 0,
+                                      maximum: plan.target,
+                                      title: 'Set progress');
                                   if (value != null && mounted) setValue(value);
                                 },
                                 child: Text(context.tr('Set progress'))),

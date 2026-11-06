@@ -91,7 +91,10 @@ class _ChecklistPageState extends State<ChecklistPage> {
     final r = record(h)!;
     if (!r.scheduled || (r.rest && rest == null)) return;
     if (rest == true && widget.progress.wasCredited(day, h.id)) return;
-    final next = r.change(value: amount?.clamp(0, 100000), rest: rest);
+    final next = r.change(
+        value:
+            amount?.clamp(0, r.plan.type == 'count' ? r.plan.target : 100000),
+        rest: rest);
     replace(h.copyWith(completed: next.done, checklist: d.record(now, next)));
   }
 
@@ -108,6 +111,28 @@ class _ChecklistPageState extends State<ChecklistPage> {
     } else {
       replace(result);
     }
+  }
+
+  Future<void> manageHabits() async {
+    final selected = await plannerSheet<Habit>(
+        context,
+        'Manage habits',
+        (context) => Column(children: [
+              for (final h in widget.habits.where((h) => !data(h).archived))
+                ListTile(
+                    leading: Icon(habitIcon(h.iconKey)),
+                    title: Text(h.title),
+                    subtitle: Text(context.tr(
+                        data(h).today(DateTime.now()).scheduled
+                            ? data(h).category
+                            : 'Not scheduled')),
+                    trailing: const Icon(Icons.edit_outlined),
+                    onTap: () => Navigator.pop(context, h)),
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(context.tr('Close'))),
+            ]));
+    if (mounted && selected != null) await compose(initial: selected);
   }
 
   Future<void> calendar() async {
@@ -430,7 +455,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
       compose(initial: h);
     } else if (action == 'Set progress') {
       final value = await NumericGoalSheet.show(context, r!.value,
-          minimum: 0, title: 'Set progress');
+          minimum: 0, maximum: r.plan.target, title: 'Set progress');
       if (value != null && mounted) change(h, amount: value);
     } else if (action == 'Rest today') {
       change(h, rest: true);
@@ -548,7 +573,9 @@ class _ChecklistPageState extends State<ChecklistPage> {
                     IconButton.filledTonal(
                         tooltip: context.tr('Increase'),
                         key: ValueKey('increment-${h.id}'),
-                        onPressed: () => change(h, amount: r.value + 1),
+                        onPressed: r.done
+                            ? null
+                            : () => change(h, amount: r.value + 1),
                         icon: const Icon(Icons.add))
                   else if (editable && r!.plan.type == 'duration')
                     IconButton.filledTonal(
@@ -569,6 +596,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
         .where((h) =>
             (!data(h).archived ||
                 !isToday && data(h).records.containsKey(day)) &&
+            record(h)?.scheduled == true &&
             (filter == 'All' || data(h).category == filter))
         .toList()
       ..sort((a, b) {
@@ -707,6 +735,12 @@ class _ChecklistPageState extends State<ChecklistPage> {
                             size: 20,
                             color: checklistMuted)),
                     IconButton(
+                        key: const ValueKey('manage-habits'),
+                        tooltip: context.tr('Manage habits'),
+                        onPressed: manageHabits,
+                        icon: const Icon(Icons.edit_calendar_outlined,
+                            size: 20, color: checklistMuted)),
+                    IconButton(
                         tooltip: context.tr('Templates'),
                         onPressed: templates,
                         icon: const Icon(Icons.library_add_outlined,
@@ -719,7 +753,12 @@ class _ChecklistPageState extends State<ChecklistPage> {
                           const Icon(Icons.spa_outlined,
                               size: 36, color: checklistPrimary),
                           const SizedBox(height: 14),
-                          Text(context.tr('Plant your first daily habit 🌱'),
+                          Text(
+                              context.tr(!isToday
+                                  ? 'No scheduled record'
+                                  : widget.habits.any((h) => !data(h).archived)
+                                      ? 'No habits scheduled'
+                                      : 'Plant your first daily habit 🌱'),
                               textAlign: TextAlign.center,
                               style: const TextStyle(color: checklistMuted))
                         ])),

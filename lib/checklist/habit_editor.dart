@@ -78,7 +78,7 @@ class _HabitEditorState extends State<HabitEditor> {
             .advance(now)
         : (widget.initial!.checklist ?? ChecklistData(start: checklistDay(now)))
             .advance(now)
-            .edit(p, now)
+            .editToday(p, now)
             .copy(category: category);
     Navigator.pop(
         context,
@@ -86,7 +86,7 @@ class _HabitEditorState extends State<HabitEditor> {
             id: widget.creating ? const Uuid().v4() : widget.initial!.id,
             title: title.text.trim(),
             iconKey: icon,
-            completed: widget.creating ? false : widget.initial!.completed,
+            completed: data.today(now).done,
             checklist: data,
             reminderEnabled: reminder.enabled,
             reminderHour: reminder.minute ~/ 60,
@@ -383,8 +383,15 @@ class _HabitEditorState extends State<HabitEditor> {
                                     Padding(
                                         padding: const EdgeInsets.only(top: 12),
                                         child: Text(
-                                            context.tr(
-                                                'Target and schedule changes start tomorrow.'),
+                                            context.tr(type !=
+                                                    (widget.initial?.checklist
+                                                            ?.today(
+                                                                DateTime.now())
+                                                            .plan
+                                                            .type ??
+                                                        'checkbox')
+                                                ? 'Changing goal type resets today’s progress. Earlier history and earned water stay.'
+                                                : 'Changes apply today. Earlier history stays unchanged.'),
                                             style: const TextStyle(
                                                 color: checklistMuted,
                                                 fontSize: 12))),

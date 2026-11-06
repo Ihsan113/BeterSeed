@@ -46,6 +46,8 @@ class _FocusHudState extends State<FocusHud> with WidgetsBindingObserver {
       }
       if (widget.session.reachedTarget && !notified) {
         notified = true;
+        widget.session.pause();
+        unawaited(checkpoint());
         widget.onTarget();
       }
       if (widget.session.running && widget.session.elapsedSeconds % 5 == 0)
@@ -266,6 +268,8 @@ class _FocusHudState extends State<FocusHud> with WidgetsBindingObserver {
                                                   key: const ValueKey(
                                                       'focus-toggle'),
                                                   onPressed: busy ||
+                                                          session
+                                                              .reachedTarget ||
                                                           dayChanged ||
                                                           checklistDay(DateTime
                                                                   .now()) !=

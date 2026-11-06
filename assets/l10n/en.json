@@ -767,5 +767,9 @@
   "Habit contributions": "Habit contributions",
   "Water is credited once per habit and day. It becomes XP when you water your tree.": "Water is credited once per habit and day. It becomes XP when you water your tree.",
   "Based on recorded history. Older or missing details are not estimated.": "Based on recorded history. Older or missing details are not estimated.",
-  "Milestones": "Milestones"
+  "Milestones": "Milestones",
+  "Changes apply today. Earlier history stays unchanged.": "Changes apply today. Earlier history stays unchanged.",
+  "Changing goal type resets today’s progress. Earlier history and earned water stay.": "Changing goal type resets today’s progress. Earlier history and earned water stay.",
+  "Current stage": "Current stage",
+  "Manage habits": "Manage habits"
 }

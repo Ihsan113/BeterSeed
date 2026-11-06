@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
 import 'checklist_style.dart';
@@ -122,85 +123,78 @@ class GoalTypeSelector extends StatelessWidget {
 }
 
 class HabitCategoryPicker {
-  static Future<String?> show(BuildContext context, String current) =>
-      plannerSheet<String>(context, 'Category', (context) {
-        var selected = current;
-        return StatefulBuilder(
-            builder: (context, update) => Column(children: [
-                  for (final category in [
-                    'Morning',
-                    'Afternoon',
-                    'Evening',
-                    'Custom'
-                  ])
-                    ListTile(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        tileColor:
-                            selected == category ? checklistBorder : null,
-                        leading: Icon(switch (category) {
-                          'Morning' => Icons.wb_sunny_outlined,
-                          'Afternoon' => Icons.light_mode_outlined,
-                          'Evening' => Icons.dark_mode_outlined,
-                          _ => Icons.grid_view_rounded
-                        }),
-                        title: Text(context.tr(category)),
-                        trailing: selected == category
-                            ? const Icon(Icons.check_rounded)
-                            : null,
-                        onTap: () => update(() => selected = category)),
-                  pickerActions(
-                      context, () => Navigator.pop(context, selected)),
-                ]));
-      });
+  static Future<String?> show(BuildContext context, String current) {
+    var selected = current;
+    return plannerSheet<String>(context, 'Category', (context) {
+      return StatefulBuilder(
+          builder: (context, update) => Column(children: [
+                for (final category in [
+                  'Morning',
+                  'Afternoon',
+                  'Evening',
+                  'Custom'
+                ])
+                  ListTile(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      tileColor: selected == category ? checklistBorder : null,
+                      leading: Icon(switch (category) {
+                        'Morning' => Icons.wb_sunny_outlined,
+                        'Afternoon' => Icons.light_mode_outlined,
+                        'Evening' => Icons.dark_mode_outlined,
+                        _ => Icons.grid_view_rounded
+                      }),
+                      title: Text(context.tr(category)),
+                      trailing: selected == category
+                          ? const Icon(Icons.check_rounded)
+                          : null,
+                      onTap: () => update(() => selected = category)),
+                pickerActions(context, () => Navigator.pop(context, selected)),
+              ]));
+    });
+  }
 }
 
 class ScheduleDayPicker {
-  static Future<Set<int>?> show(BuildContext context, Set<int> current) =>
-      plannerSheet<Set<int>>(context, 'Activity days', (context) {
-        var days = {...current};
-        return StatefulBuilder(
-            builder: (context, update) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Wrap(spacing: 8, runSpacing: 8, children: [
-                        for (final preset in [
-                          'Every day',
-                          'Weekdays',
-                          'Weekends'
-                        ])
-                          ActionChip(
-                              label: Text(context.tr(preset)),
-                              onPressed: () =>
-                                  update(() => days = preset == 'Every day'
-                                      ? {1, 2, 3, 4, 5, 6, 7}
-                                      : preset == 'Weekdays'
-                                          ? {1, 2, 3, 4, 5}
-                                          : {6, 7}))
-                      ]),
-                      const SizedBox(height: 12),
-                      for (var i = 1; i <= 7; i++)
-                        CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(DateFormat.EEEE(
-                                    Localizations.localeOf(context)
-                                        .toLanguageTag())
-                                .format(DateTime(2026, 11, 1 + i))),
-                            value: days.contains(i),
-                            onChanged: (v) => update(() {
-                                  if (v == true) {
-                                    days.add(i);
-                                  } else if (days.length > 1) {
-                                    days.remove(i);
-                                  }
-                                })),
-                      Text(context.tr('Choose at least one activity day'),
-                          style: const TextStyle(
-                              color: checklistMuted, fontSize: 12)),
-                      pickerActions(
-                          context, () => Navigator.pop(context, days)),
-                    ]));
-      });
+  static Future<Set<int>?> show(BuildContext context, Set<int> current) {
+    var days = {...current};
+    return plannerSheet<Set<int>>(context, 'Activity days', (context) {
+      return StatefulBuilder(
+          builder: (context, update) =>
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (final preset in ['Every day', 'Weekdays', 'Weekends'])
+                    ActionChip(
+                        label: Text(context.tr(preset)),
+                        onPressed: () =>
+                            update(() => days = preset == 'Every day'
+                                ? {1, 2, 3, 4, 5, 6, 7}
+                                : preset == 'Weekdays'
+                                    ? {1, 2, 3, 4, 5}
+                                    : {6, 7}))
+                ]),
+                const SizedBox(height: 12),
+                for (var i = 1; i <= 7; i++)
+                  CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(DateFormat.EEEE(
+                              Localizations.localeOf(context).toLanguageTag())
+                          .format(DateTime(2026, 11, 1 + i))),
+                      value: days.contains(i),
+                      onChanged: (v) => update(() {
+                            if (v == true) {
+                              days.add(i);
+                            } else if (days.length > 1) {
+                              days.remove(i);
+                            }
+                          })),
+                Text(context.tr('Choose at least one activity day'),
+                    style:
+                        const TextStyle(color: checklistMuted, fontSize: 12)),
+                pickerActions(context, () => Navigator.pop(context, days)),
+              ]));
+    });
+  }
 }
 
 class ActivityTimePicker {
@@ -211,9 +205,9 @@ class ActivityTimePicker {
     final minute =
         TextEditingController(text: '${(current ?? 420) % 60}'.padLeft(2, '0'));
     final key = GlobalKey<FormState>();
+    var anytime = allowAnytime && current == null;
     final result = await plannerSheet<int>(
         context, allowAnytime ? 'Activity time' : 'Reminder time', (context) {
-      var anytime = allowAnytime && current == null;
       return StatefulBuilder(
           builder: (context, update) => Form(
               key: key,
@@ -234,7 +228,15 @@ class ActivityTimePicker {
                           children: [
                             Expanded(
                                 child: TextFormField(
+                                    key: const ValueKey('time-hour'),
                                     controller: hour,
+                                    onTap: () => hour.selection = TextSelection(
+                                        baseOffset: 0,
+                                        extentOffset: hour.text.length),
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly
+                                    ],
+                                    textInputAction: TextInputAction.next,
                                     keyboardType: TextInputType.number,
                                     maxLength: 2,
                                     decoration: InputDecoration(
@@ -249,7 +251,16 @@ class ActivityTimePicker {
                             const SizedBox(width: 16),
                             Expanded(
                                 child: TextFormField(
+                                    key: const ValueKey('time-minute'),
                                     controller: minute,
+                                    onTap: () => minute.selection =
+                                        TextSelection(
+                                            baseOffset: 0,
+                                            extentOffset: minute.text.length),
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly
+                                    ],
+                                    textInputAction: TextInputAction.done,
                                     keyboardType: TextInputType.number,
                                     maxLength: 2,
                                     decoration: InputDecoration(
@@ -294,58 +305,56 @@ class ReminderChoice {
 
 class ReminderPicker {
   static Future<ReminderChoice?> show(
-          BuildContext context, ReminderChoice current, int? activity) =>
-      plannerSheet<ReminderChoice>(context, 'Reminder', (context) {
-        var enabled = current.enabled;
-        var minute = current.minute;
-        var lead = current.lead;
-        return StatefulBuilder(
-            builder: (context, update) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(context.tr('Enable reminder')),
-                          value: enabled,
-                          onChanged: (v) => update(() => enabled = v)),
-                      if (enabled && activity != null)
-                        Wrap(spacing: 8, runSpacing: 8, children: [
-                          for (final n in [0, 5, 15, 30, 60])
-                            ChoiceChip(
-                                showCheckmark: false,
-                                selected: lead == n,
-                                label: Text(context.tr(
-                                    n == 0
-                                        ? 'At activity time'
-                                        : '{p0} min before',
-                                    {'p0': n})),
-                                onSelected: (_) => update(() => lead = n))
-                        ]),
-                      if (enabled && activity == null)
-                        ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.access_time),
-                            title: Text(context.tr('Reminder time')),
-                            subtitle: Text(clockLabel(context, minute)),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () async {
-                              final value = await ActivityTimePicker.show(
-                                  context, minute,
-                                  allowAnytime: false);
-                              if (value != null && context.mounted)
-                                update(() => minute = value);
-                            }),
-                      pickerActions(
-                          context,
-                          () => Navigator.pop(
-                              context, ReminderChoice(enabled, minute, lead))),
-                    ]));
-      });
+      BuildContext context, ReminderChoice current, int? activity) {
+    var enabled = current.enabled;
+    var minute = current.minute;
+    var lead = current.lead;
+    return plannerSheet<ReminderChoice>(context, 'Reminder', (context) {
+      return StatefulBuilder(
+          builder: (context, update) =>
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(context.tr('Enable reminder')),
+                    value: enabled,
+                    onChanged: (v) => update(() => enabled = v)),
+                if (enabled && activity != null)
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final n in [0, 5, 15, 30, 60])
+                      ChoiceChip(
+                          showCheckmark: false,
+                          selected: lead == n,
+                          label: Text(context.tr(
+                              n == 0 ? 'At activity time' : '{p0} min before',
+                              {'p0': n})),
+                          onSelected: (_) => update(() => lead = n))
+                  ]),
+                if (enabled && activity == null)
+                  ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.access_time),
+                      title: Text(context.tr('Reminder time')),
+                      subtitle: Text(clockLabel(context, minute)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () async {
+                        final value = await ActivityTimePicker.show(
+                            context, minute,
+                            allowAnytime: false);
+                        if (value != null && context.mounted)
+                          update(() => minute = value);
+                      }),
+                pickerActions(
+                    context,
+                    () => Navigator.pop(
+                        context, ReminderChoice(enabled, minute, lead))),
+              ]));
+    });
+  }
 }
 
 class NumericGoalSheet {
   static Future<int?> show(BuildContext context, int current,
-      {String title = 'Target', int minimum = 1}) async {
+      {String title = 'Target', int minimum = 1, int maximum = 100000}) async {
     final text = TextEditingController(text: '$current');
     final form = GlobalKey<FormState>();
     final result = await plannerSheet<int>(
@@ -360,12 +369,12 @@ class NumericGoalSheet {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                       labelText: context.tr('Value'),
-                      helperText: '$minimum–100000'),
+                      helperText: '$minimum–$maximum'),
                   validator: (v) {
                     final n = int.tryParse(v ?? '');
-                    return n == null || n < minimum || n > 100000
+                    return n == null || n < minimum || n > maximum
                         ? context.tr('Enter a value from {p0} to {p1}',
-                            {'p0': minimum, 'p1': 100000})
+                            {'p0': minimum, 'p1': maximum})
                         : null;
                   }),
               const SizedBox(height: 12),
@@ -373,12 +382,12 @@ class NumericGoalSheet {
                 IconButton(
                     tooltip: context.tr('Decrease'),
                     onPressed: () => text.text =
-                        '${((int.tryParse(text.text) ?? minimum) - 1).clamp(minimum, 100000)}',
+                        '${((int.tryParse(text.text) ?? minimum) - 1).clamp(minimum, maximum)}',
                     icon: const Icon(Icons.remove)),
                 IconButton(
                     tooltip: context.tr('Increase'),
                     onPressed: () => text.text =
-                        '${((int.tryParse(text.text) ?? minimum) + 1).clamp(minimum, 100000)}',
+                        '${((int.tryParse(text.text) ?? minimum) + 1).clamp(minimum, maximum)}',
                     icon: const Icon(Icons.add)),
               ]),
               pickerActions(context, () {

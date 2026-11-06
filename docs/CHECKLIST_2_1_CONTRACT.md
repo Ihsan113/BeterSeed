@@ -1,6 +1,6 @@
 # Checklist & Statistics 2.1 — Snapshot v3 contract
 
-App candidate **1.10.0+62**; backend source **1.4.0**. User approved Snapshot v3
+App candidate **1.10.1+63**; backend source **1.4.0**. User approved Snapshot v3
 and backend implementation/local testing on 2026-11-06. No production deployment,
 SQL migration, CDN, billing or production credentials are part of this change.
 Production current state unverified.
@@ -62,8 +62,9 @@ has no countdown; its optional reminder uses `reminderHour` / `reminderMinute`.
 A timed activity derives notification time from its frozen plan minus lead.
 For 00:15 with 30 minutes lead, the 23:45 alarm checks **the following activity
 calendar date**, including its weekday/rest/completion state. Category does not
-supply a clock. New plans are installed before first-day creation; edits retain
-previous records and use the existing next-effective-day rule.
+supply a clock. New plans are installed before first-day creation; editor changes apply today and retain earlier records. Same-type progress is
+preserved (counts capped at the target); changing type starts today at zero.
+Legacy next-day pending plans still decode, but an explicit new edit supersedes them.
 
 Native scheduling uses local Calendar and inexact AlarmManager; nonexistent DST
 wall times normalize using Calendar, repeated wall times yield one occurrence.
@@ -81,8 +82,10 @@ These are implementation semantics, not a guarantee of exact OEM alarm delivery.
 It never enters cloud/portable backup. Writes/clear are serialized. Foreground
 elapsed time comes from Stopwatch, not wall time, animation ticks or rebuilds.
 
-- Start/pause/resume preserve actual foreground time. Target reached is feedback;
-  it does not forcibly stop the session.
+- Start/pause/resume preserve actual foreground time. From 1.10.1, the timer
+  caps elapsed time at the remaining daily target and pauses automatically.
+  Target reached disables resume; Finish saves the result. Existing saved duration
+  history is retained. This follows the user's updated automatic-stop requirement.
 - App lifecycle interruption pauses immediately. Resume is explicit. A new local
   day pauses the old session; save it before beginning a new day.
 - Every five running seconds and at explicit transitions a checkpoint is saved.
@@ -108,7 +111,8 @@ Opening a timer does not download a pack. Background remains mounted across tabs
 its animation pauses behind planner screens. The HUD alone rebuilds on the
 one-second tick. One existing video controller and audio owner are reused. Video
 is muted before initialization; ambient audio and completion SFX obey preferences.
-Motion OFF / system reduced motion are respected for habit focus. System UI
+Motion OFF / system reduced motion are respected for habit focus; the explicit
+in-app motion override follows the same user choice as the main Garden. System UI
 returns to edge-to-edge on exit. No whole-screen blur or new graphical assets.
 
 ## Statistics definitions

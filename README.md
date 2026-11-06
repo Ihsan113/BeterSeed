@@ -1,4 +1,10 @@
-# BetterSeed — 1.10.0+62 · Checklist & Statistics 2.1
+# BetterSeed 1.10.1+63 — planner corrections
+
+Immediate habit editing, reliable time pickers, bounded progress, automatic focus stop,
+and Garden tree milestones. See [fixes and QA](docs/PLANNER_1_10_1_FIXES.md).
+Uses the existing Snapshot v3 / backend 1.4.0 contract; no additional VPS change.
+
+## Checklist & Statistics 2.1 — 1.10.0+62
 
 Daily planner, Living Garden Focus Timer, and record-based insights.
 See [audit and contract](docs/CHECKLIST_2_1_AUDIT.md). Snapshot v3 requires a compatible backend; production is not deployed by this source update.

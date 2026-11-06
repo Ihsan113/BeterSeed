@@ -22,14 +22,16 @@ class FocusSession extends ChangeNotifier {
   int _elapsed;
   int? _started;
   bool get running => _started != null;
+  int get remainingBudgetMs =>
+      ((targetMinutes * 60 - baseSeconds).clamp(0, 6000000)) * 1000;
   int get elapsedMilliseconds => (_elapsed +
           (_started == null ? 0 : (_clock() - _started!).clamp(0, 6000000000)))
-      .clamp(0, 6000000000);
+      .clamp(0, remainingBudgetMs);
   int get elapsedSeconds => elapsedMilliseconds ~/ 1000;
   int get totalSeconds => (baseSeconds + elapsedSeconds).clamp(0, 6000000);
   bool get reachedTarget => totalSeconds >= targetMinutes * 60;
   void start() {
-    if (running) return;
+    if (running || reachedTarget) return;
     _started = _clock();
     notifyListeners();
   }

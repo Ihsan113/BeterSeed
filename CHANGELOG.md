@@ -1,3 +1,13 @@
+## v1.10.1+63 — Planner corrections and tree milestones
+
+- Apply editor changes immediately to today's plan; keep earlier records and the water ledger. Different goal types reset today's incompatible progress; same-type edits retain valid progress.
+- Preserve time/day/reminder picker drafts when the keyboard opens; select existing hour/minute text for replacement and validate ranges.
+- Stop focus at the remaining daily duration target; preserve paused recovery and show target reached. Finish saves the result. Garden motion now uses the same explicit user preferences as the main Garden.
+- Bound new count inputs to the target and disable the completed plus button. Normalize old excess counts for today without rewriting history.
+- Hide unscheduled habits from the daily list; retain access through Manage habits.
+- Replace text milestone chips with the active Garden's six tree stages in a responsive horizontal row and subtle progress markers.
+- Snapshot v3 unchanged; no new backend or database migration.
+
 ## v1.10.0+62 — Daily planner, Living Garden Focus and Statistics
 
 - Correct first-day count/duration records; add independent activity time and reminder lead settings.

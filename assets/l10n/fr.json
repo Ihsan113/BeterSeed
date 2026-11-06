@@ -767,5 +767,9 @@
   "Habit contributions": "Contribution des habitudes",
   "Water is credited once per habit and day. It becomes XP when you water your tree.": "L’eau est gagnée une fois par habitude et par jour. Arroser l’arbre la transforme en XP.",
   "Based on recorded history. Older or missing details are not estimated.": "Basé sur les données enregistrées. Les détails anciens ou absents ne sont pas estimés.",
-  "Milestones": "Jalons"
+  "Milestones": "Jalons",
+  "Changes apply today. Earlier history stays unchanged.": "Les modifications prennent effet aujourd’hui. L’historique est conservé.",
+  "Changing goal type resets today’s progress. Earlier history and earned water stay.": "Changer de type d’objectif remet la progression du jour à zéro. L’historique et l’eau gagnée sont conservés.",
+  "Current stage": "Étape actuelle",
+  "Manage habits": "Gérer les habitudes"
 }

@@ -299,6 +299,20 @@ class _GrowthHomeState extends State<GrowthHome>
       session = null;
       await store.clear(habit.id);
     }
+    if (session != null) {
+      final occurrence = habit.checklist!.records[session.day] ?? record;
+      if (occurrence.plan.type != 'duration') {
+        session.dispose();
+        session = null;
+        await store.clear(habit.id);
+      } else if (session.targetMinutes != occurrence.plan.target) {
+        final old = session;
+        session = FocusSession(habitId: old.habitId, day: old.day,
+            targetMinutes: occurrence.plan.target, baseSeconds: old.baseSeconds,
+            elapsedMilliseconds: old.elapsedMilliseconds);
+        old.dispose();
+      }
+    }
     session ??= FocusSession(
         habitId: habit.id,
         day: checklistDay(now),
@@ -469,7 +483,7 @@ class _GrowthHomeState extends State<GrowthHome>
   bool get _showAnimation => shouldAnimateGarden(
         livingGardenEnabled: _motionEnabled,
         systemReducedMotion: _systemReduceMotion,
-        allowWhenSystemReduced: _habitFocus == null && _motionOverride,
+        allowWhenSystemReduced: _motionOverride,
       );
   int get _completed =>
       _habits.where((h) => h.checklist?.archived != true && h.completed).length;
@@ -2592,6 +2606,7 @@ class _GrowthHomeState extends State<GrowthHome>
                                         _configureReminder(true),
                                     onChanged: _changeChecklist),
                                 StatisticsPage(
+                                    treeImages: _activeTreeImages,
                                     habits: _habits,
                                     progress: _progress,
                                     tree: GardenImage.asset(
@@ -3642,6 +3657,22 @@ class _GrowthHomeState extends State<GrowthHome>
     _ensureToday();
     final now = DateTime.now();
     final previous = {for (final h in _habits) h.id: h};
+    final owner = _cloud.userId ?? 'guest';
+    try {
+      final store = FocusSessionStore(owner);
+      for (final h in habits) {
+        final before = previous[h.id]?.checklist?.today(now).plan.type;
+        if (before != null && before != h.checklist?.today(now).plan.type) {
+          final saved = await store.read(h.id);
+          if (saved?.day == checklistDay(now)) await store.clear(h.id);
+          saved?.dispose();
+        }
+      }
+    } catch (_) {
+      _showFocusStorageFailure();
+      return;
+    }
+    if (!mounted || owner != (_cloud.userId ?? 'guest')) return;
     setState(() {
       _habits = habits.map((h) {
         final d = h.checklist;

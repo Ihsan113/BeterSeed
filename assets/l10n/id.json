@@ -767,5 +767,9 @@
   "Habit contributions": "Kontribusi kebiasaan",
   "Water is credited once per habit and day. It becomes XP when you water your tree.": "Air diberikan sekali per habit per hari. Air menjadi XP saat kamu menyiram pohon.",
   "Based on recorded history. Older or missing details are not estimated.": "Berdasarkan riwayat tercatat. Data lama atau yang hilang tidak diperkirakan.",
-  "Milestones": "Pencapaian"
+  "Milestones": "Pencapaian",
+  "Changes apply today. Earlier history stays unchanged.": "Perubahan berlaku hari ini. Riwayat sebelumnya tetap tersimpan.",
+  "Changing goal type resets today’s progress. Earlier history and earned water stay.": "Mengganti jenis target mengulang progres hari ini dari nol. Riwayat sebelumnya dan air yang diperoleh tetap tersimpan.",
+  "Current stage": "Tahap saat ini",
+  "Manage habits": "Kelola kebiasaan"
 }

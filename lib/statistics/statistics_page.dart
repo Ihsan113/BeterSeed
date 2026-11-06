@@ -6,7 +6,8 @@ import '../checklist/checklist_style.dart';
 import '../checklist/habit_icons.dart';
 import '../data/habit.dart';
 import '../logic/water_progress.dart';
-import '../logic/growth.dart';
+import '../data/garden_pack_registry.dart';
+import 'garden_milestones.dart';
 import '../l10n/app_localizations.dart';
 import 'planner_insights.dart';
 
@@ -15,10 +16,12 @@ class StatisticsPage extends StatefulWidget {
       {super.key,
       required this.habits,
       required this.progress,
-      required this.tree});
+      required this.tree,
+      this.treeImages});
   final List<Habit> habits;
   final WaterProgress progress;
   final Widget tree;
+  final List<String>? treeImages;
   @override
   State<StatisticsPage> createState() => _StatisticsPageState();
 }
@@ -383,29 +386,10 @@ class _StatisticsPageState extends State<StatisticsPage> {
                   ('${widget.progress.xp}', 'Tree XP')
                 ]),
                 heading(context, 'Milestones'),
-                panel(Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      LinearProgressIndicator(
-                          value: progressToNextStage(widget.progress.xp),
-                          minHeight: 4,
-                          borderRadius: BorderRadius.circular(2),
-                          color: checklistPrimary,
-                          backgroundColor: checklistBorder),
-                      const SizedBox(height: 12),
-                      Wrap(spacing: 8, runSpacing: 8, children: [
-                        for (var i = 0; i < treeStageThresholds.length; i++)
-                          Chip(
-                              avatar: Icon(
-                                  widget.progress.xp >= treeStageThresholds[i]
-                                      ? Icons.check_rounded
-                                      : Icons.lock_outline,
-                                  size: 16),
-                              label: Text('${context.tr('Stage {p0}', {
-                                    'p0': i + 1
-                                  })} · ${treeStageThresholds[i]} XP')),
-                      ]),
-                    ])),
+                panel(GardenMilestones(
+                    xp: widget.progress.xp,
+                    treeImages: widget.treeImages ??
+                        GardenPackRegistry.packs.first.trees)),
                 heading(context, 'Habit contributions'),
                 panel(Column(children: [
                   for (final h in widget.habits)

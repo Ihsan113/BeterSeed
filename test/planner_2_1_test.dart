@@ -142,9 +142,9 @@ void main() {
     final restored = FocusSession.fromJson(session.toJson(),
         monotonicMilliseconds: () => ms);
     expect(restored.running, false);
-    expect(restored.elapsedMilliseconds, 90500);
+    expect(restored.elapsedMilliseconds, 90000);
     ms += 86400000;
-    expect(restored.elapsedMilliseconds, 90500);
+    expect(restored.elapsedMilliseconds, 90000);
     restored.reset();
     expect(restored.totalSeconds, 30);
     expect(restored.elapsedSeconds, 0);

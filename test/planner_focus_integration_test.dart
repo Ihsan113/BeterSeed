@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:betterseed/main.dart';
 import 'package:betterseed/checklist/checklist_data.dart';
+import 'package:betterseed/checklist/habit_editor.dart';
 import 'package:betterseed/data/habit.dart';
 import 'package:betterseed/data/garden_appearance.dart';
 import 'package:betterseed/data/garden_pack_registry.dart';
@@ -16,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 import 'garden_test_helpers.dart';
+import 'package:betterseed/widgets/garden_life_painter.dart';
 
 class CountingVideo extends VideoPlayerPlatform {
   int created = 0, disposed = 0, playing = 0, paused = 0;
@@ -162,6 +164,136 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final settings in [
+    (true, false, false),
+    (true, true, true),
+    (true, false, true),
+    (false, true, false)
+  ]) {
+    testWidgets(
+        'focus follows Garden motion/override/reduced settings $settings',
+        (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          FakeAccessibilityFeatures(disableAnimations: settings.$3);
+      addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+      final now = DateTime.now(), day = checklistDay(DateTime.now());
+      final data = ChecklistData(
+              start: day, plan: const HabitPlan(type: 'duration', target: 2))
+          .advance(now);
+      SharedPreferences.setMockInitialValues({
+        'betterseed_motion_v2': settings.$1,
+        'betterseed_game_motion_override_v1': settings.$2,
+        'betterseed_music_v2': false,
+        'betterseed_sfx_v2': false,
+        'betterseed_day_v1': day,
+        'betterseed_habits_v1': jsonEncode(
+            [Habit(id: 'h', title: 'Read', checklist: data).toJson()])
+      });
+      await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+      await waitForGardenReady(tester);
+      await tester.tap(find.byKey(const ValueKey('tab-1')));
+      await pumpGardenTransition(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('focus-h')));
+      await pumpGardenTransition(tester);
+      await tester.tap(find.byKey(const ValueKey('focus-h')));
+      await pumpGardenTransition(tester);
+      final animated = settings.$1 && (!settings.$3 || settings.$2);
+      final ambient = find.byKey(const ValueKey('garden-live-ambient'));
+      if (animated) {
+        expect(ambient, findsOneWidget);
+        expect(
+            find.byKey(const ValueKey('garden-butterfly-0')), findsOneWidget);
+        final before =
+            (tester.widget<CustomPaint>(ambient).painter as GardenLifePainter)
+                .progress;
+        await tester.pump(const Duration(seconds: 1));
+        final after =
+            (tester.widget<CustomPaint>(ambient).painter as GardenLifePainter)
+                .progress;
+        expect(after, isNot(before));
+      } else {
+        expect(ambient, findsNothing);
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+    });
+  }
+
+  testWidgets(
+      'real edit clears obsolete timer, saves new goal and survives app restart',
+      (tester) async {
+    final now = DateTime.now(), day = checklistDay(DateTime.now());
+    final data = ChecklistData(
+            start: day, plan: const HabitPlan(type: 'duration', target: 2))
+        .advance(now);
+    SharedPreferences.setMockInitialValues({
+      'betterseed_motion_v2': false,
+      'betterseed_music_v2': false,
+      'betterseed_sfx_v2': false,
+      'betterseed_day_v1': day,
+      'betterseed_habits_v1':
+          jsonEncode([Habit(id: 'h', title: 'Read', checklist: data).toJson()])
+    });
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = FocusSessionStore('guest');
+    final oldSession = FocusSession(
+        habitId: 'h',
+        day: day,
+        targetMinutes: 2,
+        baseSeconds: 0,
+        elapsedMilliseconds: 30000);
+    await store.save(oldSession);
+    oldSession.dispose();
+    await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
+    await tester.tap(find.byKey(const ValueKey('tab-1')));
+    await pumpGardenTransition(tester);
+    await tester.ensureVisible(find.text('Read'));
+    await pumpGardenTransition(tester);
+    await tester.tap(find.text('Read'));
+    await pumpGardenTransition(tester);
+    await tester.tap(find.byTooltip('Edit habit'));
+    await pumpGardenTransition(tester);
+    expect(find.byType(HabitEditor), findsOneWidget);
+    await tester.tap(find.text('Continue'));
+    await pumpGardenTransition(tester);
+    await tester.tap(find.byKey(const ValueKey('goal-type-count')));
+    await pumpGardenTransition(tester);
+    await tester.tap(find.text('Save habit'));
+    await pumpGardenTransition(tester);
+    final prefs = await SharedPreferences.getInstance();
+    for (var i = 0; i < 80; i++) {
+      final raw = jsonDecode(prefs.getString('betterseed_habits_v1')!) as List;
+      if (Habit.fromJson(raw.single).checklist!.today(now).plan.type == 'count')
+        break;
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(await store.read('h'), isNull);
+    final saved = Habit.fromJson(
+        (jsonDecode(prefs.getString('betterseed_habits_v1')!) as List).single);
+    expect(saved.checklist!.today(now).plan.type, 'count');
+    expect(saved.checklist!.today(now).value, 0);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
+    await tester.tap(find.byKey(const ValueKey('tab-1')));
+    await pumpGardenTransition(tester);
+    await tester.ensureVisible(find.byKey(const ValueKey('increment-h')));
+    expect(find.byKey(const ValueKey('increment-h')), findsOneWidget);
+    expect(find.byKey(const ValueKey('focus-h')), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
   testWidgets('partial focus saves real seconds and retry cannot double water',
       (tester) async {
     final now = DateTime.now(), day = checklistDay(DateTime.now());
@@ -193,7 +325,7 @@ void main() {
     await waitForGardenReady(tester);
     await tester.tap(find.byKey(const ValueKey('tab-1')));
     await pumpGardenTransition(tester);
-    for (final seconds in [90, 180, 180]) {
+    for (final seconds in [90, 120, 120]) {
       if (seconds != 90) await checkpoint(seconds);
       await tester.ensureVisible(find.byKey(const ValueKey('focus-h')));
       await pumpGardenTransition(tester);

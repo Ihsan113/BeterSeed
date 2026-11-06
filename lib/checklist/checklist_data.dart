@@ -167,7 +167,13 @@ class ChecklistData {
       result = result.record(cursor, result.today(cursor));
       cursor = DateTime(cursor.year, cursor.month, cursor.day + 1);
     }
-    return result.record(now, result.today(now));
+    final current = result.today(now);
+    // Repair old over-target counts only for today; historic records stay intact.
+    return result.record(
+        now,
+        current.plan.type == 'count' && current.value > current.plan.target
+            ? current.change(value: current.plan.target)
+            : current);
   }
 
   ChecklistData copy(
@@ -196,6 +202,39 @@ class ChecklistData {
       pending: next,
       effective: checklistDay(DateTime(now.year, now.month, now.day + 1)),
       records: {...records, checklistDay(now): today(now)});
+
+  /// Editor changes apply to the selected occurrence today and future plans.
+  /// Different goal types have incompatible units; only today's value resets.
+  /// Earlier records and legacy pending plans remain readable without migration.
+  ChecklistData editToday(HabitPlan next, DateTime now) {
+    final current = today(now);
+    final compatible = current.plan.type == next.type;
+    final value = compatible
+        ? (next.type == 'count'
+            ? current.value.clamp(0, next.target)
+            : current.value)
+        : 0;
+    return ChecklistData(
+        start: start,
+        plan: next,
+        category: category,
+        order: order,
+        archived: archived,
+        carriedStreak: carriedStreak,
+        bestStreak: bestStreak,
+        records: {
+          ...records,
+          checklistDay(now): HabitRecord(
+              plan: next,
+              scheduled: !archived &&
+                  checklistDay(now).compareTo(start) >= 0 &&
+                  next.weekdays.contains(now.weekday),
+              rest: current.rest,
+              value: value,
+              focusSeconds: compatible ? current.focusSeconds : null)
+        });
+  }
+
   ChecklistData record(DateTime now, HabitRecord record) {
     final all = {...records, checklistDay(now): record};
     final cutoff = checklistDay(DateTime(now.year, now.month, now.day - 365));

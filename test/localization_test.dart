@@ -19,6 +19,24 @@ import 'play_billing_server_test.dart' show BillingAccount, FakePlay;
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    for (final name in [
+      'xyz.luan/audioplayers.global',
+      'xyz.luan/audioplayers.global/events'
+    ]) {
+      messenger.setMockMethodCallHandler(
+          MethodChannel(name), (_) async => null);
+    }
+    messenger.setMockMethodCallHandler(
+        const MethodChannel('xyz.luan/audioplayers'), (call) async {
+      final id = (call.arguments as Map?)?['playerId'];
+      if (id != null)
+        messenger.setMockMethodCallHandler(
+            MethodChannel('xyz.luan/audioplayers/events/$id'),
+            (_) async => null);
+      return null;
+    });
     rootBundle.clear();
     SharedPreferences.setMockInitialValues({
       'betterseed_music_v2': false,
@@ -72,9 +90,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('settings-menu-language')));
     await pumpGardenTransition(tester);
     await tester.tap(find.byKey(const ValueKey('language-id')));
-    for (var i = 0; i < 12; i++) {
+    // Locale JSON loads via real asset I/O, which fake animation time cannot advance.
+    for (var i = 0;
+        i < 80 && find.text('Bahasa aplikasi').evaluate().isEmpty;
+        i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
       await tester.pump(const Duration(milliseconds: 100));
     }
+    await pumpGardenTransition(tester);
     expect(find.text('Bahasa aplikasi'), findsOneWidget);
     expect(find.text('Pengaturan'), findsOneWidget);
     expect(tester.takeException(), isNull);
