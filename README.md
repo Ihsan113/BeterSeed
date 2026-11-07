@@ -1,3 +1,13 @@
+# BetterSeed 1.11.0+64 — Semua Kebiasaan
+
+Kelola seluruh kebiasaan melalui **Daftar Harian → Kelola Semua**, termasuk
+jadwal hari lain dan arsip. Pencarian, filter, pengurutan, edit, pemulihan arsip,
+dan aksi massal tersedia tanpa mengubah histori atau menambah hadiah air.
+Reset pada Focus Timer tetap terlihat namun nonaktif ketika target tercapai.
+Lihat [panduan, kontrak data, dan QA](docs/HABIT_LIBRARY.md).
+Fitur ini menggunakan kontrak Snapshot v3 / backend 1.4.0 yang sudah ada;
+tidak memerlukan pembaruan backend tambahan atau migrasi database.
+
 # BetterSeed 1.10.1+63 — planner corrections
 
 Immediate habit editing, reliable time pickers, bounded progress, automatic focus stop,

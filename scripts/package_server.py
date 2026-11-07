@@ -18,7 +18,7 @@ DIRECTORIES = ['src', 'migrations', 'test', 'public']
 def build_bytes():
     import io
     paths = [SERVER / name for name in TOP_LEVEL]
-    paths.extend(ROOT / 'docs' / name for name in ['DYNAMIC_GARDEN_PACKS.md', 'DYNAMIC_PACK_QA.md', 'ADMIN_TRANSFER_AND_LOCALIZATION.md', 'LIVE_WALLPAPER.md', 'ACCOUNT_EXPERIENCE.md', 'CHECKLIST_2.md', 'CHECKLIST_2_VALIDATION.md', 'CHECKLIST_2_1_AUDIT.md', 'CHECKLIST_2_1_CONTRACT.md', 'CHECKLIST_2_1_VALIDATION.md', 'PLANNER_1_10_1_FIXES.md'])
+    paths.extend(ROOT / 'docs' / name for name in ['DYNAMIC_GARDEN_PACKS.md', 'DYNAMIC_PACK_QA.md', 'ADMIN_TRANSFER_AND_LOCALIZATION.md', 'LIVE_WALLPAPER.md', 'ACCOUNT_EXPERIENCE.md', 'CHECKLIST_2.md', 'CHECKLIST_2_VALIDATION.md', 'CHECKLIST_2_1_AUDIT.md', 'CHECKLIST_2_1_CONTRACT.md', 'CHECKLIST_2_1_VALIDATION.md', 'PLANNER_1_10_1_FIXES.md', 'HABIT_LIBRARY.md', 'HABIT_LIBRARY_QA.md'])
     # Fixed allowlist: include deployment context, never live snapshots/config.
     guard_paths = [ROOT / 'AGENTS.md'] + [ROOT / 'ops/vps' / name for name in [
         'README.md', 'KNOWN_STATE.md', 'DEPLOY_GUARDS.md', 'collect_state.py',

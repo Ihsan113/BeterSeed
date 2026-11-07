@@ -109,9 +109,10 @@ class _FocusHudState extends State<FocusHud> with WidgetsBindingObserver {
   }
 
   Future<void> reset() async {
+    if (busy || widget.session.reachedTarget) return;
     widget.session.pause();
     await checkpoint();
-    if (!mounted) return;
+    if (!mounted || widget.session.reachedTarget) return;
     final confirm = await plannerSheet<bool>(
         context,
         'Reset this session?',
@@ -121,7 +122,7 @@ class _FocusHudState extends State<FocusHud> with WidgetsBindingObserver {
               pickerActions(context, () => Navigator.pop(context, true),
                   saveLabel: 'Reset'),
             ]));
-    if (confirm == true && mounted) {
+    if (confirm == true && mounted && !widget.session.reachedTarget) {
       widget.session.reset();
       notified = widget.session.reachedTarget;
       await checkpoint();
@@ -301,9 +302,15 @@ class _FocusHudState extends State<FocusHud> with WidgetsBindingObserver {
                                                   child: Text(
                                                       context.tr('Finish'))),
                                               IconButton(
+                                                  key: const ValueKey(
+                                                      'focus-reset'),
                                                   tooltip: context.tr('Reset'),
-                                                  onPressed:
-                                                      busy ? null : reset,
+                                                  disabledColor: checklistMuted
+                                                      .withValues(alpha: .38),
+                                                  onPressed: busy ||
+                                                          session.reachedTarget
+                                                      ? null
+                                                      : reset,
                                                   icon: const Icon(
                                                       Icons.restart_alt)),
                                             ]),

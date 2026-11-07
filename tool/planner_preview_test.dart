@@ -174,6 +174,41 @@ void main() {
     }
     expect(find.byType(FocusHud), findsNothing);
     await tester.pumpAndSettle();
+    // A recovered completed session: Reset stays visible but disabled.
+    final prefs = await SharedPreferences.getInstance();
+    final saved = (jsonDecode(prefs.getString('betterseed_habits_v1')!) as List)
+        .map((j) => Habit.fromJson(j))
+        .firstWhere((h) => h.id == 'read');
+    final savedSeconds = saved.checklist!.today(now).durationSeconds;
+    final reached = FocusSession(
+        habitId: 'read',
+        day: day,
+        targetMinutes: 20,
+        baseSeconds: savedSeconds,
+        elapsedMilliseconds: (1200 - savedSeconds) * 1000);
+    await FocusSessionStore('guest').save(reached);
+    reached.dispose();
+    await tester.ensureVisible(find.byKey(const ValueKey('focus-read')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('focus-read')));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<IconButton>(find.byKey(const ValueKey('focus-reset')))
+            .onPressed,
+        isNull);
+    await capture('Focus_Target_Reached');
+    await tester.tap(find.byKey(const ValueKey('focus-finish')));
+    for (var i = 0;
+        i < 80 && find.byType(FocusHud).evaluate().isNotEmpty;
+        i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      if (i % 8 == 0)
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)));
+    }
+    expect(find.byType(FocusHud), findsNothing);
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('tab-2')));
     await tester.pumpAndSettle();
     await capture('BetterSeed_2_1_Statistics');

@@ -146,10 +146,24 @@ void main() {
     ms += 86400000;
     expect(restored.elapsedMilliseconds, 90000);
     restored.reset();
-    expect(restored.totalSeconds, 30);
-    expect(restored.elapsedSeconds, 0);
+    expect(restored.totalSeconds, 120);
+    expect(restored.elapsedSeconds,
+        90); // reached target stays locked after recovery
     session.dispose();
     restored.dispose();
+  });
+  test('partial focus reset still discards only unsaved time', () {
+    final session = FocusSession(
+        habitId: 'h',
+        day: '2026-11-07',
+        targetMinutes: 5,
+        baseSeconds: 60,
+        elapsedMilliseconds: 90000);
+    session.reset();
+    expect(session.totalSeconds, 60);
+    expect(session.elapsedSeconds, 0);
+    expect(session.running, false);
+    session.dispose();
   });
   test('checkpoint storage isolates accounts and serializes save then clear',
       () async {

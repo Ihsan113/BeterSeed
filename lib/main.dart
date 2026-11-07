@@ -262,7 +262,8 @@ class _GrowthHomeState extends State<GrowthHome>
   bool _openingHabitFocus = false, _leavingHabitFocus = false;
 
   Future<void> _startHabitFocus(Habit habit) async {
-    if (_openingHabitFocus || _habitFocus != null || habit.checklist == null) return;
+    if (_openingHabitFocus || _habitFocus != null || habit.checklist == null)
+      return;
     _openingHabitFocus = true;
     try {
       await _openHabitFocus(habit);
@@ -276,7 +277,8 @@ class _GrowthHomeState extends State<GrowthHome>
   void _showFocusStorageFailure() {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(AppToast(
-          content: Text(context.tr('Progress could not be saved. Please retry.'))));
+          content:
+              Text(context.tr('Progress could not be saved. Please retry.'))));
     }
   }
 
@@ -307,8 +309,11 @@ class _GrowthHomeState extends State<GrowthHome>
         await store.clear(habit.id);
       } else if (session.targetMinutes != occurrence.plan.target) {
         final old = session;
-        session = FocusSession(habitId: old.habitId, day: old.day,
-            targetMinutes: occurrence.plan.target, baseSeconds: old.baseSeconds,
+        session = FocusSession(
+            habitId: old.habitId,
+            day: old.day,
+            targetMinutes: occurrence.plan.target,
+            baseSeconds: old.baseSeconds,
             elapsedMilliseconds: old.elapsedMilliseconds);
         old.dispose();
       }
@@ -2604,6 +2609,11 @@ class _GrowthHomeState extends State<GrowthHome>
                                     masterEnabled: _reminderEnabled,
                                     onEnableMaster: () =>
                                         _configureReminder(true),
+                                    managementScope: _cloud.userId ?? 'guest',
+                                    onManageChanged: (habits, owner) =>
+                                        _changeChecklist(habits,
+                                            management: true,
+                                            expectedOwner: owner),
                                     onChanged: _changeChecklist),
                                 StatisticsPage(
                                     treeImages: _activeTreeImages,
@@ -3653,9 +3663,16 @@ class _GrowthHomeState extends State<GrowthHome>
     ];
   }
 
-  Future<void> _changeChecklist(List<Habit> habits) async {
+  Future<void> _changeChecklist(List<Habit> habits,
+      {bool management = false, String? expectedOwner}) async {
+    // Compare the route's captured owner before touching current account data,
+    // including the frame before ChecklistPage receives a changed account.
+    if (management && expectedOwner != (_cloud.userId ?? 'guest')) {
+      throw StateError('Account changed');
+    }
     _ensureToday();
     final now = DateTime.now();
+    final initialHabits = _habits;
     final previous = {for (final h in _habits) h.id: h};
     final owner = _cloud.userId ?? 'guest';
     try {
@@ -3669,16 +3686,23 @@ class _GrowthHomeState extends State<GrowthHome>
         }
       }
     } catch (_) {
+      if (management) rethrow;
       _showFocusStorageFailure();
       return;
     }
-    if (!mounted || owner != (_cloud.userId ?? 'guest')) return;
+    if (!mounted || owner != (_cloud.userId ?? 'guest')) {
+      if (management) throw StateError('Account changed');
+      return;
+    }
+    if (management && !identical(initialHabits, _habits)) {
+      throw StateError('Habit collection changed during save');
+    }
     setState(() {
       _habits = habits.map((h) {
         final d = h.checklist;
         if (d == null) return h;
         final record = d.today(now);
-        if (crossesChecklistTarget(previous[h.id], h, now))
+        if (!management && crossesChecklistTarget(previous[h.id], h, now))
           _progress.earnForHabit(_today, h.id);
         return h.copyWith(
             completed: record.done, checklist: d.record(now, record));
@@ -3687,6 +3711,7 @@ class _GrowthHomeState extends State<GrowthHome>
     try {
       await _save();
     } catch (_) {
+      if (management) rethrow;
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(AppToast(
             content: Text(

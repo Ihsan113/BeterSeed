@@ -93,6 +93,7 @@ class ChecklistSurface extends StatelessWidget {
           textTheme: base.textTheme
               .apply(bodyColor: checklistText, displayColor: checklistText),
         ),
-        child: child);
+        child: DefaultTextStyle.merge(
+            style: const TextStyle(color: checklistText), child: child));
   }
 }

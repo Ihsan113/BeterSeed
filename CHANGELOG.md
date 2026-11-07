@@ -1,3 +1,14 @@
+## v1.11.0+64 — Global habit management
+
+- Keep Focus Timer Reset visible but disabled when the daily target is reached; preserve completed time across recovery and save retries. Partial-session reset still works.
+
+- Add All habits via a labeled Manage all entry in the daily checklist, including off-day and archived habits.
+- Add search, intersecting category/day/status filters, name/activity-time sorts, and persisted custom ordering.
+- Add multi-selection with reviewed category, activity-day, reminder-off, archive, and restore actions; limit selection to filtered results.
+- Reuse the habit editor, guard stale edits/account switches, and await persistence before reporting success.
+- Preserve recorded history and exact duration, restore without backfilling archived gaps, and never award water from management actions.
+- Support seven languages and small screens with 200% text. Existing Snapshot v3 fields only; no backend schema or production change.
+
 ## v1.10.1+63 — Planner corrections and tree milestones
 
 - Apply editor changes immediately to today's plan; keep earlier records and the water ledger. Different goal types reset today's incompatible progress; same-type edits retain valid progress.

@@ -41,6 +41,7 @@ void main() {
     final checkbox = find.byKey(const ValueKey('habit-toggle'));
     await tester.scrollUntilVisible(checkbox, 150,
         scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
     await tester.tap(checkbox);
     await tester.pumpAndSettle();
     expect(changes, 1);

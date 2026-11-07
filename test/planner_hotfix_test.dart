@@ -212,6 +212,7 @@ void main() {
                     onChanged: (next) => update(() => habits = next))))));
     final plus = find.byKey(const ValueKey('increment-count'));
     await tester.ensureVisible(plus);
+    await tester.pumpAndSettle();
     await tester.tap(plus);
     await tester.pumpAndSettle();
     expect(habits.single.checklist!.today(now).value, 10);
@@ -294,6 +295,57 @@ void main() {
     expect(cues, 1);
     expect(checkpoints, greaterThan(0));
     expect(find.text('Target reached'), findsOneWidget);
+    final reset = find.byKey(const ValueKey('focus-reset'));
+    expect(reset, findsOneWidget);
+    expect(tester.widget<IconButton>(reset).onPressed, isNull);
+    expect(
+        tester
+            .widget<OutlinedButton>(find.byKey(const ValueKey('focus-finish')))
+            .onPressed,
+        isNotNull);
+    await tester.tap(reset);
+    await tester.pump();
+    expect(find.text('Reset this session?'), findsNothing);
+    session.reset(); // Model guard also preserves reached progress.
+    expect(session.totalSeconds, 60);
+    await tester.pumpWidget(const SizedBox());
+    session.dispose();
+  });
+
+  testWidgets(
+      'recovered completed focus keeps Reset visible and disabled on save failure',
+      (tester) async {
+    final session = FocusSession(
+        habitId: 'h',
+        day: checklistDay(DateTime.now()),
+        targetMinutes: 5,
+        baseSeconds: 300);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: FocusHud(
+      session: session,
+      title: 'Read',
+      motion: false,
+      onCheckpoint: () async {},
+      onFinish: () async => throw StateError('disk failure'),
+      onExit: () async {},
+      onTarget: () => fail('Do not replay the target cue on recovery'),
+    ))));
+    await tester.pump();
+    final reset = find.byKey(const ValueKey('focus-reset'));
+    expect(reset, findsOneWidget);
+    expect(tester.widget<IconButton>(reset).onPressed, isNull);
+    await tester.tap(find.byKey(const ValueKey('focus-finish')));
+    await tester.pumpAndSettle();
+    expect(find.text('Progress could not be saved. Please retry.'),
+        findsOneWidget);
+    expect(tester.widget<IconButton>(reset).onPressed, isNull);
+    expect(session.totalSeconds, 300);
+    expect(
+        tester
+            .widget<OutlinedButton>(find.byKey(const ValueKey('focus-finish')))
+            .onPressed,
+        isNotNull);
     await tester.pumpWidget(const SizedBox());
     session.dispose();
   });

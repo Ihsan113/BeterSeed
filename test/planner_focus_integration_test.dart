@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:betterseed/main.dart';
 import 'package:betterseed/checklist/checklist_data.dart';
-import 'package:betterseed/checklist/habit_editor.dart';
+import 'package:betterseed/checklist/habit_manager_page.dart';
+import 'package:betterseed/checklist/checklist_page.dart';
 import 'package:betterseed/data/habit.dart';
 import 'package:betterseed/data/garden_appearance.dart';
 import 'package:betterseed/data/garden_pack_registry.dart';
@@ -112,6 +113,100 @@ void main() {
       () => messenger.setMockMethodCallHandler(SystemChannels.platform, null));
 
   testWidgets(
+      'global management persists archive/restore and leaves earned water unchanged',
+      (tester) async {
+    final now = DateTime.now(), day = checklistDay(DateTime.now());
+    var data = ChecklistData(
+        start: day,
+        plan:
+            const HabitPlan(type: 'duration', target: 10, activityMinute: 420));
+    data =
+        data.record(now, data.today(now).change(value: 10, focusSeconds: 600));
+    final water = WaterProgress()..earnForHabit(day, 'read');
+    SharedPreferences.setMockInitialValues({
+      'betterseed_motion_v2': false,
+      'betterseed_music_v2': false,
+      'betterseed_sfx_v2': false,
+      'betterseed_day_v1': day,
+      'betterseed_habits_v1': jsonEncode(
+          [Habit(id: 'read', title: 'Read', checklist: data).toJson()]),
+      'betterseed_water_progress_v3': jsonEncode(water.toJson()),
+    });
+    await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
+    await tester.tap(find.byKey(const ValueKey('tab-1')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('manage-habits')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('manage-habits')));
+    await tester.pumpAndSettle();
+    expect(find.byType(HabitManagerPage), findsOneWidget);
+    Future<void> apply(String label) async {
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('library-actions-read')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('library-actions-read')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Apply'));
+      await tester.pump(const Duration(milliseconds: 450));
+      for (var i = 0;
+          i < 80 &&
+              find.byType(CircularProgressIndicator).evaluate().isNotEmpty;
+          i++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      await tester.pumpAndSettle();
+    }
+
+    await apply('Archive habits');
+    final prefs = await SharedPreferences.getInstance();
+    Habit stored() => Habit.fromJson(
+        (jsonDecode(prefs.getString('betterseed_habits_v1')!) as List).single);
+    expect(stored().checklist!.archived, true);
+    expect(find.text('0 active · 1 archived'), findsOneWidget);
+    await apply('Restore habits');
+    expect(stored().checklist!.archived, false);
+    expect(stored().checklist!.today(now).durationSeconds, 600);
+    expect(jsonDecode(prefs.getString('betterseed_water_progress_v3')!),
+        water.toJson());
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Read'), 120,
+        scrollable: find
+            .descendant(
+                of: find.byType(ChecklistPage),
+                matching: find.byType(Scrollable))
+            .first);
+    await tester.pumpAndSettle();
+    expect(find.text('Read'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+    await waitForGardenReady(tester);
+    await tester.tap(find.byKey(const ValueKey('tab-1')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Read'), 120,
+        scrollable: find
+            .descendant(
+                of: find.byType(ChecklistPage),
+                matching: find.byType(Scrollable))
+            .first);
+    await tester.pumpAndSettle();
+    expect(find.text('Read'), findsOneWidget);
+    expect(stored().checklist!.today(now).done, true);
+    expect(jsonDecode(prefs.getString('betterseed_water_progress_v3')!),
+        water.toJson());
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets(
       'habit focus shares Garden geometry, preserves audio and restores system UI',
       (tester) async {
     final now = DateTime.now(), day = checklistDay(DateTime.now());
@@ -137,7 +232,12 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('tab-1')));
     await pumpGardenTransition(tester);
     final players = audioPlayers;
-    await tester.ensureVisible(find.byKey(const ValueKey('focus-h')));
+    await tester.scrollUntilVisible(find.byKey(const ValueKey('focus-h')), 120,
+        scrollable: find
+            .descendant(
+                of: find.byType(ChecklistPage),
+                matching: find.byType(Scrollable))
+            .first);
     await pumpGardenTransition(tester);
     await tester.tap(find.byKey(const ValueKey('focus-h')));
     await pumpGardenTransition(tester);
@@ -194,7 +294,13 @@ void main() {
       await waitForGardenReady(tester);
       await tester.tap(find.byKey(const ValueKey('tab-1')));
       await pumpGardenTransition(tester);
-      await tester.ensureVisible(find.byKey(const ValueKey('focus-h')));
+      await tester.scrollUntilVisible(
+          find.byKey(const ValueKey('focus-h')), 120,
+          scrollable: find
+              .descendant(
+                  of: find.byType(ChecklistPage),
+                  matching: find.byType(Scrollable))
+              .first);
       await pumpGardenTransition(tester);
       await tester.tap(find.byKey(const ValueKey('focus-h')));
       await pumpGardenTransition(tester);
@@ -253,7 +359,12 @@ void main() {
     await waitForGardenReady(tester);
     await tester.tap(find.byKey(const ValueKey('tab-1')));
     await pumpGardenTransition(tester);
-    await tester.ensureVisible(find.text('Read'));
+    await tester.scrollUntilVisible(find.text('Read'), 120,
+        scrollable: find
+            .descendant(
+                of: find.byType(ChecklistPage),
+                matching: find.byType(Scrollable))
+            .first);
     await pumpGardenTransition(tester);
     await tester.tap(find.text('Read'));
     await pumpGardenTransition(tester);
@@ -286,7 +397,13 @@ void main() {
     await waitForGardenReady(tester);
     await tester.tap(find.byKey(const ValueKey('tab-1')));
     await pumpGardenTransition(tester);
-    await tester.ensureVisible(find.byKey(const ValueKey('increment-h')));
+    await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('increment-h')), 120,
+        scrollable: find
+            .descendant(
+                of: find.byType(ChecklistPage),
+                matching: find.byType(Scrollable))
+            .first);
     expect(find.byKey(const ValueKey('increment-h')), findsOneWidget);
     expect(find.byKey(const ValueKey('focus-h')), findsNothing);
     expect(tester.takeException(), isNull);
@@ -327,7 +444,13 @@ void main() {
     await pumpGardenTransition(tester);
     for (final seconds in [90, 120, 120]) {
       if (seconds != 90) await checkpoint(seconds);
-      await tester.ensureVisible(find.byKey(const ValueKey('focus-h')));
+      await tester.scrollUntilVisible(
+          find.byKey(const ValueKey('focus-h')), 120,
+          scrollable: find
+              .descendant(
+                  of: find.byType(ChecklistPage),
+                  matching: find.byType(Scrollable))
+              .first);
       await pumpGardenTransition(tester);
       await tester.tap(find.byKey(const ValueKey('focus-h')));
       await pumpGardenTransition(tester);

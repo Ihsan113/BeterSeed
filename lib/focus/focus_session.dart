@@ -44,6 +44,10 @@ class FocusSession extends ChangeNotifier {
   }
 
   void reset() {
+    if (reachedTarget) {
+      pause();
+      return;
+    }
     _started = null;
     _elapsed = 0;
     notifyListeners();

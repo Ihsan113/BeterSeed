@@ -2,6 +2,7 @@ import 'dart:async';
 import 'planner_status.dart';
 export 'habit_editor.dart';
 import 'habit_editor.dart';
+import 'habit_manager_page.dart';
 import 'checklist_pickers.dart';
 import 'checklist_detail.dart';
 import 'checklist_style.dart';
@@ -23,8 +24,12 @@ class ChecklistPage extends StatefulWidget {
       required this.onChanged,
       required this.masterEnabled,
       required this.onEnableMaster,
+      this.onManageChanged,
+      this.managementScope = 'guest',
       this.onOpenSettings,
       this.onStartFocus});
+  final Future<void> Function(List<Habit>, String owner)? onManageChanged;
+  final String managementScope;
   final VoidCallback? onOpenSettings;
   final ValueChanged<Habit>? onStartFocus;
   final List<Habit> habits;
@@ -39,9 +44,11 @@ class ChecklistPage extends StatefulWidget {
 class _ChecklistPageState extends State<ChecklistPage> {
   DateTime selected = DateTime.now();
   Timer? clock;
+  late final ValueNotifier<List<Habit>> library;
   @override
   void initState() {
     super.initState();
+    library = ValueNotifier(widget.habits);
     clock = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -50,6 +57,7 @@ class _ChecklistPageState extends State<ChecklistPage> {
   @override
   void dispose() {
     clock?.cancel();
+    library.dispose();
     super.dispose();
   }
 
@@ -58,6 +66,10 @@ class _ChecklistPageState extends State<ChecklistPage> {
   @override
   void didUpdateWidget(covariant ChecklistPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // The manager lives on another route; notify it after the parent build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) library.value = List<Habit>.of(widget.habits);
+    });
     final now = DateTime.now();
     if (checklistDay(now) != observedDay) {
       if (day == observedDay) selected = now;
@@ -114,25 +126,24 @@ class _ChecklistPageState extends State<ChecklistPage> {
   }
 
   Future<void> manageHabits() async {
-    final selected = await plannerSheet<Habit>(
+    final owner = widget.managementScope;
+    await Navigator.push<void>(
         context,
-        'Manage habits',
-        (context) => Column(children: [
-              for (final h in widget.habits.where((h) => !data(h).archived))
-                ListTile(
-                    leading: Icon(habitIcon(h.iconKey)),
-                    title: Text(h.title),
-                    subtitle: Text(context.tr(
-                        data(h).today(DateTime.now()).scheduled
-                            ? data(h).category
-                            : 'Not scheduled')),
-                    trailing: const Icon(Icons.edit_outlined),
-                    onTap: () => Navigator.pop(context, h)),
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(context.tr('Close'))),
-            ]));
-    if (mounted && selected != null) await compose(initial: selected);
+        MaterialPageRoute(
+          builder: (_) => HabitManagerPage(
+            habits: library,
+            scope: () => widget.managementScope,
+            masterEnabled: () => widget.masterEnabled,
+            onEnableMaster: () => widget.onEnableMaster(),
+            onChanged: (habits) async {
+              if (widget.onManageChanged != null) {
+                await widget.onManageChanged!(habits, owner);
+              } else {
+                widget.onChanged(habits);
+              }
+            },
+          ),
+        ));
   }
 
   Future<void> calendar() async {
@@ -719,6 +730,15 @@ class _ChecklistPageState extends State<ChecklistPage> {
                                                 : Colors.transparent)
                                       ])))
                       ])),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('manage-habits'),
+                      onPressed: manageHabits,
+                      icon: const Icon(Icons.view_list_outlined, size: 20),
+                      label: Text(context.tr('Manage all')),
+                    ),
+                  ),
                   Row(children: [
                     Expanded(
                         child: Text(context.tr('Your routine'),
@@ -734,12 +754,6 @@ class _ChecklistPageState extends State<ChecklistPage> {
                             arranging ? Icons.check_rounded : Icons.swap_vert,
                             size: 20,
                             color: checklistMuted)),
-                    IconButton(
-                        key: const ValueKey('manage-habits'),
-                        tooltip: context.tr('Manage habits'),
-                        onPressed: manageHabits,
-                        icon: const Icon(Icons.edit_calendar_outlined,
-                            size: 20, color: checklistMuted)),
                     IconButton(
                         tooltip: context.tr('Templates'),
                         onPressed: templates,
