@@ -13,6 +13,7 @@ import { syncRoutes } from "./sync.js";
 import { legalRoutes } from "./legal.js";
 import { ApiError, rateLimit } from "./security.js";
 import { rows } from "./db.js";
+import { apiPath, installIngress, notificationPath } from "./ingress.js";
 export async function buildApp(c: Config, pool: Pool, p: Providers) {
   const app = Fastify({
     bodyLimit: 4 * 1024 * 1024,
@@ -32,11 +33,12 @@ export async function buildApp(c: Config, pool: Pool, p: Providers) {
     requestTimeout: 30000,
   });
   await app.register(helmet);
+  installIngress(app);
   const gate = new DatabaseGate(c);
   const held = new WeakMap<FastifyRequest, () => Promise<void>>();
-  app.addHook("onRequest", async (r) => {
+  app.addHook("preHandler", async (r) => {
     // Restore authenticates first, then obtains its exclusive gate in the handler.
-    const path = r.url.split("?")[0];
+    const path = apiPath(r);
     if ((path?.startsWith("/v1/") || path?.startsWith("/admin/api/")) &&
         path !== "/admin/api/database/restore") held.set(r, await gate.acquire());
   });
@@ -48,14 +50,16 @@ export async function buildApp(c: Config, pool: Pool, p: Providers) {
   app.addHook("onClose", () => gate.close());
   const auth = new Auth(pool, c, p),
     billing = new Billing(auth);
-  app.addHook("onRequest", async (r, reply) => {
-    reply.header("Cache-Control", "no-store");
-    if (r.url.startsWith("/v1/") && r.url !== "/v1/billing/notifications") {
+  app.addHook("preHandler", async (r) => {
+    // DB-backed limits stay inside the shared maintenance gate. In-memory
+    // admission above protects the gate without writing during a restore.
+    const path = apiPath(r);
+    if (path.startsWith("/v1/") && path !== notificationPath) {
       await rateLimit(
         pool,
         c,
         "ip:" + r.ip,
-        r.url.startsWith("/v1/auth/") ? 40 : 180,
+        path.startsWith("/v1/auth/") ? 40 : 180,
         60,
       );
     }

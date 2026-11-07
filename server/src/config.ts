@@ -26,7 +26,7 @@ const envSchema = z.object({
   LEGAL_VERSION: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .default("2026-10-28"),
+    .default("2026-11-07"),
 });
 export type Config = z.infer<typeof envSchema>;
 export function configFromEnv(env = process.env): Config {

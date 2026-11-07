@@ -67,14 +67,16 @@ const p: Providers = {
 let system: Awaited<ReturnType<typeof buildApp>>;
 before(async () => {
   await migrate(pool);
-  system = await buildApp(c, pool, p);
-  await system.app.ready();
 });
 after(async () => {
-  await system.app.close();
+  if (system) await system.app.close();
   await pool.end();
 });
 beforeEach(async () => {
+  // Isolate both process-local admission counters and persistent DB fixtures.
+  if (system) await system.app.close();
+  system = await buildApp(c, pool, p);
+  await system.app.ready();
   await exec(pool, "DELETE FROM admin_users");
   await exec(pool, "DELETE FROM admin_audit");
   await exec(pool, "DELETE FROM users");
@@ -158,6 +160,33 @@ const mutation = (n: number, snapshot = garden, baseRevision = 0) => ({
   baseRevision,
   snapshot,
 });
+test("RTDN overload is retryable, preserves app capacity, and never skips verification", { timeout: 10000 }, async (t) => {
+  const original = p.verifyNotification;
+  let finish!: () => void;
+  let filled!: () => void;
+  const barrier = new Promise<void>((resolve) => { finish = resolve; });
+  const ready = new Promise<void>((resolve) => { filled = resolve; });
+  let calls = 0;
+  p.verifyNotification = async (token) => {
+    await original(token);
+    if (++calls === 4) filled();
+    await barrier;
+  };
+  t.after(() => { finish(); p.verifyNotification = original; });
+  const body = { message: { data: Buffer.from(JSON.stringify({ packageName: c.GOOGLE_PLAY_PACKAGE_NAME, testNotification: { version: "1.0" } })).toString("base64") } };
+  const send = () => request("POST", "/v1/billing/notifications?delivery=test", body, "valid-pubsub");
+  const pending = Array.from({ length: 4 }, send);
+  await ready;
+  assert.equal((await send()).status, 503);
+  assert.equal(calls, 4);
+  assert.equal((await request("GET", "/v1/config")).status, 200);
+  finish();
+  assert.ok((await Promise.all(pending)).every((r) => r.status === 200));
+  assert.equal((await send()).status, 200);
+  assert.equal(calls, 5);
+  assert.equal((await request("POST", "/v1/billing/notifications", body)).status, 401);
+});
+
 test("email registration requires verification; OTP is single use and secrets are protected", async () => {
   const r = await request("POST", "/v1/auth/register", {
     email: "a@example.com",

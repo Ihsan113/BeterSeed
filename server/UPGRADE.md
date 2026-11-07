@@ -1,3 +1,18 @@
+# Audit follow-up — backend 1.4.1 / app 1.11.2+66
+
+Read `AUDIT_FOLLOWUP_2026_11_07.md` in the ZIP (or
+`../docs/AUDIT_FOLLOWUP_2026_11_07.md`). This patch adds process-local admission
+before DB access and dedicated RTDN throttling. Limits and retry behavior must
+be checked against staging traffic, replica count and trusted proxy settings.
+There is no SQL migration or Snapshot change from 1.4.0.
+
+After reviewing the clarified backup wording, publish privacy/terms with
+`LEGAL_VERSION=2026-11-07` in the authorized deployment. Existing environment
+values override the new default; do not replace the production environment file.
+Deploy API and worker together using the native systemd guards below, with
+independent source/database backups and runtime entrypoint checks. The source
+patch and APK alone do not update the VPS. Production current state unverified.
+
 # Checklist & Statistics 2.1 candidate — backend 1.4.0 / Snapshot v3
 
 Snapshot v3 and local backend tests were approved on 2026-11-06. Read

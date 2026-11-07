@@ -1,6 +1,6 @@
 # BetterSeed backend
 
-**Server 1.3.1 / app 1.8.1+60:** dashboard admin ada di `/admin`. Untuk instalasi VPS yang sudah berjalan, ikuti [UPGRADE.md](UPGRADE.md) terlebih dahulu. Akun admin dibuat dengan CLI interaktif dan wajib memakai authenticator; tidak ada password bawaan. Folder `public/admin/` harus disertakan saat deploy.
+**Server 1.4.1 / app 1.11.2+66:** dashboard admin ada di `/admin`. Untuk instalasi VPS yang sudah berjalan, ikuti [UPGRADE.md](UPGRADE.md) terlebih dahulu. Akun admin dibuat dengan CLI interaktif dan wajib memakai authenticator; tidak ada password bawaan. Folder `public/admin/` harus disertakan saat deploy.
 
 ## Admin transfer tools
 

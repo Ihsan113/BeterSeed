@@ -1,3 +1,12 @@
+## v1.11.2+66 / backend 1.4.1 — Audit follow-up
+
+- Add bounded in-memory API admission before database access; malformed and oversized request bodies no longer occupy a database gate connection.
+- Reserve separate concurrent capacity and retryable rate limits for RTDN notifications; preserve verification and purchase processing.
+- Clarify Android backup and device transfer in privacy/terms; secure login tokens remain excluded.
+- Pin GitHub Actions to verified commit SHAs and Flutter/Node CI versions.
+- Keep Snapshot v3 and SQL schema unchanged. Backend fixes need a separately approved VPS deployment; no production change was performed.
+- App version/build metadata increased; no habit, garden, timer or UI behavior changed.
+
 ## v1.11.1+65 — Permanent habit deletion
 
 - Add reviewed permanent deletion for individual or selected active/archived habits in All habits.

@@ -1,3 +1,11 @@
+# BetterSeed 1.11.2+66 / backend 1.4.1 — Tindak lanjut audit
+
+Admission API sebelum akses database, batas khusus notifikasi pembayaran,
+penjelasan backup Android, dan pin versi CI. Lihat
+[temuan, perubahan, batasan dan hasil pengujian](docs/AUDIT_FOLLOWUP_2026_11_07.md).
+Kontrak Snapshot v3 dan schema SQL tetap; perbaikan server memerlukan deployment
+VPS terpisah setelah persetujuan. Belum ada perubahan produksi.
+
 # BetterSeed 1.11.1+65 — Hapus permanen kebiasaan
 
 **Daftar Harian → Kelola Semua → menu kebiasaan → Hapus permanen.**

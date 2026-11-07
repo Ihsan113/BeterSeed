@@ -54,7 +54,7 @@ class LocalGardenPack {
 }
 
 class GardenPackRegistry {
-  static const appBuild = 65;
+  static const appBuild = 66;
   static const packs = <LocalGardenPack>[
     LocalGardenPack(
         id: 'default',

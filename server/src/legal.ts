@@ -13,7 +13,7 @@ export function legalDocuments(c: Config) {
         title: "Privacy policy",
         body: `BetterSeed is operated by ${operator}. Contact: ${contact}.
 
-Guest use: your garden stays on your device. Android may back up app preferences according to your device settings. Manual exports are controlled by you.
+Guest use: your garden is stored locally and is not automatically uploaded to BetterSeed servers. Android may back up or transfer app preferences, including habit titles, history and locally cached garden/account profiles, according to your device settings. Login tokens are excluded from Android backup. Manual exports are controlled by you.
 
 Account data: for email accounts we store your email, a password hash, and verification status. For Google accounts we store your Google identifier and email; we do not receive your Google password or request Drive access. We store accepted terms version, login sessions, encrypted authenticator secrets, hashed recovery codes, and temporary verification challenges to secure your account.
 
@@ -39,7 +39,7 @@ You must meet the applicable minimum age for an online account (at least 13) and
 
 BetterSeed supports personal habit tracking and relaxation. It is not medical advice or a guarantee of health, productivity, or financial results.
 
-Guest data stays on your device and is not automatically uploaded. Account sync needs connectivity. When two devices change the same saved version, you choose which version to keep; the app preserves a local recovery copy. Export important data before changing devices. Local audio and device permissions are not synced.
+Guest data is not automatically uploaded to BetterSeed servers. Android backup and device transfer may copy local app preferences according to your device settings, as described in the privacy policy. Account sync needs connectivity. When two devices change the same saved version, you choose which version to keep; the app preserves a local recovery copy. Export important data before changing devices. Local audio and device permissions are not synced.
 
 Leaf Coins are virtual credits usable only in BetterSeed. Purchase prices are shown by Google Play. Coins are added after payment confirmation and linked to your BetterSeed account. Sign in to the same account to see your balance and unlocked packs on another device. Do not buy while signed in to someone else's account. Refunds and chargebacks remove the corresponding coins; spending refunded coins may leave a negative balance and block further unlocks until covered. Existing pack unlocks are not automatically resold or transferable. Google Play refund policies and mandatory consumer rights apply.
 
