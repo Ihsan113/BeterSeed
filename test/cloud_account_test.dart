@@ -238,6 +238,46 @@ void main() {
     expect(account.dirty, false);
   });
 
+  test(
+      'syncing permanent deletion survives lost reply and restart without restoring removed habit',
+      () async {
+    server.supportsChecklist = true;
+    server.supportsPlanner = true;
+    await account.initialize(garden(10), garden(0));
+    await account.acceptSession(session('a'));
+    await account.sync();
+    final before = {
+      ...garden(10),
+      'version': 3,
+      'habits': [
+        {'id': 'removed'}
+      ],
+      'progress': {
+        ...garden(10)['progress'] as Map,
+        'credited': {
+          '2026-11-07': ['removed']
+        }
+      }
+    };
+    await account.capture(before);
+    await account.sync();
+    final deleted = {...before, 'habits': <dynamic>[]};
+    await account.capture(deleted);
+    server.loseNextReply = true;
+    await account.sync();
+    expect(account.dirty, true);
+    final mutation = server.writes.last['mutationId'];
+    account.dispose();
+    account = create();
+    await account.initialize(garden(0), garden(0));
+    await account.sync();
+    expect(server.writes.last['mutationId'], mutation);
+    expect(server.gardens['a']!['snapshot'], deleted);
+    expect(account.currentGarden!['habits'], isEmpty);
+    expect(account.currentGarden!['progress'], before['progress']);
+    expect(account.dirty, false);
+  });
+
   test('unlock sends exact reviewed quote and never grants on a price conflict',
       () async {
     await account.initialize(garden(5), garden(0));

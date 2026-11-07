@@ -143,6 +143,17 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('library-status-archived')));
     await capture('Arsip_Kebiasaan');
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('library-actions-journal')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('library-actions-journal')));
+    await capture('Hapus_Permanen_Menu');
+    await tester.tap(find.text('Hapus permanen'));
+    await capture('Hapus_Permanen_Konfirmasi');
+    await tester.tap(find.byKey(const ValueKey('confirm-delete-habits')));
+    await tester.pumpAndSettle();
+    expect(source.value.any((h) => h.id == 'journal'), false);
+    await capture('Arsip_Setelah_Hapus');
     await tester.pumpWidget(const SizedBox());
   });
 }

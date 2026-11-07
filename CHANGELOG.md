@@ -1,3 +1,12 @@
+## v1.11.1+65 — Permanent habit deletion
+
+- Add reviewed permanent deletion for individual or selected active/archived habits in All habits.
+- Remove the habit and its history; preserve earned water, tree XP and the once-per-date credit ledger.
+- Reject stale destructive confirmations and account changes; retain unselected/new habits.
+- Clear the deleted habit's local focus checkpoint after persistence and send the new list through the existing Android reminder rescheduler.
+- Preserve the existing cloud snapshot version even after deleting the last planner habit; no schema/backend change.
+- Localize confirmation, consequences and destructive actions in all seven languages.
+
 ## v1.11.0+64 — Global habit management
 
 - Keep Focus Timer Reset visible but disabled when the daily target is reached; preserve completed time across recovery and save retries. Partial-session reset still works.

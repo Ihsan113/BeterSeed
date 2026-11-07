@@ -89,3 +89,11 @@ class Habit {
             .toInt(),
       );
 }
+
+/// Removing the final planner habit must not downgrade an existing cloud account.
+int habitSnapshotVersion(Iterable<Habit> habits, {int previous = 1}) =>
+    previous >= 3 || habits.any((h) => h.requiresPlannerV3)
+        ? 3
+        : previous >= 2 || habits.any((h) => h.checklist != null)
+            ? 2
+            : 1;

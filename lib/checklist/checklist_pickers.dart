@@ -402,15 +402,25 @@ class NumericGoalSheet {
 }
 
 class HabitActionSheet {
-  static Future<String?> show(BuildContext context, List<String> actions) =>
+  static Future<String?> show(BuildContext context, List<String> actions,
+          {Set<String> destructiveActions = const {}}) =>
       plannerSheet<String>(
           context,
           'Habit actions',
           (context) => Column(children: [
                 for (final action in actions)
                   ListTile(
-                      title: Text(context.tr(action)),
-                      trailing: const Icon(Icons.chevron_right),
+                      title: Text(context.tr(action),
+                          style: destructiveActions.contains(action)
+                              ? const TextStyle(color: Color(0xFFE9AA9A))
+                              : null),
+                      trailing: Icon(
+                          destructiveActions.contains(action)
+                              ? Icons.delete_outline
+                              : Icons.chevron_right,
+                          color: destructiveActions.contains(action)
+                              ? const Color(0xFFE9AA9A)
+                              : null),
                       onTap: () => Navigator.pop(context, action)),
                 TextButton(
                     onPressed: () => Navigator.pop(context),

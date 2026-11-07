@@ -811,5 +811,10 @@
   "Saving changes": "Menyimpan perubahan",
   "{p0} minutes": "{p0} menit",
   "Filters": "Filter",
-  "Sort": "Urutkan"
+  "Sort": "Urutkan",
+  "Delete permanently?": "Hapus permanen?",
+  "These habits, their history and reminders will be removed. Habit statistics will change. Earned water and Garden XP stay.": "Kebiasaan, riwayat, dan pengingatnya akan dihapus. Statistik kebiasaan akan berubah. Air yang diperoleh dan XP taman tetap tersimpan.",
+  "This cannot be undone here. Older backups may still contain these habits.": "Tindakan ini tidak dapat dibatalkan di sini. Cadangan lama mungkin masih memuat kebiasaan ini.",
+  "Habits deleted": "Kebiasaan dihapus",
+  "Selected habits: {p0}": "Kebiasaan dipilih: {p0}"
 }

@@ -114,7 +114,7 @@
   "Default forest piano": "Integriertes Waldklavier",
   "Delete account permanently": "Konto dauerhaft löschen",
   "Delete account permanently?": "Konto dauerhaft löschen?",
-  "Delete permanently": "Dauerhaft löschen",
+  "Delete permanently": "Endgültig löschen",
   "Delivery is still pending. Retry without buying again.": "Zustellung ausstehend. Erneut versuchen, ohne nochmals zu kaufen.",
   "Disable": "Deaktivieren",
   "Done": "Fertig",
@@ -811,5 +811,10 @@
   "Saving changes": "Änderungen werden gespeichert",
   "{p0} minutes": "{p0} Minuten",
   "Filters": "Filter",
-  "Sort": "Sortieren"
+  "Sort": "Sortieren",
+  "Delete permanently?": "Endgültig löschen?",
+  "These habits, their history and reminders will be removed. Habit statistics will change. Earned water and Garden XP stay.": "Diese Gewohnheiten, ihr Verlauf und ihre Erinnerungen werden entfernt. Die Gewohnheitsstatistik ändert sich. Verdientes Wasser und Garten-XP bleiben erhalten.",
+  "This cannot be undone here. Older backups may still contain these habits.": "Dies kann hier nicht rückgängig gemacht werden. Ältere Backups können diese Gewohnheiten noch enthalten.",
+  "Habits deleted": "Gewohnheiten gelöscht",
+  "Selected habits: {p0}": "Ausgewählte Gewohnheiten: {p0}"
 }

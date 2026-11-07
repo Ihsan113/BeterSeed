@@ -811,5 +811,10 @@
   "Saving changes": "Saving changes",
   "{p0} minutes": "{p0} minutes",
   "Filters": "Filters",
-  "Sort": "Sort"
+  "Sort": "Sort",
+  "Delete permanently?": "Delete permanently?",
+  "These habits, their history and reminders will be removed. Habit statistics will change. Earned water and Garden XP stay.": "These habits, their history and reminders will be removed. Habit statistics will change. Earned water and Garden XP stay.",
+  "This cannot be undone here. Older backups may still contain these habits.": "This cannot be undone here. Older backups may still contain these habits.",
+  "Habits deleted": "Habits deleted",
+  "Selected habits: {p0}": "Selected habits: {p0}"
 }

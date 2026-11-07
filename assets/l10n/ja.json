@@ -811,5 +811,10 @@
   "Saving changes": "変更を保存中",
   "{p0} minutes": "{p0}分",
   "Filters": "絞り込み",
-  "Sort": "並べ替え"
+  "Sort": "並べ替え",
+  "Delete permanently?": "完全に削除しますか？",
+  "These habits, their history and reminders will be removed. Habit statistics will change. Earned water and Garden XP stay.": "これらの習慣、履歴、リマインダーが削除され、習慣の統計が変わります。獲得した水と庭のXPは保持されます。",
+  "This cannot be undone here. Older backups may still contain these habits.": "ここでは元に戻せません。古いバックアップにはこれらの習慣が残っている場合があります。",
+  "Habits deleted": "習慣を削除しました",
+  "Selected habits: {p0}": "選択した習慣：{p0}件"
 }

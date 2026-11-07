@@ -806,12 +806,8 @@ class _GrowthHomeState extends State<GrowthHome>
   }
 
   GardenData _cloudSnapshot() => {
-        'version': _habits.any((h) => h.requiresPlannerV3) ||
-                (_cloud.currentGarden?['version'] ?? 1) >= 3
-            ? 3
-            : _habits.any((h) => h.checklist != null)
-                ? 2
-                : 1,
+        'version': habitSnapshotVersion(_habits,
+            previous: (_cloud.currentGarden?['version'] as int?) ?? 1),
         'habits': _habits.map((h) => h.toJson()).toList(),
         'progress': _progress.toJson(),
         'day': _today,
@@ -3675,6 +3671,9 @@ class _GrowthHomeState extends State<GrowthHome>
     final initialHabits = _habits;
     final previous = {for (final h in _habits) h.id: h};
     final owner = _cloud.userId ?? 'guest';
+    final remainingIds = habits.map((h) => h.id).toSet();
+    final removedIds =
+        previous.keys.where((id) => !remainingIds.contains(id)).toList();
     try {
       final store = FocusSessionStore(owner);
       for (final h in habits) {
@@ -3710,6 +3709,12 @@ class _GrowthHomeState extends State<GrowthHome>
     });
     try {
       await _save();
+      // Delete local recovery only after habit deletion has persisted. The
+      // store is scoped to the original owner even if the account changes.
+      final store = FocusSessionStore(owner);
+      for (final id in removedIds) {
+        await store.clear(id);
+      }
     } catch (_) {
       if (management) rethrow;
       if (mounted)

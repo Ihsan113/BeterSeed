@@ -87,7 +87,8 @@ class _HabitManagerPageState extends State<HabitManagerPage> {
         selecting = false;
       });
 
-  Future<bool> save(List<Habit> next) async {
+  Future<bool> save(List<Habit> next,
+      {String success = 'Changes saved'}) async {
     if (busy || !sameScope) return false;
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => busy = true);
@@ -99,7 +100,7 @@ class _HabitManagerPageState extends State<HabitManagerPage> {
         selecting = false;
         reordering = false;
       });
-      notice('Changes saved');
+      notice(success);
       return true;
     } catch (_) {
       notice('Changes could not be saved. Please try again.');
@@ -156,8 +157,79 @@ class _HabitManagerPageState extends State<HabitManagerPage> {
     return accepted == true && mounted && sameScope;
   }
 
+  Future<void> deleteHabits(Set<String> ids) async {
+    if (busy || !sameScope || ids.isEmpty) return;
+    final chosen = {
+      for (final h in items)
+        if (ids.contains(h.id)) h.id: h
+    };
+    if (chosen.length != ids.length) {
+      notice('Habits changed. Review your selection and try again.');
+      return;
+    }
+    final reviewed = {
+      for (final e in chosen.entries) e.key: jsonEncode(e.value.toJson())
+    };
+    final accepted = await plannerSheet<bool>(
+        context,
+        'Delete permanently?',
+        (context) =>
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text(context.tr('Selected habits: {p0}', {'p0': chosen.length})),
+              const SizedBox(height: 12),
+              for (final h in chosen.values.take(5))
+                Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(h.title)),
+              if (chosen.length > 5)
+                Text(context.tr('And {p0} more', {'p0': chosen.length - 5})),
+              const SizedBox(height: 12),
+              Text(context.tr(
+                  'These habits, their history and reminders will be removed. Habit statistics will change. Earned water and Garden XP stay.')),
+              const SizedBox(height: 8),
+              Text(
+                  context.tr(
+                      'This cannot be undone here. Older backups may still contain these habits.'),
+                  style: const TextStyle(color: checklistMuted, fontSize: 12)),
+              const SizedBox(height: 20),
+              Row(children: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(context.tr('Cancel'))),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: FilledButton(
+                        key: const ValueKey('confirm-delete-habits'),
+                        style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFE9AA9A),
+                            foregroundColor: checklistBackground),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text(context.tr('Delete permanently'),
+                            textAlign: TextAlign.center))),
+              ]),
+            ]));
+    if (!mounted || accepted != true || !sameScope || busy) return;
+    // A destructive confirmation applies to the exact habits reviewed. Preserve
+    // new/unselected habits and reject selected items changed during the dialog.
+    final latest = {for (final h in items) h.id: h};
+    if (chosen.entries.any((e) =>
+        latest[e.key] == null ||
+        jsonEncode(latest[e.key]!.toJson()) != reviewed[e.key])) {
+      notice('Habits changed. Review your selection and try again.');
+      return;
+    }
+    await save([
+      for (final h in items)
+        if (!ids.contains(h.id)) h
+    ], success: 'Habits deleted');
+  }
+
   Future<void> action(String action, Set<String> ids) async {
     if (busy || !sameScope || ids.isEmpty) return;
+    if (action == 'Delete permanently') {
+      await deleteHabits(ids);
+      return;
+    }
     // Re-read latest values after every dialog; never write a captured whole list.
     String? newCategory;
     Set<int>? days;
@@ -201,7 +273,10 @@ class _HabitManagerPageState extends State<HabitManagerPage> {
       'Turn off reminders',
       if (chosen.any((h) => !libraryData(h, now).archived)) 'Archive habits',
       if (chosen.any((h) => libraryData(h, now).archived)) 'Restore habits',
-    ]);
+      'Delete permanently',
+    ], destructiveActions: const {
+      'Delete permanently'
+    });
     if (result != null && mounted) await action(result, ids);
   }
 
@@ -209,8 +284,11 @@ class _HabitManagerPageState extends State<HabitManagerPage> {
     if (busy || !sameScope) return;
     final result = await HabitActionSheet.show(context, [
       'Edit habit',
-      libraryData(h, now).archived ? 'Restore habits' : 'Archive habits'
-    ]);
+      libraryData(h, now).archived ? 'Restore habits' : 'Archive habits',
+      'Delete permanently',
+    ], destructiveActions: const {
+      'Delete permanently'
+    });
     if (!mounted || result == null) return;
     if (result == 'Edit habit') {
       await edit(h);

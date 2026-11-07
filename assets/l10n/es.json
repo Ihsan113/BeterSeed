@@ -811,5 +811,10 @@
   "Saving changes": "Guardando cambios",
   "{p0} minutes": "{p0} minutos",
   "Filters": "Filtros",
-  "Sort": "Ordenar"
+  "Sort": "Ordenar",
+  "Delete permanently?": "¿Eliminar permanentemente?",
+  "These habits, their history and reminders will be removed. Habit statistics will change. Earned water and Garden XP stay.": "Se eliminarán estos hábitos, su historial y sus recordatorios. Las estadísticas cambiarán. El agua ganada y el XP del jardín se conservan.",
+  "This cannot be undone here. Older backups may still contain these habits.": "Esta acción no se puede deshacer aquí. Las copias de seguridad anteriores pueden conservar estos hábitos.",
+  "Habits deleted": "Hábitos eliminados",
+  "Selected habits: {p0}": "Hábitos seleccionados: {p0}"
 }

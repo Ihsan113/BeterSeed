@@ -1,3 +1,11 @@
+# BetterSeed 1.11.1+65 — Hapus permanen kebiasaan
+
+**Daftar Harian → Kelola Semua → menu kebiasaan → Hapus permanen.**
+Mendukung satu atau beberapa kebiasaan, termasuk arsip. Konfirmasi menjelaskan
+penghapusan histori dan perubahan statistik; air dan XP taman tetap tersimpan.
+Lihat [perilaku, kontrak data, dan pengujian](docs/HABIT_DELETE.md).
+Tidak memerlukan perubahan backend tambahan atau migrasi database.
+
 # BetterSeed 1.11.0+64 — Semua Kebiasaan
 
 Kelola seluruh kebiasaan melalui **Daftar Harian → Kelola Semua**, termasuk

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:betterseed/main.dart';
+import 'package:betterseed/statistics/planner_insights.dart';
 import 'package:betterseed/checklist/checklist_data.dart';
 import 'package:betterseed/checklist/habit_manager_page.dart';
 import 'package:betterseed/checklist/checklist_page.dart';
@@ -205,6 +206,118 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(milliseconds: 400));
   });
+
+  for (final version in [2, 3]) {
+    testWidgets(
+        'delete last v$version habit persists empty list, cancels reminder and clears only its checkpoint',
+        (tester) async {
+      final now = DateTime.now(), day = checklistDay(DateTime.now());
+      final data = ChecklistData(
+              start: day,
+              plan: HabitPlan(
+                  type: 'duration',
+                  target: 5,
+                  activityMinute: version == 3 ? 420 : null))
+          .advance(now);
+      final water = WaterProgress()
+        ..earnForHabit(day, 'read')
+        ..waterTree();
+      SharedPreferences.setMockInitialValues({
+        'betterseed_motion_v2': false,
+        'betterseed_music_v2': false,
+        'betterseed_sfx_v2': false,
+        'betterseed_day_v1': day,
+        'betterseed_habits_v1': jsonEncode([
+          Habit(
+                  id: 'read',
+                  title: 'Read',
+                  checklist: data,
+                  reminderEnabled: true)
+              .toJson()
+        ]),
+        'betterseed_water_progress_v3': jsonEncode(water.toJson()),
+      });
+      final checkpoints = FocusSessionStore('guest'),
+          other = FocusSessionStore('other-account');
+      final draft = FocusSession(
+          habitId: 'read',
+          day: day,
+          targetMinutes: 5,
+          baseSeconds: 0,
+          elapsedMilliseconds: 20000);
+      await checkpoints.save(draft);
+      await other.save(draft);
+      draft.dispose();
+      final reminders = <List>[];
+      messenger.setMockMethodCallHandler(
+          const MethodChannel('betterseed/device_features'), (call) async {
+        if (call.method == 'syncHabitReminders')
+          reminders.add((call.arguments as Map)['habits'] as List);
+        return null;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(
+          const MethodChannel('betterseed/device_features'), null));
+      await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+      await waitForGardenReady(tester);
+      await tester.tap(find.byKey(const ValueKey('tab-1')));
+      await pumpGardenTransition(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('manage-habits')));
+      await pumpGardenTransition(tester);
+      await tester.tap(find.byKey(const ValueKey('manage-habits')));
+      await pumpGardenTransition(tester);
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('library-actions-read')));
+      await pumpGardenTransition(tester);
+      await tester.tap(find.byKey(const ValueKey('library-actions-read')));
+      await pumpGardenTransition(tester);
+      await tester.tap(find.text('Delete permanently'));
+      await pumpGardenTransition(tester);
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('confirm-delete-habits')));
+      await pumpGardenTransition(tester);
+      await tester.tap(find.byKey(const ValueKey('confirm-delete-habits')));
+      await tester.pump(const Duration(milliseconds: 450));
+      for (var i = 0;
+          i < 80 &&
+              find.byType(CircularProgressIndicator).evaluate().isNotEmpty;
+          i++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      await pumpGardenTransition(tester);
+      expect(find.text('Habits deleted'), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      expect(jsonDecode(prefs.getString('betterseed_habits_v1')!), isEmpty);
+      expect(jsonDecode(prefs.getString('betterseed_water_progress_v3')!),
+          water.toJson());
+      expect(await checkpoints.read('read'), isNull);
+      final otherDraft = await other.read('read');
+      expect(otherDraft!.elapsedSeconds, 20);
+      otherDraft.dispose();
+      expect(reminders.last, isEmpty);
+      await tester.pageBack();
+      await pumpGardenTransition(tester);
+      await tester.tap(find.byKey(const ValueKey('tab-2')));
+      await pumpGardenTransition(tester);
+      final stats = tester.widget<StatisticsPage>(find.byType(StatisticsPage));
+      expect(stats.habits, isEmpty);
+      expect(PlannerInsights(stats.habits, now, 30).total.completed, 0);
+      expect(stats.progress.toJson(), water.toJson());
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpWidget(const BetterSeedApp(showLaunchFlow: false));
+      await waitForGardenReady(tester);
+      await tester.tap(find.byKey(const ValueKey('tab-1')));
+      await pumpGardenTransition(tester);
+      expect(tester.widget<ChecklistPage>(find.byType(ChecklistPage)).habits,
+          isEmpty);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 400));
+    });
+  }
 
   testWidgets(
       'habit focus shares Garden geometry, preserves audio and restores system UI',
